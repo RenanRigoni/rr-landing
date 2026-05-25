@@ -56,7 +56,7 @@ export function Navbar() {
     <header className="fixed top-0 left-0 right-0 z-50 flex justify-center pt-5 px-4">
       <nav className="w-full max-w-5xl" aria-label="Navegação principal">
         <div className="glass rounded-pill px-5 py-3 flex items-center justify-between">
-          <a href="#" aria-label="dev.RR: página inicial">
+          <a href="/" aria-label="dev.RR: página inicial">
             <Image
               src="/rr-monocromatico-transp.png"
               alt="dev.RR"
