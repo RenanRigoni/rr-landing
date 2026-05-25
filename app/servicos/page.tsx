@@ -68,10 +68,15 @@ function ServiceCard({
           <p className="text-sm text-content-secondary leading-relaxed">{description}</p>
         </div>
 
-        <div className="flex items-baseline gap-1">
-          <span className="text-xs text-content-muted">R$</span>
-          <span className="font-mono font-medium text-2xl text-content-primary">{price}</span>
-          {period && <span className="text-xs text-content-muted ml-0.5">{period}</span>}
+        <div className="flex flex-col gap-0.5">
+          <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-content-muted">
+            A partir de
+          </span>
+          <div className="flex items-baseline gap-1">
+            <span className="text-xs text-content-muted">R$</span>
+            <span className="font-mono font-medium text-2xl text-content-primary">{price}</span>
+            {period && <span className="text-xs text-content-muted ml-0.5">{period}</span>}
+          </div>
         </div>
 
         <a
