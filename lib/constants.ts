@@ -112,6 +112,104 @@ export const PRICING_PLANS = [
   },
 ] as const
 
+export const EXTRA_SERVICES = [
+  {
+    category: 'Entregáveis rápidos',
+    items: [
+      {
+        icon: 'Link',
+        name: 'Link de bio personalizado',
+        description: 'Página única com todos os seus links — Instagram, WhatsApp, site, cardápio. Substitui o Linktree com identidade visual do seu negócio.',
+        price: '297',
+        period: null,
+        cta: 'Quero meu link de bio',
+      },
+      {
+        icon: 'ForkKnife',
+        name: 'Cardápio digital com QR Code',
+        description: 'Cardápio bonito acessado por QR code. Perfeito para restaurantes, lanchonetes e bares. Fácil de atualizar quando quiser.',
+        price: '697',
+        period: null,
+        cta: 'Quero cardápio digital',
+      },
+      {
+        icon: 'Funnel',
+        name: 'Página de captura de leads',
+        description: 'Formulário que coleta WhatsApp ou e-mail do visitante e te notifica em tempo real. Integra no site existente ou funciona standalone.',
+        price: '497',
+        period: null,
+        cta: 'Quero capturar leads',
+      },
+      {
+        icon: 'EnvelopeSimple',
+        name: 'E-mail profissional',
+        description: 'Configuração de contato@seudominio.com.br via Google Workspace ou Zoho. Você para de usar Gmail para falar com clientes.',
+        price: '297',
+        period: null,
+        cta: 'Quero e-mail profissional',
+      },
+    ],
+  },
+  {
+    category: 'Serviços mensais',
+    items: [
+      {
+        icon: 'ChartBar',
+        name: 'Relatório de presença digital',
+        description: 'Todo mês você recebe um relatório com cliques no WhatsApp, visualizações no Google Empresa e posição local. Sabe o que está funcionando.',
+        price: '147',
+        period: '/mês',
+        cta: 'Quero relatório mensal',
+      },
+      {
+        icon: 'Star',
+        name: 'Gestão de avaliações Google',
+        description: 'Campanha mensal para pedir avaliações dos clientes do seu negócio. Mais reviews = mais visibilidade no Google Maps.',
+        price: '197',
+        period: '/mês',
+        cta: 'Quero mais avaliações',
+      },
+      {
+        icon: 'Wrench',
+        name: 'Manutenção de conteúdo',
+        description: 'Troca de fotos, promoções sazonais, atualização de horários e serviços. Seu site sempre atualizado sem você precisar mexer.',
+        price: '247',
+        period: '/mês',
+        cta: 'Quero manutenção',
+      },
+    ],
+  },
+  {
+    category: 'Projetos completos',
+    items: [
+      {
+        icon: 'SquaresFour',
+        name: 'Site multi-página',
+        description: 'Site completo com até 5 páginas — Home, Sobre, Serviços, Blog e Contato. Copy incluso, domínio e hospedagem configurados.',
+        price: '3.997',
+        period: null,
+        cta: 'Quero site completo',
+      },
+      {
+        icon: 'CalendarCheck',
+        name: 'Integração de agendamento online',
+        description: 'Conecta Google Calendar ou Calendly ao seu site. Clientes agendam sozinhos, você recebe notificação. Ideal para clínicas e salões.',
+        price: '797',
+        period: null,
+        cta: 'Quero agendamento online',
+      },
+      {
+        icon: 'Robot',
+        name: 'Chatbot de boas-vindas no WhatsApp',
+        description: 'Mensagem automática quando alguém te manda WhatsApp fora do horário. Nenhum contato fica sem resposta.',
+        price: '997',
+        period: null,
+        cta: 'Quero chatbot no WhatsApp',
+      },
+    ],
+  },
+] as const
+
 export const FEATURES = [
   {
     icon: 'User',

@@ -9,6 +9,7 @@ import { Benchmark } from '@/components/sections/benchmark'
 import { CaseStudy } from '@/components/sections/case-study'
 import { Guarantee } from '@/components/sections/guarantee'
 import { FAQ } from '@/components/sections/faq'
+import { OutrosServicosteaser } from '@/components/sections/outros-servicos-teaser'
 import { CtaFinal } from '@/components/sections/cta-final'
 import { Footer } from '@/components/sections/footer'
 import { WhatsappFloat } from '@/components/ui/whatsapp-float'
@@ -31,6 +32,9 @@ export default function Home() {
         </AnimateOnScroll>
         <AnimateOnScroll>
           <Pricing />
+        </AnimateOnScroll>
+        <AnimateOnScroll>
+          <OutrosServicosteaser />
         </AnimateOnScroll>
         <AnimateOnScroll>
           <Testimonials />
