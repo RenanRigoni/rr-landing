@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { usePathname } from 'next/navigation'
 import Image from 'next/image'
 import { WhatsappLogo, List, X } from '@phosphor-icons/react'
 import { WHATSAPP_URL } from '@/lib/constants'
@@ -14,6 +15,12 @@ const NAV_LINKS = [
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false)
+  const pathname = usePathname()
+
+  function resolveHref(href: string) {
+    if (href.startsWith('#') && pathname !== '/') return `/${href}`
+    return href
+  }
   const overlayRef = useRef<HTMLDivElement>(null)
   const closeBtnRef = useRef<HTMLButtonElement>(null)
 
@@ -64,7 +71,7 @@ export function Navbar() {
             {NAV_LINKS.map((link) => (
               <a
                 key={link.href}
-                href={link.href}
+                href={resolveHref(link.href)}
                 className="text-sm text-content-secondary font-medium hover:text-content-primary transition-colors duration-200"
               >
                 {link.label}
@@ -123,7 +130,7 @@ export function Navbar() {
               {NAV_LINKS.map((link) => (
                 <a
                   key={link.href}
-                  href={link.href}
+                  href={resolveHref(link.href)}
                   onClick={() => setIsOpen(false)}
                   className="w-full text-center py-4 text-base text-content-primary font-medium border-b border-white/[0.08] last:border-0 hover:text-brand-400 transition-colors duration-200"
                 >
