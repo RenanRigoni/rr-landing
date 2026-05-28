@@ -1001,69 +1001,168 @@
 <section class="section" id="logo" style="background:var(--surface-muted);">
   <div class="container">
     <p class="section-label">04 — Logo</p>
-    <h2 class="section-title">Uso do Logo</h2>
-    <p class="section-desc">Dois arquivos, regras claras.</p>
+    <h2 class="section-title">Sistema de Logo</h2>
+    <p class="section-desc">5 variantes × 3 versões de cor. Arquivos em <span class="mono" style="color:var(--brand-400);">public/logos/</span></p>
 
-    <div class="grid-2">
-      <div class="card" style="display:flex;flex-direction:column;gap:1.25rem;">
-        <p class="badge badge-muted">Colorido</p>
-        <div style="background:#07070F;border-radius:1rem;padding:2.5rem;display:flex;align-items:center;justify-content:center;">
-          <img src="/rr-colorido-transp.png" style="max-height:60px;width:auto;" alt="Logo dev.RR colorido" />
+    <!-- Variantes -->
+    <div style="display:flex;flex-direction:column;gap:1rem;margin-bottom:2rem;">
+
+      <!-- Primary -->
+      <div class="card" style="display:flex;align-items:center;gap:2rem;flex-wrap:wrap;">
+        <div style="flex-shrink:0;min-width:120px;">
+          <p class="mono" style="font-size:.65rem;color:var(--brand-400);letter-spacing:.1em;text-transform:uppercase;margin-bottom:.35rem;">01 — Primary</p>
+          <p style="font-size:.8rem;font-weight:600;margin-bottom:.25rem;">Horizontal</p>
+          <p style="font-size:.75rem;color:var(--content-muted);line-height:1.5;">Website, banners,<br/>email, propostas</p>
         </div>
-        <div>
-          <p style="font-size:.8rem;color:var(--content-muted);">Arquivo: <span class="mono" style="color:var(--brand-400);">rr-colorido-transp.png</span></p>
-          <p style="font-size:.8rem;color:var(--content-muted);margin-top:.25rem;">Uso: fundos escuros, materiais de destaque, hero</p>
+        <div style="display:flex;gap:1rem;flex-wrap:wrap;flex:1;">
+          <div style="background:#07070F;border-radius:.75rem;padding:1.25rem 2rem;display:flex;align-items:center;justify-content:center;flex:1;min-width:160px;">
+            <img src="logos/logo-primary-color.svg" style="height:36px;width:auto;" alt="logo-primary-color" />
+          </div>
+          <div style="background:#07070F;border-radius:.75rem;padding:1.25rem 2rem;display:flex;align-items:center;justify-content:center;flex:1;min-width:160px;">
+            <img src="logos/logo-primary-white.svg" style="height:36px;width:auto;" alt="logo-primary-white" />
+          </div>
+          <div style="background:#F1F5F9;border-radius:.75rem;padding:1.25rem 2rem;display:flex;align-items:center;justify-content:center;flex:1;min-width:160px;">
+            <img src="logos/logo-primary-black.svg" style="height:36px;width:auto;" alt="logo-primary-black" />
+          </div>
         </div>
       </div>
 
-      <div class="card" style="display:flex;flex-direction:column;gap:1.25rem;">
-        <p class="badge badge-muted">Monocromático</p>
-        <div style="background:#07070F;border-radius:1rem;padding:2.5rem;display:flex;align-items:center;justify-content:center;">
-          <img src="/rr-monocromatico-transp.png" style="max-height:60px;width:auto;" alt="Logo dev.RR monocromático" />
+      <!-- Stacked -->
+      <div class="card" style="display:flex;align-items:center;gap:2rem;flex-wrap:wrap;">
+        <div style="flex-shrink:0;min-width:120px;">
+          <p class="mono" style="font-size:.65rem;color:var(--brand-400);letter-spacing:.1em;text-transform:uppercase;margin-bottom:.35rem;">02 — Stacked</p>
+          <p style="font-size:.8rem;font-weight:600;margin-bottom:.25rem;">Empilhado</p>
+          <p style="font-size:.75rem;color:var(--content-muted);line-height:1.5;">Stories, posts 1:1,<br/>cartão, crachá</p>
         </div>
-        <div>
-          <p style="font-size:.8rem;color:var(--content-muted);">Arquivo: <span class="mono" style="color:var(--brand-400);">rr-monocromatico-transp.png</span></p>
-          <p style="font-size:.8rem;color:var(--content-muted);margin-top:.25rem;">Uso: fundos neutros, rodapé, materiais institucionais</p>
+        <div style="display:flex;gap:1rem;flex-wrap:wrap;flex:1;">
+          <div style="background:#07070F;border-radius:.75rem;padding:1.25rem 2rem;display:flex;align-items:center;justify-content:center;flex:1;min-width:160px;">
+            <img src="logos/logo-stacked-color.svg" style="height:72px;width:auto;" alt="logo-stacked-color" />
+          </div>
+          <div style="background:#07070F;border-radius:.75rem;padding:1.25rem 2rem;display:flex;align-items:center;justify-content:center;flex:1;min-width:160px;">
+            <img src="logos/logo-stacked-white.svg" style="height:72px;width:auto;" alt="logo-stacked-white" />
+          </div>
+          <div style="background:#F1F5F9;border-radius:.75rem;padding:1.25rem 2rem;display:flex;align-items:center;justify-content:center;flex:1;min-width:160px;">
+            <img src="logos/logo-stacked-black.svg" style="height:72px;width:auto;" alt="logo-stacked-black" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Icon -->
+      <div class="card" style="display:flex;align-items:center;gap:2rem;flex-wrap:wrap;">
+        <div style="flex-shrink:0;min-width:120px;">
+          <p class="mono" style="font-size:.65rem;color:var(--brand-400);letter-spacing:.1em;text-transform:uppercase;margin-bottom:.35rem;">03 — Icon</p>
+          <p style="font-size:.8rem;font-weight:600;margin-bottom:.25rem;">Ícone Isolado</p>
+          <p style="font-size:.75rem;color:var(--content-muted);line-height:1.5;">App icon, perfil,<br/>favicon 32px+</p>
+        </div>
+        <div style="display:flex;gap:1rem;flex-wrap:wrap;flex:1;">
+          <div style="background:#07070F;border-radius:.75rem;padding:1.25rem 2rem;display:flex;align-items:center;justify-content:center;flex:1;min-width:160px;">
+            <img src="logos/logo-icon-color.svg" style="height:56px;width:auto;" alt="logo-icon-color" />
+          </div>
+          <div style="background:#07070F;border-radius:.75rem;padding:1.25rem 2rem;display:flex;align-items:center;justify-content:center;flex:1;min-width:160px;">
+            <img src="logos/logo-icon-white.svg" style="height:56px;width:auto;" alt="logo-icon-white" />
+          </div>
+          <div style="background:#F1F5F9;border-radius:.75rem;padding:1.25rem 2rem;display:flex;align-items:center;justify-content:center;flex:1;min-width:160px;">
+            <img src="logos/logo-icon-black.svg" style="height:56px;width:auto;" alt="logo-icon-black" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Wordmark -->
+      <div class="card" style="display:flex;align-items:center;gap:2rem;flex-wrap:wrap;">
+        <div style="flex-shrink:0;min-width:120px;">
+          <p class="mono" style="font-size:.65rem;color:var(--brand-400);letter-spacing:.1em;text-transform:uppercase;margin-bottom:.35rem;">04 — Wordmark</p>
+          <p style="font-size:.8rem;font-weight:600;margin-bottom:.25rem;">Compacto</p>
+          <p style="font-size:.75rem;color:var(--content-muted);line-height:1.5;">Navbar mobile,<br/>rodapé, email</p>
+        </div>
+        <div style="display:flex;gap:1rem;flex-wrap:wrap;flex:1;">
+          <div style="background:#07070F;border-radius:.75rem;padding:1.25rem 2rem;display:flex;align-items:center;justify-content:center;flex:1;min-width:160px;">
+            <img src="logos/logo-wordmark-color.svg" style="height:36px;width:auto;" alt="logo-wordmark-color" />
+          </div>
+          <div style="background:#07070F;border-radius:.75rem;padding:1.25rem 2rem;display:flex;align-items:center;justify-content:center;flex:1;min-width:160px;">
+            <img src="logos/logo-wordmark-white.svg" style="height:36px;width:auto;" alt="logo-wordmark-white" />
+          </div>
+          <div style="background:#F1F5F9;border-radius:.75rem;padding:1.25rem 2rem;display:flex;align-items:center;justify-content:center;flex:1;min-width:160px;">
+            <img src="logos/logo-wordmark-black.svg" style="height:36px;width:auto;" alt="logo-wordmark-black" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Monogram -->
+      <div class="card" style="display:flex;align-items:center;gap:2rem;flex-wrap:wrap;">
+        <div style="flex-shrink:0;min-width:120px;">
+          <p class="mono" style="font-size:.65rem;color:var(--brand-400);letter-spacing:.1em;text-transform:uppercase;margin-bottom:.35rem;">05 — Monogram</p>
+          <p style="font-size:.8rem;font-weight:600;margin-bottom:.25rem;">Monograma</p>
+          <p style="font-size:.75rem;color:var(--content-muted);line-height:1.5;">Bordado, carimbo,<br/>favicon 16px</p>
+        </div>
+        <div style="display:flex;gap:1rem;flex-wrap:wrap;flex:1;">
+          <div style="background:#07070F;border-radius:.75rem;padding:1.25rem 2rem;display:flex;align-items:center;justify-content:center;flex:1;min-width:160px;">
+            <img src="logos/logo-monogram-color.svg" style="height:48px;width:auto;" alt="logo-monogram-color" />
+          </div>
+          <div style="background:#07070F;border-radius:.75rem;padding:1.25rem 2rem;display:flex;align-items:center;justify-content:center;flex:1;min-width:160px;">
+            <img src="logos/logo-monogram-white.svg" style="height:48px;width:auto;" alt="logo-monogram-white" />
+          </div>
+          <div style="background:#F1F5F9;border-radius:.75rem;padding:1.25rem 2rem;display:flex;align-items:center;justify-content:center;flex:1;min-width:160px;">
+            <img src="logos/logo-monogram-black.svg" style="height:48px;width:auto;" alt="logo-monogram-black" />
+          </div>
         </div>
       </div>
     </div>
 
+    <!-- Legenda versões -->
+    <div style="display:flex;gap:.75rem;flex-wrap:wrap;margin-bottom:2rem;">
+      <div style="display:flex;align-items:center;gap:.5rem;font-size:.75rem;color:var(--content-secondary);">
+        <div style="width:12px;height:12px;border-radius:50%;background:linear-gradient(to right,#7C3AED,#1D4ED8);"></div> -color — fundo escuro (padrão)
+      </div>
+      <div style="display:flex;align-items:center;gap:.5rem;font-size:.75rem;color:var(--content-secondary);">
+        <div style="width:12px;height:12px;border-radius:50%;background:#fff;border:1px solid rgba(255,255,255,.2);"></div> -white — fundo escuro sem gradiente
+      </div>
+      <div style="display:flex;align-items:center;gap:.5rem;font-size:.75rem;color:var(--content-secondary);">
+        <div style="width:12px;height:12px;border-radius:50%;background:#1a1a1a;"></div> -black — fundo branco / impressão
+      </div>
+    </div>
+
     <!-- Tamanhos mínimos -->
-    <div style="margin-top:1.5rem;" class="card">
-      <p style="font-weight:600;margin-bottom:1rem;">Tamanhos por contexto</p>
+    <div class="card">
+      <p style="font-weight:600;margin-bottom:1rem;">Tamanhos mínimos</p>
       <table class="spec-table">
         <thead>
           <tr>
-            <th>Contexto</th>
-            <th>Altura mínima</th>
-            <th>Largura estimada</th>
-            <th>Formato recomendado</th>
+            <th>Variante</th>
+            <th>Digital mínimo</th>
+            <th>Impresso mínimo</th>
+            <th>Favicon</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td>Story / Reel (1080×1920)</td>
-            <td><span class="mono">120–160px</span></td>
-            <td><span class="mono">~360–480px</span></td>
-            <td>Colorido ou Mono</td>
-          </tr>
-          <tr>
-            <td>Feed quadrado (1080×1080)</td>
-            <td><span class="mono">80–120px</span></td>
-            <td><span class="mono">~240–360px</span></td>
-            <td>Colorido</td>
-          </tr>
-          <tr>
-            <td>Banner anúncio (1200×628)</td>
-            <td><span class="mono">48–80px</span></td>
-            <td><span class="mono">~145–240px</span></td>
-            <td>Monocromático</td>
-          </tr>
-          <tr>
-            <td>Perfil / Avatar</td>
-            <td><span class="mono">min 40px</span></td>
+            <td>Primary (horizontal)</td>
+            <td><span class="mono">120px largura</span></td>
+            <td><span class="mono">30mm</span></td>
             <td>—</td>
-            <td>Colorido (recortado)</td>
+          </tr>
+          <tr>
+            <td>Stacked</td>
+            <td><span class="mono">80px largura</span></td>
+            <td><span class="mono">20mm</span></td>
+            <td>—</td>
+          </tr>
+          <tr>
+            <td>Icon</td>
+            <td><span class="mono">24×24px</span></td>
+            <td><span class="mono">8×8mm</span></td>
+            <td>32px+</td>
+          </tr>
+          <tr>
+            <td>Wordmark</td>
+            <td><span class="mono">80px largura</span></td>
+            <td><span class="mono">20mm</span></td>
+            <td>—</td>
+          </tr>
+          <tr>
+            <td>Monogram</td>
+            <td><span class="mono">16×16px</span></td>
+            <td><span class="mono">6×6mm</span></td>
+            <td>16px</td>
           </tr>
         </tbody>
       </table>

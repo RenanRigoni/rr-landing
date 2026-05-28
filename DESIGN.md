@@ -119,3 +119,96 @@ Committed. O azul `brand-600` (#2563EB) carrega 30–60% da superfície como sin
 - Grade de cards idênticos (icon + title + text repetido N vezes)
 - Gradient text (`background-clip: text`)
 - Cores hard-coded fora dos tokens (ex: slate-500, slate-600 no footer)
+
+---
+
+## Logo — Variantes e Usabilidade
+
+Arquivos em `/logos/`. Cada variante existe em 3 versões: `-color`, `-white`, `-black`.
+
+### 01 `logo-primary` — Horizontal
+**Uso:** Website, banners, materiais impressos, email signature, propostas.  
+**Mínimo:** 24px de altura. Abaixo disso usar `logo-wordmark`.
+
+### 02 `logo-stacked` — Empilhado
+**Uso:** Stories (9:16), posts quadrados (1:1), cartão de visita centralizado, splash screen, crachá.  
+**Proporção:** ~1:1. Símbolo com largura similar ao texto abaixo.
+
+### 03 `logo-icon` — Ícone Isolado
+**Uso:** App icon, favicon 32px+, foto de perfil Instagram/WhatsApp, avatar, watermark em vídeo.  
+**Exportar:** 1024×1024px, border-radius 22% para app stores. Fundo sempre `#07070F`.
+
+### 04 `logo-wordmark` — Compacto
+**Uso:** Espaços estreitos — rodapé de proposta, navbar mobile, cabeçalho de email.  
+**Mínimo:** 16px de altura.
+
+### 05 `logo-monogram` — Monograma
+**Uso:** Bordado em camiseta/boné, carimbo, selo, favicon 16px.  
+**Motivo:** `{/}` tem detalhes demais abaixo de 32px — some em escala mínima.
+
+---
+
+### Versões por cor
+
+| Sufixo | Quando usar |
+|--------|-------------|
+| `-color` | Fundo escuro — uso padrão |
+| `-white` | Fundo escuro quando gradiente não contrasta |
+| `-black` | Fundo branco/claro — documentos, papelaria, impressão |
+
+---
+
+### Favicon — escala de ícone
+
+| Tamanho | Usar |
+|---------|------|
+| 512px → 32px | `logo-icon` — símbolo `{/}` |
+| 16px | `logo-monogram` — só `RR` |
+
+---
+
+### Área de respiro
+
+Mínimo de espaço livre ao redor do logo = **altura do logo** em todos os lados. Nenhum elemento invade essa área.
+
+---
+
+### Tamanhos mínimos
+
+| Variante | Digital | Impresso |
+|----------|---------|----------|
+| Primary | 120px largura | 30mm |
+| Stacked | 80px largura | 20mm |
+| Icon | 24×24px | 8×8mm |
+| Wordmark | 80px largura | 20mm |
+| Monogram | 16×16px | 6×6mm |
+
+---
+
+### Regras de contraste
+
+- `-color` somente sobre fundo escuro (`#07070F`, `#0B0B16`, `#10101E`)
+- `-white` exige fundo com contraste ≥ 4.5:1 (WCAG AA)
+- `-black` somente sobre fundo branco/claro
+
+### Nunca fazer com o logo
+
+- Distorcer proporções
+- Aplicar sombra, contorno ou efeito
+- Usar `-color` sobre fundo branco
+- Usar `-white` sobre fundo branco (some)
+- Recriar com fontes ou cores diferentes das oficiais
+
+---
+
+### Referência de cores do logo
+
+| Elemento | Hex |
+|----------|-----|
+| `{/}` início | `#7C3AED` |
+| `{/}` fim | `#4A7FF5` |
+| `dev` início | `#4F82F5` |
+| `dev` fim | `#60A5FA` |
+| Ponto `.` | `#60A5FA` |
+| `RR` (sólido) | `#1D4ED8` |
+| Fundo padrão | `#07070F` |

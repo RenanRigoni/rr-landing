@@ -58,11 +58,11 @@ export function Navbar() {
         <div className="glass rounded-pill px-5 py-3 flex items-center justify-between">
           <a href="/" aria-label="dev.RR: página inicial">
             <Image
-              src="/rr-monocromatico-transp.png"
+              src="/logos/logo-primary-color.svg"
               alt="dev.RR"
               width={120}
               height={40}
-              className="h-8 w-auto brightness-0 invert"
+              className="h-8 w-auto"
               priority
             />
           </a>
@@ -120,11 +120,11 @@ export function Navbar() {
               <X size={20} weight="light" className="text-content-primary" />
             </button>
             <Image
-              src="/rr-monocromatico-transp.png"
+              src="/logos/logo-primary-color.svg"
               alt="dev.RR"
               width={140}
               height={48}
-              className="h-10 w-auto brightness-0 invert"
+              className="h-10 w-auto"
             />
             <nav className="flex flex-col items-center w-full px-8 gap-1">
               {NAV_LINKS.map((link) => (

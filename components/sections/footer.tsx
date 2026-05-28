@@ -10,11 +10,11 @@ export function Footer() {
       <div className="max-w-5xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
         <div className="flex flex-col items-center md:items-start gap-1">
           <Image
-            src="/rr-monocromatico-transp.png"
+            src="/logos/logo-primary-white.svg"
             alt="dev.RR"
             width={100}
             height={36}
-            className="h-7 w-auto brightness-0 invert"
+            className="h-7 w-auto"
           />
           <p className="text-xs text-content-secondary">{SITE_CONFIG.tagline}</p>
         </div>

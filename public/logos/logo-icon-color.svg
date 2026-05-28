@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<!-- Creator: CorelDRAW -->
+<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" width="99.4251mm" height="79.8268mm" version="1.1" style="shape-rendering:geometricPrecision; text-rendering:geometricPrecision; image-rendering:optimizeQuality; fill-rule:evenodd; clip-rule:evenodd"
+viewBox="0 0 494.13 396.73"
+ xmlns:xlink="http://www.w3.org/1999/xlink"
+ xmlns:xodm="http://www.corel.com/coreldraw/odm/2003">
+ <defs>
+  <style type="text/css">
+   <![CDATA[
+    .fil0 {fill:url(#id0);fill-rule:nonzero}
+   ]]>
+  </style>
+  <linearGradient id="id0" gradientUnits="userSpaceOnUse" x1="-0" y1="198.37" x2="494.13" y2="198.37">
+   <stop offset="0" style="stop-opacity:1; stop-color:#7C3AED"/>
+   <stop offset="0.423529" style="stop-opacity:1; stop-color:#6E6FF3"/>
+   <stop offset="0.678431" style="stop-opacity:1; stop-color:#60A5FA"/>
+   <stop offset="1" style="stop-opacity:1; stop-color:#3C75F0"/>
+  </linearGradient>
+ </defs>
+ <g id="Camada_x0020_1">
+  <metadata id="CorelCorpID_0Corel-Layer"/>
+  <path class="fil0" d="M330.21 396.73l0 -42.76 48.7 0c7.13,0 10.69,-3.96 10.69,-11.88l0 -108.49c0,-8.97 2.84,-16.5 8.51,-22.57 5.68,-6.07 13.13,-9.11 22.37,-9.11l6.33 0 0 -7.13 -6.33 0c-9.24,0 -16.7,-3.04 -22.37,-9.11 -5.68,-6.07 -8.51,-13.59 -8.51,-22.57l0 -108.49c0,-7.92 -3.56,-11.88 -10.69,-11.88l-48.7 0 0 -42.76 67.31 0c11.88,0 21.58,3.76 29.1,11.28 7.52,7.52 11.28,17.22 11.28,29.1l0 122.74c0,7.66 3.56,11.48 10.69,11.48l45.53 0 0 47.51 -45.53 0c-7.13,0 -10.69,3.83 -10.69,11.48l0 122.74c0,11.88 -3.76,21.58 -11.28,29.1 -7.52,7.52 -17.22,11.29 -29.1,11.29l-67.31 0zm-166.29 -18.21l116.41 -356.35 49.89 0 -116.41 356.35 -49.89 0zm-67.31 18.21c-11.88,0 -21.58,-3.76 -29.1,-11.29 -7.52,-7.52 -11.28,-17.22 -11.28,-29.1l0 -122.74c0,-7.66 -3.56,-11.48 -10.69,-11.48l-45.53 0 0 -47.51 45.53 0c7.13,0 10.69,-3.83 10.69,-11.48l0 -122.74c0,-11.88 3.76,-21.58 11.28,-29.1 7.52,-7.52 17.22,-11.28 29.1,-11.28l67.31 0 0 42.76 -48.7 0c-7.13,0 -10.69,3.96 -10.69,11.88l0 108.49c0,8.97 -2.84,16.5 -8.51,22.57 -5.67,6.07 -13.13,9.11 -22.37,9.11l-6.34 0 0 7.13 6.34 0c9.24,0 16.7,3.04 22.37,9.11 5.68,6.07 8.51,13.59 8.51,22.57l0 108.49c0,7.92 3.56,11.88 10.69,11.88l48.7 0 0 42.76 -67.31 0z"/>
+ </g>
+</svg>
