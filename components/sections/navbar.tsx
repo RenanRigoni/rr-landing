@@ -58,7 +58,7 @@ export function Navbar() {
         <div className="glass rounded-pill px-5 py-3 flex items-center justify-between">
           <a href="/" aria-label="dev.RR: página inicial">
             <Image
-              src="/logos/logo-primary-color.svg"
+              src="/logos/logo-primary-white.svg"
               alt="dev.RR"
               width={120}
               height={40}
@@ -120,7 +120,7 @@ export function Navbar() {
               <X size={20} weight="light" className="text-content-primary" />
             </button>
             <Image
-              src="/logos/logo-primary-color.svg"
+              src="/logos/logo-primary-white.svg"
               alt="dev.RR"
               width={140}
               height={48}
