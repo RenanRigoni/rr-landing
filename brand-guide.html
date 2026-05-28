@@ -1,0 +1,1741 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>dev.RR — Brand Guide</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,800&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=DM+Mono:wght@500&display=swap" rel="stylesheet" />
+  <style>
+    /* ─── TOKENS ─────────────────────────────────────────────────── */
+    :root {
+      --surface:          #07070F;
+      --surface-muted:    #0B0B16;
+      --surface-elevated: #10101E;
+      --surface-card:     #0E1428;
+      --surface-footer:   #080E1A;
+
+      --brand-50:  #0D1829;
+      --brand-100: #152240;
+      --brand-200: #1E3566;
+      --brand-400: #60A5FA;
+      --brand-500: #3B82F6;
+      --brand-600: #2563EB;
+      --brand-700: #1D4ED8;
+      --brand-900: #1E3A5F;
+
+      --content-primary:   #F1F5F9;
+      --content-secondary: #94A3B8;
+      --content-muted:     #64748B;
+
+      --emerald: #10B981;
+      --red:     #F87171;
+      --amber:   #FBBF24;
+      --violet:  #8B5CF6;
+
+      --font-display: 'Bricolage Grotesque', sans-serif;
+      --font-sans:    'Plus Jakarta Sans', sans-serif;
+      --font-mono:    'DM Mono', monospace;
+
+      --radius-card:  2rem;
+      --radius-pill:  9999px;
+      --radius-inner: 1.625rem;
+
+      --shadow-card:   0 4px 32px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.05);
+      --shadow-glow:   0 0 40px rgba(37,99,235,.4), 0 0 80px rgba(99,102,241,.2);
+    }
+
+    /* ─── RESET & BASE ───────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; color-scheme: dark; }
+    body {
+      font-family: var(--font-sans);
+      background: var(--surface);
+      color: var(--content-primary);
+      -webkit-font-smoothing: antialiased;
+      line-height: 1.6;
+    }
+    a { color: var(--brand-400); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* ─── UTILS ──────────────────────────────────────────────────── */
+    .mono    { font-family: var(--font-mono); }
+    .display { font-family: var(--font-display); font-weight: 800; }
+    .muted   { color: var(--content-muted); }
+    .secondary { color: var(--content-secondary); }
+
+    .dot-grid {
+      background-image: radial-gradient(circle, rgba(255,255,255,.07) 1px, transparent 1px);
+      background-size: 28px 28px;
+    }
+
+    .card {
+      background: var(--surface-elevated);
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: var(--radius-card);
+      box-shadow: var(--shadow-card);
+      padding: 2rem;
+    }
+
+    .card-brand {
+      background: var(--surface-card);
+      border-radius: var(--radius-card);
+      box-shadow: 0 0 24px rgba(37,99,235,.3);
+      padding: 2rem;
+      position: relative;
+    }
+    .card-brand::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: var(--radius-card);
+      padding: 1px;
+      background: linear-gradient(135deg, rgba(37,99,235,.5), rgba(99,102,241,.3));
+      -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+      pointer-events: none;
+    }
+
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      gap: .5rem;
+      background: var(--brand-600);
+      color: #fff;
+      font-family: var(--font-sans);
+      font-weight: 600;
+      font-size: .9rem;
+      padding: .75rem 1.5rem;
+      border-radius: var(--radius-pill);
+      border: none;
+      cursor: pointer;
+      transition: all .2s cubic-bezier(.32,.72,0,1);
+    }
+    .btn-primary:hover {
+      background: var(--brand-500);
+      transform: scale(1.02);
+      box-shadow: var(--shadow-glow);
+    }
+
+    .badge {
+      display: inline-block;
+      font-family: var(--font-sans);
+      font-size: .65rem;
+      font-weight: 600;
+      letter-spacing: .15em;
+      text-transform: uppercase;
+      padding: .25rem .75rem;
+      border-radius: var(--radius-pill);
+    }
+    .badge-brand { background: var(--brand-600); color: #fff; }
+    .badge-success { background: rgba(16,185,129,.15); color: var(--emerald); border: 1px solid rgba(16,185,129,.2); }
+    .badge-error   { background: rgba(248,113,113,.15); color: var(--red);    border: 1px solid rgba(248,113,113,.2); }
+    .badge-amber   { background: rgba(251,191,36,.15);  color: var(--amber);  border: 1px solid rgba(251,191,36,.2); }
+    .badge-muted   { background: rgba(255,255,255,.06); color: var(--content-secondary); border: 1px solid rgba(255,255,255,.1); }
+
+    /* ─── LAYOUT ─────────────────────────────────────────────────── */
+    .container { max-width: 1100px; margin: 0 auto; padding: 0 1.5rem; }
+    .section   { padding: 5rem 0; }
+    .section + .section { border-top: 1px solid rgba(255,255,255,.06); }
+
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem; }
+    .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.25rem; }
+
+    @media (max-width: 768px) {
+      .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 1024px) {
+      .grid-4 { grid-template-columns: repeat(2, 1fr); }
+      .grid-3 { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    .section-label {
+      font-family: var(--font-mono);
+      font-size: .75rem;
+      color: var(--brand-400);
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      margin-bottom: .75rem;
+    }
+    .section-title {
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: clamp(1.75rem, 4vw, 2.5rem);
+      letter-spacing: -.02em;
+      line-height: 1.2;
+      margin-bottom: 1rem;
+    }
+    .section-desc {
+      color: var(--content-secondary);
+      font-size: 1.05rem;
+      max-width: 55ch;
+      margin-bottom: 3rem;
+    }
+
+    /* ─── HEADER ─────────────────────────────────────────────────── */
+    .header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(7,7,15,.85);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid rgba(255,255,255,.06);
+      padding: 1rem 0;
+    }
+    .header-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 2rem;
+    }
+    .header-brand {
+      font-family: var(--font-display);
+      font-size: 1.35rem;
+      color: var(--brand-400);
+    }
+    .header-nav {
+      display: flex;
+      gap: 1.5rem;
+      list-style: none;
+    }
+    .header-nav a {
+      font-size: .85rem;
+      color: var(--content-secondary);
+      text-decoration: none;
+      transition: color .2s;
+    }
+    .header-nav a:hover { color: var(--content-primary); }
+
+    /* ─── HERO ───────────────────────────────────────────────────── */
+    .hero {
+      padding: 6rem 0 5rem;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero-glow {
+      position: absolute;
+      width: 600px; height: 600px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(37,99,235,.18) 0%, transparent 70%);
+      top: -200px; left: 50%;
+      transform: translateX(-50%);
+      pointer-events: none;
+    }
+    .hero-eyebrow {
+      font-family: var(--font-mono);
+      font-size: .8rem;
+      color: var(--brand-400);
+      letter-spacing: .15em;
+      text-transform: uppercase;
+      margin-bottom: 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+    }
+    .hero-eyebrow::before {
+      content: '';
+      display: inline-block;
+      width: 24px; height: 2px;
+      background: var(--brand-600);
+    }
+    .hero-title {
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: clamp(3rem, 7vw, 5.5rem);
+      line-height: 1.04;
+      letter-spacing: -.03em;
+      margin-bottom: 1.5rem;
+    }
+    .hero-title .accent { color: var(--brand-400); }
+    .hero-sub {
+      color: var(--content-secondary);
+      font-size: 1.2rem;
+      max-width: 55ch;
+      margin-bottom: 3rem;
+      line-height: 1.7;
+    }
+    .hero-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .75rem;
+    }
+
+    /* ─── COLOR SWATCHES ─────────────────────────────────────────── */
+    .swatch-group { display: flex; flex-direction: column; gap: .5rem; }
+    .swatch-group-label {
+      font-size: .7rem;
+      font-weight: 600;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--content-muted);
+      margin-bottom: .25rem;
+    }
+
+    .swatch {
+      border-radius: 1rem;
+      padding: 1rem;
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      min-height: 80px;
+      cursor: pointer;
+      transition: transform .15s;
+      position: relative;
+    }
+    .swatch:hover { transform: scale(1.02); }
+    .swatch-name {
+      font-size: .7rem;
+      font-weight: 600;
+      letter-spacing: .05em;
+    }
+    .swatch-hex {
+      font-family: var(--font-mono);
+      font-size: .7rem;
+    }
+    .swatch-copy {
+      position: absolute;
+      top: .5rem;
+      right: .5rem;
+      font-size: .6rem;
+      font-family: var(--font-mono);
+      padding: .2rem .4rem;
+      border-radius: .25rem;
+      background: rgba(0,0,0,.5);
+      opacity: 0;
+      transition: opacity .15s;
+    }
+    .swatch:hover .swatch-copy { opacity: 1; }
+
+    .swatch-row {
+      display: flex;
+      gap: .375rem;
+      border-radius: 1.25rem;
+      overflow: hidden;
+    }
+    .swatch-row .swatch {
+      border-radius: 0;
+      flex: 1;
+      min-height: 60px;
+    }
+    .swatch-row .swatch:first-child { border-radius: 1.25rem 0 0 1.25rem; }
+    .swatch-row .swatch:last-child  { border-radius: 0 1.25rem 1.25rem 0; }
+
+    /* ─── TYPOGRAPHY SCALE ───────────────────────────────────────── */
+    .type-row {
+      display: flex;
+      align-items: baseline;
+      gap: 2rem;
+      padding: 1.25rem 0;
+      border-bottom: 1px solid rgba(255,255,255,.06);
+    }
+    .type-row:last-child { border-bottom: none; }
+    .type-meta {
+      flex-shrink: 0;
+      width: 140px;
+    }
+    .type-meta-name { font-size: .75rem; font-weight: 600; color: var(--content-primary); }
+    .type-meta-detail { font-family: var(--font-mono); font-size: .65rem; color: var(--content-muted); margin-top: .15rem; }
+    .type-sample { flex: 1; }
+
+    /* ─── FORMAT TEMPLATES ───────────────────────────────────────── */
+    .format-showcase {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 2rem;
+      align-items: flex-start;
+      justify-content: center;
+    }
+
+    .format-wrap { display: flex; flex-direction: column; align-items: center; gap: 1rem; }
+    .format-label {
+      font-size: .7rem;
+      font-family: var(--font-mono);
+      color: var(--content-muted);
+      text-transform: uppercase;
+      letter-spacing: .12em;
+    }
+    .format-dims {
+      font-size: .6rem;
+      font-family: var(--font-mono);
+      color: var(--brand-400);
+    }
+
+    /* Story/Reel 9:16 — shown at 180×320 */
+    .tpl-story {
+      width: 180px; height: 320px;
+      border-radius: 1.25rem;
+      position: relative;
+      overflow: hidden;
+      flex-shrink: 0;
+      box-shadow: 0 8px 40px rgba(0,0,0,.7);
+    }
+
+    /* Feed 1:1 — shown at 240×240 */
+    .tpl-feed {
+      width: 240px; height: 240px;
+      border-radius: 1.25rem;
+      position: relative;
+      overflow: hidden;
+      flex-shrink: 0;
+      box-shadow: 0 8px 40px rgba(0,0,0,.7);
+    }
+
+    /* Ad banner 1200×628 — shown at 320×168 */
+    .tpl-banner {
+      width: 320px; height: 168px;
+      border-radius: 1rem;
+      position: relative;
+      overflow: hidden;
+      flex-shrink: 0;
+      box-shadow: 0 8px 40px rgba(0,0,0,.7);
+    }
+
+    /* Ad square 1080×1080 — shown at 200×200 */
+    .tpl-square-ad {
+      width: 200px; height: 200px;
+      border-radius: 1.25rem;
+      position: relative;
+      overflow: hidden;
+      flex-shrink: 0;
+      box-shadow: 0 8px 40px rgba(0,0,0,.7);
+    }
+
+    .tpl-bg-dark   { background: var(--surface); }
+    .tpl-bg-muted  { background: var(--surface-muted); }
+    .tpl-bg-brand  { background: linear-gradient(160deg, #0D1829 0%, #07070F 60%); }
+
+    .tpl-dot {
+      position: absolute;
+      inset: 0;
+      background-image: radial-gradient(circle, rgba(255,255,255,.06) 1px, transparent 1px);
+      background-size: 18px 18px;
+      pointer-events: none;
+    }
+
+    .tpl-glow {
+      position: absolute;
+      border-radius: 50%;
+      pointer-events: none;
+      background: radial-gradient(circle, rgba(37,99,235,.35) 0%, transparent 70%);
+    }
+
+    .tpl-content {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      padding: 1.25rem;
+    }
+
+    .tpl-logo {
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: .85rem;
+      color: var(--brand-400);
+      letter-spacing: -.01em;
+    }
+
+    .tpl-eyebrow {
+      font-family: var(--font-mono);
+      font-size: .45rem;
+      color: var(--brand-400);
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+
+    .tpl-headline {
+      font-family: var(--font-display);
+      font-weight: 800;
+      line-height: 1.1;
+      letter-spacing: -.02em;
+      color: var(--content-primary);
+    }
+
+    .tpl-body {
+      font-family: var(--font-sans);
+      color: var(--content-secondary);
+      line-height: 1.5;
+    }
+
+    .tpl-cta {
+      display: inline-flex;
+      align-items: center;
+      gap: .3rem;
+      background: var(--brand-600);
+      color: #fff;
+      font-family: var(--font-sans);
+      font-weight: 600;
+      border-radius: 9999px;
+      white-space: nowrap;
+    }
+
+    .tpl-divider {
+      width: 24px; height: 2px;
+      background: var(--brand-600);
+      border-radius: 1px;
+    }
+
+    /* decorative bars */
+    .tpl-bar {
+      width: 3px;
+      border-radius: 2px;
+      background: linear-gradient(to bottom, var(--brand-600), transparent);
+    }
+
+    /* ─── COPYWRITING ────────────────────────────────────────────── */
+    .copy-card {
+      background: var(--surface-elevated);
+      border: 1px solid rgba(255,255,255,.06);
+      border-radius: 1.25rem;
+      padding: 1.25rem 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: .5rem;
+    }
+    .copy-category {
+      font-family: var(--font-mono);
+      font-size: .6rem;
+      color: var(--brand-400);
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+    .copy-text {
+      font-size: .95rem;
+      font-weight: 500;
+      color: var(--content-primary);
+      line-height: 1.5;
+    }
+    .copy-subtext {
+      font-size: .8rem;
+      color: var(--content-muted);
+    }
+    .copy-btn {
+      align-self: flex-end;
+      font-family: var(--font-mono);
+      font-size: .6rem;
+      color: var(--content-muted);
+      background: none;
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: .4rem;
+      padding: .2rem .5rem;
+      cursor: pointer;
+      transition: all .15s;
+    }
+    .copy-btn:hover { color: var(--content-primary); border-color: rgba(255,255,255,.2); }
+
+    /* ─── DOS & DON'TS ───────────────────────────────────────────── */
+    .rules-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+    @media (max-width: 768px) { .rules-grid { grid-template-columns: 1fr; } }
+
+    .rule-card {
+      border-radius: 1.25rem;
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: .75rem;
+    }
+    .rule-card.do   { background: rgba(16,185,129,.08); border: 1px solid rgba(16,185,129,.2); }
+    .rule-card.dont { background: rgba(248,113,113,.08); border: 1px solid rgba(248,113,113,.2); }
+
+    .rule-header {
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+      font-weight: 700;
+      font-size: .95rem;
+    }
+    .rule-header.do   { color: var(--emerald); }
+    .rule-header.dont { color: var(--red); }
+
+    .rule-item {
+      display: flex;
+      align-items: flex-start;
+      gap: .5rem;
+      font-size: .875rem;
+      color: var(--content-secondary);
+      line-height: 1.5;
+    }
+    .rule-item::before {
+      content: '→';
+      font-family: var(--font-mono);
+      flex-shrink: 0;
+      margin-top: .05rem;
+    }
+    .rule-card.do   .rule-item::before { color: var(--emerald); }
+    .rule-card.dont .rule-item::before { color: var(--red); content: '✕'; }
+
+    /* ─── SPEC TABLE ─────────────────────────────────────────────── */
+    .spec-table { width: 100%; border-collapse: collapse; }
+    .spec-table th {
+      text-align: left;
+      font-size: .7rem;
+      font-weight: 600;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--content-muted);
+      padding: .6rem 1rem;
+      border-bottom: 1px solid rgba(255,255,255,.08);
+    }
+    .spec-table td {
+      padding: .75rem 1rem;
+      font-size: .875rem;
+      border-bottom: 1px solid rgba(255,255,255,.05);
+      vertical-align: top;
+    }
+    .spec-table tr:last-child td { border-bottom: none; }
+    .spec-table td:first-child { color: var(--content-primary); font-weight: 500; }
+    .spec-table td:not(:first-child) { color: var(--content-secondary); }
+    .spec-table td .mono { font-size: .8rem; color: var(--brand-400); }
+
+    /* ─── TOAST ──────────────────────────────────────────────────── */
+    #toast {
+      position: fixed;
+      bottom: 2rem;
+      left: 50%;
+      transform: translateX(-50%) translateY(4rem);
+      background: var(--surface-elevated);
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: .75rem;
+      padding: .6rem 1.25rem;
+      font-family: var(--font-mono);
+      font-size: .75rem;
+      color: var(--brand-400);
+      box-shadow: 0 8px 32px rgba(0,0,0,.6);
+      transition: transform .25s cubic-bezier(.32,.72,0,1), opacity .25s;
+      opacity: 0;
+      pointer-events: none;
+      z-index: 9999;
+    }
+    #toast.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+
+    /* ─── SCROLLBAR ──────────────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--surface); }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,.1); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,.2); }
+  </style>
+</head>
+<body>
+
+<div id="toast">Copiado!</div>
+
+<!-- ── HEADER ──────────────────────────────────────────────────── -->
+<header class="header">
+  <div class="container">
+    <div class="header-inner">
+      <span class="header-brand">dev.RR</span>
+      <nav>
+        <ul class="header-nav">
+          <li><a href="#cores">Cores</a></li>
+          <li><a href="#tipografia">Tipografia</a></li>
+          <li><a href="#logo">Logo</a></li>
+          <li><a href="#templates">Templates</a></li>
+          <li><a href="#copy">Copy</a></li>
+          <li><a href="#regras">Regras</a></li>
+        </ul>
+      </nav>
+    </div>
+  </div>
+</header>
+
+<!-- ── HERO ────────────────────────────────────────────────────── -->
+<section class="hero dot-grid">
+  <div class="hero-glow"></div>
+  <div class="container" style="position:relative;">
+    <p class="hero-eyebrow">Brand Guide v1.0</p>
+    <h1 class="hero-title">
+      Identidade Visual<br/><span class="accent">dev.RR</span>
+    </h1>
+    <p class="hero-sub">
+      Referência completa para criar stories, reels, anúncios e materiais de divulgação no padrão da marca.
+    </p>
+    <div class="hero-tags">
+      <span class="badge badge-brand">Dark Mode</span>
+      <span class="badge badge-muted">Azul · Violeta</span>
+      <span class="badge badge-muted">Bricolage + Jakarta</span>
+      <span class="badge badge-success">Presença local</span>
+    </div>
+  </div>
+</section>
+
+<!-- ── IDENTIDADE ───────────────────────────────────────────────── -->
+<section class="section" id="identidade">
+  <div class="container">
+    <p class="section-label">01 — Marca</p>
+    <h2 class="section-title">Identidade Central</h2>
+    <p class="section-desc">Quem somos, o que dizemos e como nos posicionamos.</p>
+
+    <div class="grid-3">
+      <div class="card-brand">
+        <p class="badge badge-brand" style="margin-bottom:1rem;">Nome</p>
+        <p style="font-family:var(--font-display);font-weight:800;font-size:2.5rem;letter-spacing:-.03em;color:var(--brand-400);">dev.RR</p>
+        <p style="font-size:.8rem;color:var(--content-muted);margin-top:.5rem;">Sempre minúsculo "dev." + maiúsculo "RR"</p>
+      </div>
+
+      <div class="card">
+        <p class="badge badge-muted" style="margin-bottom:1rem;">Tagline</p>
+        <p style="font-size:1.15rem;font-weight:600;line-height:1.4;color:var(--content-primary);">"Presença digital que gera contatos de verdade"</p>
+        <p style="font-size:.8rem;color:var(--content-muted);margin-top:.75rem;">Foco em resultado, não em estética.</p>
+      </div>
+
+      <div class="card">
+        <p class="badge badge-muted" style="margin-bottom:1rem;">Personalidade</p>
+        <div style="display:flex;flex-direction:column;gap:.5rem;">
+          <div class="rule-item" style="color:var(--content-secondary);">Direto — sem jargão técnico</div>
+          <div class="rule-item" style="color:var(--content-secondary);">Confiável — entrega o que promete</div>
+          <div class="rule-item" style="color:var(--content-secondary);">Acessível — fala com o dono do negócio</div>
+          <div class="rule-item" style="color:var(--content-secondary);">Focado — cada escolha gera contato</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top:1.25rem;" class="grid-2">
+      <div class="card">
+        <p class="badge badge-muted" style="margin-bottom:1rem;">Público-alvo</p>
+        <p style="font-size:.9rem;color:var(--content-secondary);line-height:1.7;">
+          Donos de negócios locais — clínicas, salões, consultórios, lojas, prestadores de serviço.<br/><br/>
+          Faixa 30–55 anos. Não técnicos. Pesquisam no celular durante o trabalho. Querem resultado, não tecnologia.
+        </p>
+      </div>
+      <div class="card">
+        <p class="badge badge-muted" style="margin-bottom:1rem;">Proposta de Valor</p>
+        <div style="display:flex;flex-direction:column;gap:.5rem;margin-top:.25rem;">
+          <div class="rule-item" style="color:var(--content-secondary);">Site entregue em 7 dias úteis</div>
+          <div class="rule-item" style="color:var(--content-secondary);">Contato direto — sem gerente de conta</div>
+          <div class="rule-item" style="color:var(--content-secondary);">Aparece no Google Maps desde o dia 1</div>
+          <div class="rule-item" style="color:var(--content-secondary);">Preço fixo, sem surpresa no final</div>
+          <div class="rule-item" style="color:var(--content-secondary);">Foco em fazer o WhatsApp tocar</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── CORES ────────────────────────────────────────────────────── -->
+<section class="section" id="cores" style="background:var(--surface-muted);">
+  <div class="container">
+    <p class="section-label">02 — Cores</p>
+    <h2 class="section-title">Paleta de Cores</h2>
+    <p class="section-desc">Clique em qualquer swatch para copiar o valor hex.</p>
+
+    <!-- Paleta Brand -->
+    <div style="margin-bottom:2.5rem;">
+      <p class="swatch-group-label">Brand — Azul Primário</p>
+      <div class="swatch-row">
+        <div class="swatch" style="background:#0D1829;" onclick="copy('#0D1829')">
+          <span class="swatch-name" style="color:#60A5FA;">50</span>
+          <span class="swatch-hex" style="color:#60A5FA;">#0D1829</span>
+          <span class="swatch-copy">copiar</span>
+        </div>
+        <div class="swatch" style="background:#152240;" onclick="copy('#152240')">
+          <span class="swatch-name" style="color:#60A5FA;">100</span>
+          <span class="swatch-hex" style="color:#60A5FA;">#152240</span>
+          <span class="swatch-copy">copiar</span>
+        </div>
+        <div class="swatch" style="background:#1E3566;" onclick="copy('#1E3566')">
+          <span class="swatch-name" style="color:#60A5FA;">200</span>
+          <span class="swatch-hex" style="color:#60A5FA;">#1E3566</span>
+          <span class="swatch-copy">copiar</span>
+        </div>
+        <div class="swatch" style="background:#60A5FA;" onclick="copy('#60A5FA')">
+          <span class="swatch-name" style="color:#0D1829;">400</span>
+          <span class="swatch-hex" style="color:#0D1829;">#60A5FA</span>
+          <span class="swatch-copy" style="color:#fff;">copiar</span>
+        </div>
+        <div class="swatch" style="background:#3B82F6;" onclick="copy('#3B82F6')">
+          <span class="swatch-name" style="color:#fff;">500</span>
+          <span class="swatch-hex" style="color:#fff;">#3B82F6</span>
+          <span class="swatch-copy">copiar</span>
+        </div>
+        <div class="swatch" style="background:#2563EB;outline:2px solid #60A5FA;outline-offset:2px;" onclick="copy('#2563EB')">
+          <span class="swatch-name" style="color:#fff;">600 ★</span>
+          <span class="swatch-hex" style="color:#fff;">#2563EB</span>
+          <span class="swatch-copy">copiar</span>
+        </div>
+        <div class="swatch" style="background:#1D4ED8;" onclick="copy('#1D4ED8')">
+          <span class="swatch-name" style="color:#fff;">700</span>
+          <span class="swatch-hex" style="color:#fff;">#1D4ED8</span>
+          <span class="swatch-copy">copiar</span>
+        </div>
+        <div class="swatch" style="background:#1E3A5F;" onclick="copy('#1E3A5F')">
+          <span class="swatch-name" style="color:#94A3B8;">900</span>
+          <span class="swatch-hex" style="color:#94A3B8;">#1E3A5F</span>
+          <span class="swatch-copy">copiar</span>
+        </div>
+      </div>
+      <p style="font-size:.7rem;color:var(--content-muted);margin-top:.5rem;">★ Cor primária de ação — botões, badges, CTAs</p>
+    </div>
+
+    <!-- Superfícies -->
+    <div style="margin-bottom:2.5rem;">
+      <p class="swatch-group-label">Superfícies — Backgrounds</p>
+      <div class="grid-4">
+        <div class="swatch" style="background:#07070F;border:1px solid rgba(255,255,255,.1);min-height:100px;" onclick="copy('#07070F')">
+          <div>
+            <p class="swatch-name">surface</p>
+            <p class="swatch-hex" style="color:var(--content-muted);">#07070F</p>
+          </div>
+          <span class="swatch-copy">copiar</span>
+        </div>
+        <div class="swatch" style="background:#0B0B16;border:1px solid rgba(255,255,255,.1);min-height:100px;" onclick="copy('#0B0B16')">
+          <div>
+            <p class="swatch-name">surface-muted</p>
+            <p class="swatch-hex" style="color:var(--content-muted);">#0B0B16</p>
+          </div>
+          <span class="swatch-copy">copiar</span>
+        </div>
+        <div class="swatch" style="background:#10101E;border:1px solid rgba(255,255,255,.1);min-height:100px;" onclick="copy('#10101E')">
+          <div>
+            <p class="swatch-name">surface-elevated</p>
+            <p class="swatch-hex" style="color:var(--content-muted);">#10101E</p>
+          </div>
+          <span class="swatch-copy">copiar</span>
+        </div>
+        <div class="swatch" style="background:#0E1428;border:1px solid rgba(37,99,235,.3);min-height:100px;" onclick="copy('#0E1428')">
+          <div>
+            <p class="swatch-name">surface-card</p>
+            <p class="swatch-hex" style="color:var(--content-muted);">#0E1428</p>
+          </div>
+          <span class="swatch-copy">copiar</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Texto -->
+    <div style="margin-bottom:2.5rem;">
+      <p class="swatch-group-label">Conteúdo — Texto</p>
+      <div class="grid-3">
+        <div class="swatch" style="background:rgba(241,245,249,.1);border:1px solid rgba(255,255,255,.15);min-height:80px;" onclick="copy('#F1F5F9')">
+          <div>
+            <p class="swatch-name" style="color:#F1F5F9;">content-primary</p>
+            <p class="swatch-hex" style="color:#F1F5F9;">#F1F5F9</p>
+          </div>
+          <span class="swatch-copy">copiar</span>
+        </div>
+        <div class="swatch" style="background:rgba(148,163,184,.1);border:1px solid rgba(255,255,255,.1);min-height:80px;" onclick="copy('#94A3B8')">
+          <div>
+            <p class="swatch-name" style="color:#94A3B8;">content-secondary</p>
+            <p class="swatch-hex" style="color:#94A3B8;">#94A3B8</p>
+          </div>
+          <span class="swatch-copy">copiar</span>
+        </div>
+        <div class="swatch" style="background:rgba(100,116,139,.1);border:1px solid rgba(255,255,255,.08);min-height:80px;" onclick="copy('#64748B')">
+          <div>
+            <p class="swatch-name" style="color:#64748B;">content-muted</p>
+            <p class="swatch-hex" style="color:#64748B;">#64748B</p>
+          </div>
+          <span class="swatch-copy">copiar</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Semânticas -->
+    <div>
+      <p class="swatch-group-label">Cores Semânticas</p>
+      <div class="grid-4">
+        <div class="swatch" style="background:#10B981;min-height:80px;" onclick="copy('#10B981')">
+          <div>
+            <p class="swatch-name" style="color:#fff;">Sucesso</p>
+            <p class="swatch-hex" style="color:rgba(255,255,255,.7);">#10B981</p>
+          </div>
+          <span class="swatch-copy">copiar</span>
+        </div>
+        <div class="swatch" style="background:#F87171;min-height:80px;" onclick="copy('#F87171')">
+          <div>
+            <p class="swatch-name" style="color:#fff;">Atenção</p>
+            <p class="swatch-hex" style="color:rgba(255,255,255,.7);">#F87171</p>
+          </div>
+          <span class="swatch-copy">copiar</span>
+        </div>
+        <div class="swatch" style="background:#FBBF24;min-height:80px;" onclick="copy('#FBBF24')">
+          <div>
+            <p class="swatch-name" style="color:#1a1000;">Avaliação</p>
+            <p class="swatch-hex" style="color:rgba(26,16,0,.7);">#FBBF24</p>
+          </div>
+          <span class="swatch-copy">copiar</span>
+        </div>
+        <div class="swatch" style="background:#8B5CF6;min-height:80px;" onclick="copy('#8B5CF6')">
+          <div>
+            <p class="swatch-name" style="color:#fff;">Acento</p>
+            <p class="swatch-hex" style="color:rgba(255,255,255,.7);">#8B5CF6</p>
+          </div>
+          <span class="swatch-copy">copiar</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Gradientes -->
+    <div style="margin-top:2.5rem;">
+      <p class="swatch-group-label">Gradientes</p>
+      <div class="grid-3">
+        <div style="border-radius:1.25rem;overflow:hidden;min-height:80px;display:flex;flex-direction:column;justify-content:flex-end;padding:1rem;background:linear-gradient(135deg,#2563EB,#8B5CF6);cursor:pointer;" onclick="copy('linear-gradient(135deg, #2563EB, #8B5CF6)')">
+          <p class="swatch-name" style="color:#fff;font-size:.7rem;">Brand Gradient</p>
+          <p class="swatch-hex" style="color:rgba(255,255,255,.6);font-size:.65rem;">#2563EB → #8B5CF6</p>
+          <span class="swatch-copy" style="position:static;opacity:1;margin-top:.25rem;align-self:flex-start;">copiar</span>
+        </div>
+        <div style="border-radius:1.25rem;overflow:hidden;min-height:80px;display:flex;flex-direction:column;justify-content:flex-end;padding:1rem;background:linear-gradient(160deg,#0D1829,#07070F);cursor:pointer;border:1px solid rgba(255,255,255,.08);" onclick="copy('linear-gradient(160deg, #0D1829, #07070F)')">
+          <p class="swatch-name" style="color:var(--content-secondary);font-size:.7rem;">Dark Gradient</p>
+          <p class="swatch-hex" style="color:var(--content-muted);font-size:.65rem;">#0D1829 → #07070F</p>
+          <span class="swatch-copy" style="position:static;opacity:1;margin-top:.25rem;align-self:flex-start;color:var(--content-muted);">copiar</span>
+        </div>
+        <div style="border-radius:1.25rem;overflow:hidden;min-height:80px;display:flex;flex-direction:column;justify-content:flex-end;padding:1rem;background:linear-gradient(135deg,rgba(37,99,235,.5),rgba(99,102,241,.3));cursor:pointer;border:1px solid rgba(255,255,255,.08);" onclick="copy('linear-gradient(135deg, rgba(37,99,235,0.5), rgba(99,102,241,0.3))')">
+          <p class="swatch-name" style="color:#fff;font-size:.7rem;">Brand Border</p>
+          <p class="swatch-hex" style="color:rgba(255,255,255,.6);font-size:.65rem;">Blue 50% → Violet 30%</p>
+          <span class="swatch-copy" style="position:static;opacity:1;margin-top:.25rem;align-self:flex-start;">copiar</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── TIPOGRAFIA ───────────────────────────────────────────────── -->
+<section class="section" id="tipografia">
+  <div class="container">
+    <p class="section-label">03 — Tipografia</p>
+    <h2 class="section-title">Sistema de Tipos</h2>
+    <p class="section-desc">Três famílias com funções distintas. Nunca misture fora dos padrões abaixo.</p>
+
+    <!-- Font Families -->
+    <div class="grid-3" style="margin-bottom:3rem;">
+      <div class="card">
+        <p class="badge badge-brand" style="margin-bottom:1.25rem;">Display</p>
+        <p style="font-family:var(--font-display);font-weight:800;font-size:2rem;letter-spacing:-.03em;line-height:1.1;margin-bottom:.75rem;">Bricolage<br/>Grotesque</p>
+        <p style="font-size:.8rem;color:var(--content-muted);">Peso 800 · H1 · Headlines principais</p>
+        <p style="font-family:var(--font-mono);font-size:.65rem;color:var(--brand-400);margin-top:.5rem;">font-weight: 800</p>
+      </div>
+      <div class="card">
+        <p class="badge badge-muted" style="margin-bottom:1.25rem;">Sans</p>
+        <p style="font-family:var(--font-sans);font-weight:700;font-size:1.5rem;letter-spacing:-.01em;line-height:1.2;margin-bottom:.5rem;">Plus Jakarta<br/>Sans</p>
+        <p style="font-family:var(--font-sans);font-size:.9rem;color:var(--content-secondary);margin-bottom:.75rem;">Corpo, UI, labels, H2, H3.</p>
+        <p style="font-family:var(--font-mono);font-size:.65rem;color:var(--brand-400);">weight: 400 · 500 · 600 · 700</p>
+      </div>
+      <div class="card">
+        <p class="badge badge-muted" style="margin-bottom:1.25rem;">Mono</p>
+        <p style="font-family:var(--font-mono);font-weight:500;font-size:1.5rem;line-height:1.3;margin-bottom:.5rem;">DM Mono<br/>500</p>
+        <p style="font-family:var(--font-sans);font-size:.9rem;color:var(--content-secondary);margin-bottom:.75rem;">Preços, números, código, labels técnicas.</p>
+        <p style="font-family:var(--font-mono);font-size:.65rem;color:var(--brand-400);">font-weight: 500</p>
+      </div>
+    </div>
+
+    <!-- Escala -->
+    <div class="card">
+      <div class="type-row">
+        <div class="type-meta">
+          <p class="type-meta-name">Hero H1</p>
+          <p class="type-meta-detail">Bricolage 800<br/>clamp(2.75rem, 6vw, 5.5rem)<br/>lh 1.04 · ls -0.03em</p>
+        </div>
+        <div class="type-sample">
+          <p style="font-family:var(--font-display);font-weight:800;font-size:clamp(2.75rem,6vw,5.5rem);line-height:1.04;letter-spacing:-.03em;color:var(--content-primary);">Título da Página</p>
+        </div>
+      </div>
+      <div class="type-row">
+        <div class="type-meta">
+          <p class="type-meta-name">Section H2</p>
+          <p class="type-meta-detail">Jakarta 700<br/>clamp(1.875rem, 4vw, 3rem)<br/>lh 1.2 · ls -0.02em</p>
+        </div>
+        <div class="type-sample">
+          <p style="font-family:var(--font-sans);font-weight:700;font-size:clamp(1.875rem,4vw,3rem);line-height:1.2;letter-spacing:-.02em;">Título de Seção</p>
+        </div>
+      </div>
+      <div class="type-row">
+        <div class="type-meta">
+          <p class="type-meta-name">Card H3</p>
+          <p class="type-meta-detail">Jakarta 600<br/>1.125rem · lh default</p>
+        </div>
+        <div class="type-sample">
+          <p style="font-family:var(--font-sans);font-weight:600;font-size:1.125rem;">Título de Card ou Componente</p>
+        </div>
+      </div>
+      <div class="type-row">
+        <div class="type-meta">
+          <p class="type-meta-name">Body</p>
+          <p class="type-meta-detail">Jakarta 400<br/>1.125rem · lh 1.7</p>
+        </div>
+        <div class="type-sample">
+          <p style="font-family:var(--font-sans);font-weight:400;font-size:1.125rem;line-height:1.7;color:var(--content-secondary);">Texto de parágrafo padrão, descrições de serviços, textos de apoio ao longo das seções.</p>
+        </div>
+      </div>
+      <div class="type-row">
+        <div class="type-meta">
+          <p class="type-meta-name">Label / Small</p>
+          <p class="type-meta-detail">Jakarta 600<br/>0.875rem · ls 0.05em</p>
+        </div>
+        <div class="type-sample">
+          <p style="font-family:var(--font-sans);font-weight:600;font-size:.875rem;letter-spacing:.05em;color:var(--content-secondary);">Label de campo, detalhe de card</p>
+        </div>
+      </div>
+      <div class="type-row">
+        <div class="type-meta">
+          <p class="type-meta-name">Eyebrow</p>
+          <p class="type-meta-detail">Mono 500<br/>0.75rem · UPPERCASE<br/>ls 0.12em · brand-400</p>
+        </div>
+        <div class="type-sample">
+          <p style="font-family:var(--font-mono);font-weight:500;font-size:.75rem;letter-spacing:.12em;text-transform:uppercase;color:var(--brand-400);">Categoria · Serviços</p>
+        </div>
+      </div>
+      <div class="type-row">
+        <div class="type-meta">
+          <p class="type-meta-name">Preço / Número</p>
+          <p class="type-meta-detail">Mono 500<br/>2rem+ · display</p>
+        </div>
+        <div class="type-sample">
+          <p style="font-family:var(--font-mono);font-weight:500;font-size:2rem;color:var(--content-primary);">R$ 497<span style="font-size:1rem;color:var(--content-muted);">/mês</span></p>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top:1.5rem;padding:1rem 1.5rem;background:rgba(37,99,235,.08);border:1px solid rgba(37,99,235,.2);border-radius:1rem;font-size:.85rem;color:var(--content-secondary);line-height:1.6;">
+      <strong style="color:var(--brand-400);">Regra de uso:</strong> Bricolage apenas no H1 (impacto máximo). Jakarta em tudo o mais. DM Mono exclusivo para dados numéricos, códigos e eyebrows técnicas. Nunca misture Display e Mono no mesmo elemento de texto.
+    </div>
+  </div>
+</section>
+
+<!-- ── LOGO ──────────────────────────────────────────────────────── -->
+<section class="section" id="logo" style="background:var(--surface-muted);">
+  <div class="container">
+    <p class="section-label">04 — Logo</p>
+    <h2 class="section-title">Uso do Logo</h2>
+    <p class="section-desc">Dois arquivos, regras claras.</p>
+
+    <div class="grid-2">
+      <div class="card" style="display:flex;flex-direction:column;gap:1.25rem;">
+        <p class="badge badge-muted">Colorido</p>
+        <div style="background:#07070F;border-radius:1rem;padding:2.5rem;display:flex;align-items:center;justify-content:center;">
+          <img src="/rr-colorido-transp.png" style="max-height:60px;width:auto;" alt="Logo dev.RR colorido" />
+        </div>
+        <div>
+          <p style="font-size:.8rem;color:var(--content-muted);">Arquivo: <span class="mono" style="color:var(--brand-400);">rr-colorido-transp.png</span></p>
+          <p style="font-size:.8rem;color:var(--content-muted);margin-top:.25rem;">Uso: fundos escuros, materiais de destaque, hero</p>
+        </div>
+      </div>
+
+      <div class="card" style="display:flex;flex-direction:column;gap:1.25rem;">
+        <p class="badge badge-muted">Monocromático</p>
+        <div style="background:#07070F;border-radius:1rem;padding:2.5rem;display:flex;align-items:center;justify-content:center;">
+          <img src="/rr-monocromatico-transp.png" style="max-height:60px;width:auto;" alt="Logo dev.RR monocromático" />
+        </div>
+        <div>
+          <p style="font-size:.8rem;color:var(--content-muted);">Arquivo: <span class="mono" style="color:var(--brand-400);">rr-monocromatico-transp.png</span></p>
+          <p style="font-size:.8rem;color:var(--content-muted);margin-top:.25rem;">Uso: fundos neutros, rodapé, materiais institucionais</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tamanhos mínimos -->
+    <div style="margin-top:1.5rem;" class="card">
+      <p style="font-weight:600;margin-bottom:1rem;">Tamanhos por contexto</p>
+      <table class="spec-table">
+        <thead>
+          <tr>
+            <th>Contexto</th>
+            <th>Altura mínima</th>
+            <th>Largura estimada</th>
+            <th>Formato recomendado</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Story / Reel (1080×1920)</td>
+            <td><span class="mono">120–160px</span></td>
+            <td><span class="mono">~360–480px</span></td>
+            <td>Colorido ou Mono</td>
+          </tr>
+          <tr>
+            <td>Feed quadrado (1080×1080)</td>
+            <td><span class="mono">80–120px</span></td>
+            <td><span class="mono">~240–360px</span></td>
+            <td>Colorido</td>
+          </tr>
+          <tr>
+            <td>Banner anúncio (1200×628)</td>
+            <td><span class="mono">48–80px</span></td>
+            <td><span class="mono">~145–240px</span></td>
+            <td>Monocromático</td>
+          </tr>
+          <tr>
+            <td>Perfil / Avatar</td>
+            <td><span class="mono">min 40px</span></td>
+            <td>—</td>
+            <td>Colorido (recortado)</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ── COMPONENTES ──────────────────────────────────────────────── -->
+<section class="section" id="componentes">
+  <div class="container">
+    <p class="section-label">05 — Componentes</p>
+    <h2 class="section-title">Elementos Visuais</h2>
+    <p class="section-desc">Botões, badges e cards — como devem aparecer em materiais gráficos.</p>
+
+    <div class="grid-3">
+      <!-- Botões -->
+      <div class="card" style="display:flex;flex-direction:column;gap:1rem;">
+        <p class="badge badge-muted">Botões</p>
+        <button class="btn-primary">Fale no WhatsApp</button>
+        <div style="display:inline-flex;align-items:center;gap:.5rem;background:rgba(255,255,255,.035);color:var(--content-primary);font-family:var(--font-sans);font-weight:600;font-size:.9rem;padding:.75rem 1.5rem;border-radius:9999px;border:1px solid rgba(255,255,255,.08);backdrop-filter:blur(20px);">
+          Ver Serviços
+        </div>
+        <p style="font-size:.75rem;color:var(--content-muted);">Primário: brand-600 / Secundário: glass</p>
+      </div>
+
+      <!-- Badges -->
+      <div class="card" style="display:flex;flex-direction:column;gap:.75rem;">
+        <p class="badge badge-muted">Badges</p>
+        <div style="display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;">
+          <span class="badge badge-brand">Novo</span>
+          <span class="badge badge-success">Entregue</span>
+          <span class="badge badge-error">Urgente</span>
+          <span class="badge badge-amber">7 dias</span>
+          <span class="badge badge-muted">Opcional</span>
+        </div>
+        <p style="font-size:.75rem;color:var(--content-muted);">Sempre uppercase, font-mono, ls 0.15em</p>
+      </div>
+
+      <!-- Stars -->
+      <div class="card" style="display:flex;flex-direction:column;gap:.75rem;">
+        <p class="badge badge-muted">Avaliação</p>
+        <div style="display:flex;gap:.25rem;">
+          <span style="color:var(--amber);font-size:1.25rem;">★★★★★</span>
+        </div>
+        <p style="font-size:.95rem;font-weight:500;">"Site lindo e rápido. WhatsApp não para!"</p>
+        <p style="font-size:.8rem;color:var(--content-muted);">— Maria S., Clínica Estética</p>
+      </div>
+    </div>
+
+    <!-- Cards -->
+    <div style="margin-top:1.25rem;" class="grid-2">
+      <div class="card" style="position:relative;overflow:hidden;">
+        <div style="position:absolute;top:-40px;right:-40px;width:160px;height:160px;border-radius:50%;background:radial-gradient(circle,rgba(37,99,235,.2) 0%,transparent 70%);pointer-events:none;"></div>
+        <p class="badge badge-muted" style="margin-bottom:1rem;">Card Padrão</p>
+        <p style="font-weight:600;font-size:1.05rem;margin-bottom:.5rem;">Presença Local</p>
+        <p style="font-size:.875rem;color:var(--content-secondary);line-height:1.6;">Site profissional + perfil no Google Maps. Apareça quando alguém buscar o que você vende.</p>
+        <p style="font-family:var(--font-mono);font-size:1.25rem;color:var(--content-primary);margin-top:1rem;">R$ 497<span style="font-size:.75rem;color:var(--content-muted);">/mês</span></p>
+      </div>
+
+      <div class="card-brand" style="overflow:hidden;">
+        <div style="position:absolute;top:-40px;right:-40px;width:160px;height:160px;border-radius:50%;background:radial-gradient(circle,rgba(37,99,235,.3) 0%,transparent 70%);pointer-events:none;"></div>
+        <p class="badge badge-brand" style="margin-bottom:1rem;">Card Destaque</p>
+        <p style="font-weight:600;font-size:1.05rem;margin-bottom:.5rem;">Presença Profissional</p>
+        <p style="font-size:.875rem;color:var(--content-secondary);line-height:1.6;">Tudo do plano anterior + landing page de vendas otimizada para conversão.</p>
+        <p style="font-family:var(--font-mono);font-size:1.25rem;color:var(--content-primary);margin-top:1rem;">R$ 897<span style="font-size:.75rem;color:var(--content-muted);">/mês</span></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── TEMPLATES ─────────────────────────────────────────────────── -->
+<section class="section" id="templates" style="background:var(--surface-muted);">
+  <div class="container">
+    <p class="section-label">06 — Formatos</p>
+    <h2 class="section-title">Templates por Formato</h2>
+    <p class="section-desc">Referência visual para Stories, Reels, Feed e Anúncios. Use estes layouts como base no Canva, Figma ou ferramenta preferida.</p>
+
+    <!-- STORIES & REELS 9:16 -->
+    <div style="margin-bottom:3rem;">
+      <p class="swatch-group-label" style="margin-bottom:1.5rem;">Stories &amp; Reels — 9:16 (1080×1920)</p>
+      <div class="format-showcase">
+
+        <!-- Story 1 — Pergunta / Hook -->
+        <div class="format-wrap">
+          <div class="tpl-story tpl-bg-brand">
+            <div class="tpl-dot"></div>
+            <div style="position:absolute;top:-60px;left:-60px;width:200px;height:200px;border-radius:50%;background:radial-gradient(circle,rgba(37,99,235,.4) 0%,transparent 70%);"></div>
+            <div class="tpl-content" style="justify-content:space-between;">
+              <p class="tpl-logo">dev.RR</p>
+              <div style="display:flex;flex-direction:column;gap:.5rem;">
+                <p class="tpl-eyebrow">Você sabia?</p>
+                <div class="tpl-divider"></div>
+                <p class="tpl-headline" style="font-size:1.15rem;">Seu concorrente já aparece no Google.<br/>E você?</p>
+                <p class="tpl-body" style="font-size:.55rem;margin-top:.25rem;">Enquanto você está sem site, ele está recebendo os contatos que deveriam ser seus.</p>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:.4rem;">
+                <span class="tpl-cta" style="font-size:.5rem;padding:.35rem .7rem;align-self:flex-start;">Fale no WhatsApp →</span>
+                <p style="font-family:var(--font-mono);font-size:.4rem;color:var(--content-muted);">devRR.com.br</p>
+              </div>
+            </div>
+          </div>
+          <div style="text-align:center;">
+            <p class="format-label">Variação A — Hook</p>
+            <p class="format-dims">1080 × 1920</p>
+          </div>
+        </div>
+
+        <!-- Story 2 — Serviço -->
+        <div class="format-wrap">
+          <div class="tpl-story" style="background:var(--surface-elevated);">
+            <div class="tpl-dot"></div>
+            <div style="position:absolute;bottom:-40px;right:-40px;width:180px;height:180px;border-radius:50%;background:radial-gradient(circle,rgba(99,102,241,.3) 0%,transparent 70%);"></div>
+            <div class="tpl-content" style="justify-content:space-between;">
+              <p class="tpl-logo">dev.RR</p>
+              <div style="display:flex;flex-direction:column;gap:.4rem;">
+                <span class="badge badge-brand" style="font-size:.45rem;padding:.2rem .5rem;align-self:flex-start;">Serviço</span>
+                <p class="tpl-headline" style="font-size:1rem;">Site em<br/><span style="color:var(--brand-400);">7 dias úteis</span></p>
+                <p class="tpl-body" style="font-size:.5rem;margin-top:.15rem;">Do zero até publicado, aparecendo no Google Maps.</p>
+                <div style="margin-top:.5rem;display:flex;flex-direction:column;gap:.25rem;">
+                  <p style="font-size:.45rem;color:var(--brand-400);font-family:var(--font-mono);">✓ Domínio incluso</p>
+                  <p style="font-size:.45rem;color:var(--brand-400);font-family:var(--font-mono);">✓ Google Maps configurado</p>
+                  <p style="font-size:.45rem;color:var(--brand-400);font-family:var(--font-mono);">✓ Manutenção mensal</p>
+                </div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:.3rem;">
+                <p style="font-family:var(--font-mono);font-size:.55rem;color:var(--content-muted);">A partir de</p>
+                <p style="font-family:var(--font-mono);font-size:.9rem;font-weight:500;color:var(--content-primary);">R$ 497<span style="font-size:.45rem;color:var(--content-muted);">/mês</span></p>
+                <span class="tpl-cta" style="font-size:.45rem;padding:.3rem .6rem;margin-top:.2rem;align-self:flex-start;">Quero saber mais →</span>
+              </div>
+            </div>
+          </div>
+          <div style="text-align:center;">
+            <p class="format-label">Variação B — Serviço</p>
+            <p class="format-dims">1080 × 1920</p>
+          </div>
+        </div>
+
+        <!-- Story 3 — Depoimento -->
+        <div class="format-wrap">
+          <div class="tpl-story tpl-bg-brand">
+            <div class="tpl-dot"></div>
+            <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:250px;height:250px;border-radius:50%;background:radial-gradient(circle,rgba(37,99,235,.25) 0%,transparent 70%);"></div>
+            <div class="tpl-content" style="justify-content:space-between;">
+              <p class="tpl-logo">dev.RR</p>
+              <div style="display:flex;flex-direction:column;gap:.5rem;align-items:center;text-align:center;">
+                <div style="display:flex;gap:.15rem;">
+                  <span style="color:var(--amber);font-size:.7rem;">★★★★★</span>
+                </div>
+                <p class="tpl-headline" style="font-size:.85rem;text-align:center;line-height:1.3;">"Meu WhatsApp não para de receber contatos novos!"</p>
+                <p class="tpl-body" style="font-size:.45rem;color:var(--content-muted);">— Ana Rodrigues, Salão de Beleza</p>
+              </div>
+              <span class="tpl-cta" style="font-size:.45rem;padding:.3rem .6rem;align-self:center;">Quero isso também →</span>
+            </div>
+          </div>
+          <div style="text-align:center;">
+            <p class="format-label">Variação C — Depoimento</p>
+            <p class="format-dims">1080 × 1920</p>
+          </div>
+        </div>
+
+        <!-- Story 4 — CTA direto -->
+        <div class="format-wrap">
+          <div class="tpl-story" style="background:var(--brand-600);">
+            <div style="position:absolute;top:-60px;right:-60px;width:200px;height:200px;border-radius:50%;background:rgba(255,255,255,.08);"></div>
+            <div style="position:absolute;bottom:-40px;left:-40px;width:150px;height:150px;border-radius:50%;background:rgba(0,0,0,.2);"></div>
+            <div class="tpl-content" style="justify-content:space-between;align-items:center;text-align:center;">
+              <div></div>
+              <div style="display:flex;flex-direction:column;gap:.5rem;align-items:center;">
+                <p class="tpl-eyebrow" style="color:rgba(255,255,255,.7);">Só hoje</p>
+                <p class="tpl-headline" style="font-size:1.2rem;color:#fff;text-align:center;">Diagnóstico<br/>gratuito do<br/>seu negócio</p>
+                <p class="tpl-body" style="font-size:.5rem;color:rgba(255,255,255,.7);text-align:center;margin-top:.25rem;">Vejo onde você está perdendo clientes e te digo como resolver.</p>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:.4rem;align-items:center;">
+                <div style="background:#fff;color:var(--brand-600);font-family:var(--font-sans);font-weight:700;font-size:.5rem;padding:.4rem .9rem;border-radius:9999px;">Fale agora no WhatsApp</div>
+                <p class="tpl-logo" style="color:rgba(255,255,255,.6);font-size:.6rem;">dev.RR</p>
+              </div>
+            </div>
+          </div>
+          <div style="text-align:center;">
+            <p class="format-label">Variação D — CTA Brand</p>
+            <p class="format-dims">1080 × 1920</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FEED QUADRADO 1:1 -->
+    <div style="margin-bottom:3rem;">
+      <p class="swatch-group-label" style="margin-bottom:1.5rem;">Feed Quadrado — 1:1 (1080×1080)</p>
+      <div class="format-showcase">
+
+        <!-- Feed 1 -->
+        <div class="format-wrap">
+          <div class="tpl-feed tpl-bg-brand">
+            <div class="tpl-dot"></div>
+            <div style="position:absolute;top:-40px;left:-40px;width:180px;height:180px;border-radius:50%;background:radial-gradient(circle,rgba(37,99,235,.4) 0%,transparent 70%);"></div>
+            <div class="tpl-content" style="justify-content:space-between;">
+              <div style="display:flex;justify-content:space-between;align-items:center;">
+                <p class="tpl-logo">dev.RR</p>
+                <span class="badge badge-brand" style="font-size:.4rem;padding:.15rem .4rem;">Dica</span>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:.5rem;">
+                <p class="tpl-eyebrow">Marketing digital</p>
+                <p class="tpl-headline" style="font-size:1rem;">3 razões para ter um site ainda esse mês</p>
+                <div class="tpl-divider"></div>
+                <div style="display:flex;flex-direction:column;gap:.25rem;">
+                  <p style="font-size:.5rem;color:var(--content-secondary);font-family:var(--font-mono);">01 — Aparece no Google 24h</p>
+                  <p style="font-size:.5rem;color:var(--content-secondary);font-family:var(--font-mono);">02 — Passa credibilidade</p>
+                  <p style="font-size:.5rem;color:var(--content-secondary);font-family:var(--font-mono);">03 — Gera contato enquanto dorme</p>
+                </div>
+              </div>
+              <p style="font-family:var(--font-mono);font-size:.4rem;color:var(--content-muted);">devRR.com.br</p>
+            </div>
+          </div>
+          <div style="text-align:center;">
+            <p class="format-label">Feed A — Educativo</p>
+            <p class="format-dims">1080 × 1080</p>
+          </div>
+        </div>
+
+        <!-- Feed 2 -->
+        <div class="format-wrap">
+          <div class="tpl-feed" style="background:var(--surface-elevated);">
+            <div class="tpl-dot"></div>
+            <div style="position:absolute;bottom:-30px;right:-30px;width:150px;height:150px;border-radius:50%;background:radial-gradient(circle,rgba(99,102,241,.2) 0%,transparent 70%);"></div>
+            <div class="tpl-content" style="justify-content:space-between;align-items:center;text-align:center;">
+              <p class="tpl-logo">dev.RR</p>
+              <div style="display:flex;flex-direction:column;gap:.4rem;align-items:center;">
+                <div style="display:flex;gap:.1rem;">
+                  <span style="color:var(--amber);font-size:.65rem;">★★★★★</span>
+                </div>
+                <p class="tpl-headline" style="font-size:.85rem;line-height:1.3;text-align:center;">"Em 7 dias já tinha clientes novos pelo Google"</p>
+                <div class="tpl-divider" style="align-self:center;"></div>
+                <p class="tpl-body" style="font-size:.45rem;color:var(--content-muted);">— João M., Consultório Odontológico</p>
+              </div>
+              <span class="tpl-cta" style="font-size:.45rem;padding:.3rem .65rem;">Ver mais resultados →</span>
+            </div>
+          </div>
+          <div style="text-align:center;">
+            <p class="format-label">Feed B — Depoimento</p>
+            <p class="format-dims">1080 × 1080</p>
+          </div>
+        </div>
+
+        <!-- Feed 3 — Oferta -->
+        <div class="format-wrap">
+          <div class="tpl-feed" style="background:linear-gradient(145deg,#0D1829,#1E3566);">
+            <div style="position:absolute;inset:0;border-radius:1.25rem;padding:2px;background:linear-gradient(135deg,rgba(37,99,235,.6),rgba(99,102,241,.4));-webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);-webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none;"></div>
+            <div class="tpl-content" style="justify-content:space-between;align-items:center;text-align:center;">
+              <p class="tpl-logo">dev.RR</p>
+              <div style="display:flex;flex-direction:column;gap:.35rem;align-items:center;">
+                <p class="tpl-eyebrow">Plano Entrada</p>
+                <p class="tpl-headline" style="font-size:.8rem;">Presença Local</p>
+                <p style="font-family:var(--font-mono);font-size:1.25rem;color:var(--content-primary);">R$ 497<span style="font-size:.5rem;color:var(--content-muted);">/mês</span></p>
+                <div style="display:flex;flex-direction:column;gap:.2rem;align-items:flex-start;">
+                  <p style="font-size:.45rem;color:var(--brand-400);font-family:var(--font-mono);">✓ Site profissional</p>
+                  <p style="font-size:.45rem;color:var(--brand-400);font-family:var(--font-mono);">✓ Google Maps</p>
+                  <p style="font-size:.45rem;color:var(--brand-400);font-family:var(--font-mono);">✓ Entrega em 7 dias</p>
+                </div>
+              </div>
+              <span class="tpl-cta" style="font-size:.45rem;padding:.3rem .65rem;">Quero começar →</span>
+            </div>
+          </div>
+          <div style="text-align:center;">
+            <p class="format-label">Feed C — Oferta</p>
+            <p class="format-dims">1080 × 1080</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ANÚNCIOS -->
+    <div>
+      <p class="swatch-group-label" style="margin-bottom:1.5rem;">Anúncios — Variados</p>
+      <div style="display:flex;flex-direction:column;gap:2rem;align-items:center;">
+
+        <!-- Banner horizontal 1.91:1 -->
+        <div class="format-wrap" style="width:100%;max-width:380px;">
+          <div class="tpl-banner tpl-bg-brand" style="width:100%;height:auto;aspect-ratio:1.91/1;">
+            <div class="tpl-dot"></div>
+            <div style="position:absolute;left:-30px;top:-30px;width:140px;height:140px;border-radius:50%;background:radial-gradient(circle,rgba(37,99,235,.4) 0%,transparent 70%);"></div>
+            <div class="tpl-content" style="flex-direction:row;align-items:center;gap:.75rem;padding:.75rem 1rem;">
+              <div style="flex:1;display:flex;flex-direction:column;gap:.25rem;">
+                <p class="tpl-logo" style="font-size:.65rem;">dev.RR</p>
+                <p class="tpl-headline" style="font-size:.7rem;line-height:1.2;">Site profissional em 7 dias</p>
+                <p class="tpl-body" style="font-size:.45rem;">Apareça no Google. Gere contatos.</p>
+              </div>
+              <span class="tpl-cta" style="font-size:.45rem;padding:.3rem .6rem;white-space:nowrap;flex-shrink:0;">Saiba mais →</span>
+            </div>
+          </div>
+          <div style="text-align:center;">
+            <p class="format-label">Banner Horizontal — 1200×628</p>
+            <p class="format-dims">Meta Ads / Google Display</p>
+          </div>
+        </div>
+
+        <!-- Quadrado anúncio 1:1 menor -->
+        <div style="display:flex;flex-wrap:wrap;gap:2rem;justify-content:center;">
+          <div class="format-wrap">
+            <div class="tpl-square-ad tpl-bg-brand">
+              <div class="tpl-dot"></div>
+              <div style="position:absolute;top:-20px;right:-20px;width:100px;height:100px;border-radius:50%;background:radial-gradient(circle,rgba(99,102,241,.3) 0%,transparent 70%);"></div>
+              <div class="tpl-content" style="justify-content:space-between;align-items:center;text-align:center;padding:1rem;">
+                <p class="tpl-logo" style="font-size:.7rem;">dev.RR</p>
+                <div style="display:flex;flex-direction:column;gap:.35rem;align-items:center;">
+                  <p class="tpl-eyebrow" style="font-size:.4rem;">Para negócios locais</p>
+                  <p class="tpl-headline" style="font-size:.85rem;line-height:1.2;text-align:center;">Seu WhatsApp pode receber mais</p>
+                </div>
+                <span class="tpl-cta" style="font-size:.45rem;padding:.3rem .65rem;">Diagnóstico grátis →</span>
+              </div>
+            </div>
+            <div style="text-align:center;">
+              <p class="format-label">Ad Square — 1080×1080</p>
+              <p class="format-dims">Meta Ads</p>
+            </div>
+          </div>
+
+          <div class="format-wrap">
+            <div class="tpl-square-ad" style="background:var(--brand-600);">
+              <div style="position:absolute;top:-20px;right:-20px;width:80px;height:80px;border-radius:50%;background:rgba(255,255,255,.1);"></div>
+              <div style="position:absolute;bottom:-10px;left:-10px;width:60px;height:60px;border-radius:50%;background:rgba(0,0,0,.15);"></div>
+              <div class="tpl-content" style="justify-content:space-between;align-items:center;text-align:center;padding:1rem;">
+                <div></div>
+                <div style="display:flex;flex-direction:column;gap:.35rem;align-items:center;">
+                  <p class="tpl-headline" style="font-size:.85rem;color:#fff;text-align:center;">Diagnóstico gratuito</p>
+                  <p style="font-size:.45rem;color:rgba(255,255,255,.7);">Vejo onde você perde clientes</p>
+                </div>
+                <div style="background:#fff;color:var(--brand-600);font-family:var(--font-sans);font-weight:700;font-size:.45rem;padding:.35rem .75rem;border-radius:9999px;">Fale no WhatsApp</div>
+              </div>
+            </div>
+            <div style="text-align:center;">
+              <p class="format-label">Ad Brand Color</p>
+              <p class="format-dims">Meta Ads</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── ESPECIFICAÇÕES ─────────────────────────────────────────────── -->
+<section class="section" id="specs">
+  <div class="container">
+    <p class="section-label">07 — Especificações</p>
+    <h2 class="section-title">Dimensões e Configurações</h2>
+    <p class="section-desc">Valores exatos para configurar em qualquer ferramenta de design.</p>
+
+    <div class="card">
+      <table class="spec-table">
+        <thead>
+          <tr>
+            <th>Formato</th>
+            <th>Dimensão (px)</th>
+            <th>Proporção</th>
+            <th>Uso</th>
+            <th>Resolução</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Story / Reel</td>
+            <td><span class="mono">1080 × 1920</span></td>
+            <td>9:16</td>
+            <td>Instagram Stories, Reels, TikTok, WhatsApp Status</td>
+            <td>72–96 dpi</td>
+          </tr>
+          <tr>
+            <td>Feed Quadrado</td>
+            <td><span class="mono">1080 × 1080</span></td>
+            <td>1:1</td>
+            <td>Feed Instagram, Facebook, anúncio Meta</td>
+            <td>72–96 dpi</td>
+          </tr>
+          <tr>
+            <td>Feed Retrato</td>
+            <td><span class="mono">1080 × 1350</span></td>
+            <td>4:5</td>
+            <td>Feed Instagram (maior área)</td>
+            <td>72–96 dpi</td>
+          </tr>
+          <tr>
+            <td>Banner Horizontal</td>
+            <td><span class="mono">1200 × 628</span></td>
+            <td>1.91:1</td>
+            <td>Meta Ads Link, Google Display, thumbnail</td>
+            <td>72 dpi</td>
+          </tr>
+          <tr>
+            <td>Banner Wide</td>
+            <td><span class="mono">1920 × 1080</span></td>
+            <td>16:9</td>
+            <td>YouTube, LinkedIn, apresentações</td>
+            <td>72–96 dpi</td>
+          </tr>
+          <tr>
+            <td>Avatar / Perfil</td>
+            <td><span class="mono">800 × 800</span></td>
+            <td>1:1</td>
+            <td>Foto de perfil Instagram, Google, WhatsApp</td>
+            <td>72 dpi</td>
+          </tr>
+          <tr>
+            <td>Capa Facebook</td>
+            <td><span class="mono">820 × 312</span></td>
+            <td>~2.63:1</td>
+            <td>Facebook Page Cover</td>
+            <td>72 dpi</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div style="margin-top:1.5rem;display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;">
+      <div style="padding:1rem 1.25rem;background:var(--surface-elevated);border:1px solid rgba(255,255,255,.06);border-radius:1rem;">
+        <p class="section-label" style="margin-bottom:.5rem;">Margem segura</p>
+        <p style="font-family:var(--font-mono);font-size:1.1rem;color:var(--content-primary);">~8%</p>
+        <p style="font-size:.75rem;color:var(--content-muted);margin-top:.25rem;">de cada lado. Elementos importantes fora desta área podem ser cortados em diferentes dispositivos.</p>
+      </div>
+      <div style="padding:1rem 1.25rem;background:var(--surface-elevated);border:1px solid rgba(255,255,255,.06);border-radius:1rem;">
+        <p class="section-label" style="margin-bottom:.5rem;">Formato de exportação</p>
+        <p style="font-family:var(--font-mono);font-size:1.1rem;color:var(--content-primary);">PNG ou JPG</p>
+        <p style="font-size:.75rem;color:var(--content-muted);margin-top:.25rem;">PNG para logos e elementos com transparência. JPG (qualidade 90%) para fotos e backgrounds sólidos.</p>
+      </div>
+      <div style="padding:1rem 1.25rem;background:var(--surface-elevated);border:1px solid rgba(255,255,255,.06);border-radius:1rem;">
+        <p class="section-label" style="margin-bottom:.5rem;">Espaço seguro stories</p>
+        <p style="font-family:var(--font-mono);font-size:1.1rem;color:var(--content-primary);">250px top/bot</p>
+        <p style="font-size:.75rem;color:var(--content-muted);margin-top:.25rem;">Em stories, evite conteúdo nos 250px superiores (UI do app) e inferiores (swipe up / link).</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── COPY ──────────────────────────────────────────────────────── -->
+<section class="section" id="copy" style="background:var(--surface-muted);">
+  <div class="container">
+    <p class="section-label">08 — Copywriting</p>
+    <h2 class="section-title">Biblioteca de Copy</h2>
+    <p class="section-desc">Frases testadas e alinhadas à voz da marca. Clique em "copiar" para usar direto.</p>
+
+    <div style="margin-bottom:2rem;">
+      <p class="swatch-group-label" style="margin-bottom:1rem;">Headlines — Hooks de atenção</p>
+      <div class="grid-2">
+        <div class="copy-card">
+          <p class="copy-category">Hook · Dor</p>
+          <p class="copy-text">"Seu concorrente já aparece no Google. E você?"</p>
+          <p class="copy-subtext">Cria urgência ao revelar perda competitiva.</p>
+          <button class="copy-btn" onclick="copy('Seu concorrente já aparece no Google. E você?')">copiar</button>
+        </div>
+        <div class="copy-card">
+          <p class="copy-category">Hook · Resultado</p>
+          <p class="copy-text">"Cada cliente que te busca no Google e não te encontra vai pro concorrente."</p>
+          <p class="copy-subtext">Tangibiliza o custo de não ter presença digital.</p>
+          <button class="copy-btn" onclick="copy('Cada cliente que te busca no Google e não te encontra vai pro concorrente.')">copiar</button>
+        </div>
+        <div class="copy-card">
+          <p class="copy-category">Hook · Curiosidade</p>
+          <p class="copy-text">"O que donos de clínica, salão e consultório estão fazendo diferente em 2024."</p>
+          <p class="copy-subtext">Desperta curiosidade sem entregar o resultado.</p>
+          <button class="copy-btn" onclick="copy('O que donos de clínica, salão e consultório estão fazendo diferente em 2024.')">copiar</button>
+        </div>
+        <div class="copy-card">
+          <p class="copy-category">Hook · Prova</p>
+          <p class="copy-text">"Em 7 dias, mais de 40 negócios locais já apareceram no Google com a gente."</p>
+          <p class="copy-subtext">Prova social + especificidade = credibilidade.</p>
+          <button class="copy-btn" onclick="copy('Em 7 dias, mais de 40 negócios locais já apareceram no Google com a gente.')">copiar</button>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-bottom:2rem;">
+      <p class="swatch-group-label" style="margin-bottom:1rem;">Proposta de Valor</p>
+      <div class="grid-2">
+        <div class="copy-card">
+          <p class="copy-category">Clareza</p>
+          <p class="copy-text">"Presença digital que gera contatos de verdade."</p>
+          <p class="copy-subtext">Tagline principal. Use em todos os materiais.</p>
+          <button class="copy-btn" onclick="copy('Presença digital que gera contatos de verdade.')">copiar</button>
+        </div>
+        <div class="copy-card">
+          <p class="copy-category">Diferencial</p>
+          <p class="copy-text">"Você fala direto comigo. Sem gerente de conta, sem terceirizado."</p>
+          <p class="copy-subtext">Diferencia de agências com atendimento despersonalizado.</p>
+          <button class="copy-btn" onclick="copy('Você fala direto comigo. Sem gerente de conta, sem terceirizado.')">copiar</button>
+        </div>
+        <div class="copy-card">
+          <p class="copy-category">Velocidade</p>
+          <p class="copy-text">"Do zero ao online em 7 dias úteis. Sem enrolação."</p>
+          <p class="copy-subtext">Quebra objeção de "demora muito".</p>
+          <button class="copy-btn" onclick="copy('Do zero ao online em 7 dias úteis. Sem enrolação.')">copiar</button>
+        </div>
+        <div class="copy-card">
+          <p class="copy-category">Foco em resultado</p>
+          <p class="copy-text">"Site bonito que não gera contato não serve pra nada. Cada escolha aqui visa fazer seu WhatsApp tocar."</p>
+          <p class="copy-subtext">Reposiciona o produto de estético para funcional.</p>
+          <button class="copy-btn" onclick="copy('Site bonito que não gera contato não serve pra nada. Cada escolha aqui visa fazer seu WhatsApp tocar.')">copiar</button>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-bottom:2rem;">
+      <p class="swatch-group-label" style="margin-bottom:1rem;">CTAs</p>
+      <div class="grid-3">
+        <div class="copy-card">
+          <p class="copy-category">WhatsApp</p>
+          <p class="copy-text">"Fale no WhatsApp"</p>
+          <button class="copy-btn" onclick="copy('Fale no WhatsApp')">copiar</button>
+        </div>
+        <div class="copy-card">
+          <p class="copy-category">Diagnóstico</p>
+          <p class="copy-text">"Quero um diagnóstico grátis"</p>
+          <button class="copy-btn" onclick="copy('Quero um diagnóstico grátis')">copiar</button>
+        </div>
+        <div class="copy-card">
+          <p class="copy-category">Soft</p>
+          <p class="copy-text">"Ver como funciona →"</p>
+          <button class="copy-btn" onclick="copy('Ver como funciona →')">copiar</button>
+        </div>
+        <div class="copy-card">
+          <p class="copy-category">Urgência</p>
+          <p class="copy-text">"Quero começar essa semana"</p>
+          <button class="copy-btn" onclick="copy('Quero começar essa semana')">copiar</button>
+        </div>
+        <div class="copy-card">
+          <p class="copy-category">Prova</p>
+          <p class="copy-text">"Ver resultados reais"</p>
+          <button class="copy-btn" onclick="copy('Ver resultados reais')">copiar</button>
+        </div>
+        <div class="copy-card">
+          <p class="copy-category">Descoberta</p>
+          <p class="copy-text">"Como meu negócio aparece no Google?"</p>
+          <button class="copy-btn" onclick="copy('Como meu negócio aparece no Google?')">copiar</button>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <p class="swatch-group-label" style="margin-bottom:1rem;">Legendas prontas (Instagram)</p>
+      <div style="display:flex;flex-direction:column;gap:.75rem;">
+        <div class="copy-card">
+          <p class="copy-category">Educativo</p>
+          <p class="copy-text">"Você sabia que 97% das pessoas buscam empresas locais no Google antes de ligar? 📱 Se você não aparece, alguém aparece no seu lugar. Crio sites e perfis no Google para negócios como o seu — entrega em 7 dias, sem complicação. Me chama no WhatsApp e a gente conversa."</p>
+          <button class="copy-btn" onclick="copy('Você sabia que 97% das pessoas buscam empresas locais no Google antes de ligar? 📱 Se você não aparece, alguém aparece no seu lugar. Crio sites e perfis no Google para negócios como o seu — entrega em 7 dias, sem complicação. Me chama no WhatsApp e a gente conversa.')">copiar</button>
+        </div>
+        <div class="copy-card">
+          <p class="copy-category">Depoimento</p>
+          <p class="copy-text">"Resultado real de um cliente real 👇 Em menos de 7 dias, o negócio estava online, aparecendo no Google Maps e recebendo contatos pelo WhatsApp. Quer o mesmo? Me chama."</p>
+          <button class="copy-btn" onclick="copy('Resultado real de um cliente real 👇 Em menos de 7 dias, o negócio estava online, aparecendo no Google Maps e recebendo contatos pelo WhatsApp. Quer o mesmo? Me chama.')">copiar</button>
+        </div>
+        <div class="copy-card">
+          <p class="copy-category">Oferta</p>
+          <p class="copy-text">"Criação de site profissional + Google Maps configurado + suporte direto comigo. Tudo por R$ 497/mês. Sem surpresa no final. Link na bio ou me chama no WhatsApp 👇"</p>
+          <button class="copy-btn" onclick="copy('Criação de site profissional + Google Maps configurado + suporte direto comigo. Tudo por R$ 497/mês. Sem surpresa no final. Link na bio ou me chama no WhatsApp 👇')">copiar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── REGRAS ─────────────────────────────────────────────────────── -->
+<section class="section" id="regras">
+  <div class="container">
+    <p class="section-label">09 — Diretrizes</p>
+    <h2 class="section-title">Dos &amp; Don'ts</h2>
+    <p class="section-desc">O que preserva a identidade e o que a destrói.</p>
+
+    <div class="rules-grid">
+      <div class="rule-card do">
+        <p class="rule-header do">✓ Faça</p>
+        <div class="rule-item">Fundo sempre escuro — nunca fundo branco ou claro</div>
+        <div class="rule-item">Texto principal em #F1F5F9 (quase branco, não puro branco)</div>
+        <div class="rule-item">Botão de ação sempre em azul brand-600 (#2563EB)</div>
+        <div class="rule-item">Bricolage Grotesque em H1 e headlines de impacto</div>
+        <div class="rule-item">Logo sempre com área de respiro — mínimo 16px em torno</div>
+        <div class="rule-item">Tom direto e focado em resultado, não em tecnologia</div>
+        <div class="rule-item">Glow azul-violeta sutil em elementos de destaque</div>
+        <div class="rule-item">DM Mono para preços e números — passa autoridade</div>
+        <div class="rule-item">Manter proporção do logo — nunca distorcer</div>
+        <div class="rule-item">Dot grid como textura de fundo quando necessário</div>
+      </div>
+
+      <div class="rule-card dont">
+        <p class="rule-header dont">✕ Não faça</p>
+        <div class="rule-item">Gradient text (texto com gradiente aplicado sobre letra)</div>
+        <div class="rule-item">Fundo branco, creme ou cinza claro em qualquer material</div>
+        <div class="rule-item">Misturar fontes fora do sistema (ex: Montserrat, Poppins)</div>
+        <div class="rule-item">Usar roxo/violeta como cor principal — só como acento</div>
+        <div class="rule-item">Logo com sombra, contorno ou efeito de cor alterado</div>
+        <div class="rule-item">Texto muito pequeno em cima de glow ou blur pesado</div>
+        <div class="rule-item">Mais de 2 cores de destaque no mesmo material</div>
+        <div class="rule-item">Ícones "flat coloridos" (estilo 2D cartoon) — não combina</div>
+        <div class="rule-item">Usar linguagem técnica com o público-alvo (leigos)</div>
+        <div class="rule-item">Cores vibrantes como laranja, rosa ou amarelo como primárias</div>
+      </div>
+    </div>
+
+    <!-- Checklist rápido -->
+    <div style="margin-top:1.5rem;padding:1.5rem;background:var(--surface-elevated);border:1px solid rgba(255,255,255,.06);border-radius:1.25rem;">
+      <p style="font-weight:600;font-size:.95rem;margin-bottom:1rem;color:var(--content-primary);">Checklist antes de publicar</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem .75rem;">
+        <label style="display:flex;align-items:center;gap:.5rem;font-size:.8rem;color:var(--content-secondary);cursor:pointer;">
+          <input type="checkbox" style="accent-color:var(--brand-600);" /> Fundo escuro (não branco)
+        </label>
+        <label style="display:flex;align-items:center;gap:.5rem;font-size:.8rem;color:var(--content-secondary);cursor:pointer;">
+          <input type="checkbox" style="accent-color:var(--brand-600);" /> Logo visível e com respiro
+        </label>
+        <label style="display:flex;align-items:center;gap:.5rem;font-size:.8rem;color:var(--content-secondary);cursor:pointer;">
+          <input type="checkbox" style="accent-color:var(--brand-600);" /> Texto legível (mínimo 14px em 1080px)
+        </label>
+        <label style="display:flex;align-items:center;gap:.5rem;font-size:.8rem;color:var(--content-secondary);cursor:pointer;">
+          <input type="checkbox" style="accent-color:var(--brand-600);" /> CTA claro com cor brand-600
+        </label>
+        <label style="display:flex;align-items:center;gap:.5rem;font-size:.8rem;color:var(--content-secondary);cursor:pointer;">
+          <input type="checkbox" style="accent-color:var(--brand-600);" /> Conteúdo dentro da margem segura
+        </label>
+        <label style="display:flex;align-items:center;gap:.5rem;font-size:.8rem;color:var(--content-secondary);cursor:pointer;">
+          <input type="checkbox" style="accent-color:var(--brand-600);" /> Tom focado em resultado, não técnico
+        </label>
+        <label style="display:flex;align-items:center;gap:.5rem;font-size:.8rem;color:var(--content-secondary);cursor:pointer;">
+          <input type="checkbox" style="accent-color:var(--brand-600);" /> Fonte correta para cada elemento
+        </label>
+        <label style="display:flex;align-items:center;gap:.5rem;font-size:.8rem;color:var(--content-secondary);cursor:pointer;">
+          <input type="checkbox" style="accent-color:var(--brand-600);" /> Exportado em resolução correta
+        </label>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── FOOTER ────────────────────────────────────────────────────── -->
+<footer style="background:var(--surface-footer);border-top:1px solid rgba(255,255,255,.06);padding:3rem 0;">
+  <div class="container" style="display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;">
+    <div>
+      <p style="font-family:var(--font-display);font-weight:800;font-size:1.25rem;color:var(--brand-400);margin-bottom:.25rem;">dev.RR</p>
+      <p style="font-size:.8rem;color:var(--content-muted);">Brand Guide v1.0 · 2025</p>
+    </div>
+    <p style="font-family:var(--font-mono);font-size:.7rem;color:var(--content-muted);">Uso interno — identidade visual dev.RR</p>
+  </div>
+</footer>
+
+<!-- ── SCRIPTS ────────────────────────────────────────────────────── -->
+<script>
+  const toast = document.getElementById('toast');
+  let toastTimer;
+
+  function copy(text) {
+    navigator.clipboard.writeText(text).then(() => {
+      clearTimeout(toastTimer);
+      toast.textContent = 'Copiado: ' + (text.length > 30 ? text.slice(0, 30) + '…' : text);
+      toast.classList.add('show');
+      toastTimer = setTimeout(() => toast.classList.remove('show'), 2000);
+    });
+  }
+
+  // Smooth active nav
+  const sections = document.querySelectorAll('section[id], div[id]');
+  const navLinks = document.querySelectorAll('.header-nav a');
+
+  const obs = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        const id = e.target.getAttribute('id');
+        navLinks.forEach(a => {
+          a.style.color = a.getAttribute('href') === '#' + id
+            ? 'var(--content-primary)'
+            : 'var(--content-secondary)';
+        });
+      }
+    });
+  }, { threshold: 0.3 });
+
+  sections.forEach(s => obs.observe(s));
+</script>
+</body>
+</html>
