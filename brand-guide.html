@@ -27,12 +27,16 @@
 
       --content-primary:   #F1F5F9;
       --content-secondary: #94A3B8;
-      --content-muted:     #64748B;
+      --content-muted:     #7C8A9C;
 
       --emerald: #10B981;
       --red:     #F87171;
       --amber:   #FBBF24;
       --violet:  #8B5CF6;
+
+      --border:        rgba(255,255,255,.08);
+      --border-soft:   rgba(255,255,255,.06);
+      --border-strong: rgba(255,255,255,.12);
 
       --font-display: 'Bricolage Grotesque', sans-serif;
       --font-sans:    'Plus Jakarta Sans', sans-serif;
@@ -43,7 +47,7 @@
       --radius-inner: 1.625rem;
 
       --shadow-card:   0 4px 32px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.05);
-      --shadow-glow:   0 0 40px rgba(37,99,235,.4), 0 0 80px rgba(99,102,241,.2);
+      --shadow-glow:   0 0 40px rgba(37,99,235,.4), 0 0 80px rgba(139,92,246,.2);
     }
 
     /* ─── RESET & BASE ───────────────────────────────────────────── */
@@ -59,6 +63,13 @@
     a { color: var(--brand-400); text-decoration: none; }
     a:hover { text-decoration: underline; }
 
+    /* Foco visível para teclado — cobre links, botões, swatches e checkboxes */
+    :focus-visible {
+      outline: 2px solid var(--brand-400);
+      outline-offset: 2px;
+      border-radius: 4px;
+    }
+
     /* ─── UTILS ──────────────────────────────────────────────────── */
     .mono    { font-family: var(--font-mono); }
     .display { font-family: var(--font-display); font-weight: 800; }
@@ -72,7 +83,7 @@
 
     .card {
       background: var(--surface-elevated);
-      border: 1px solid rgba(255,255,255,.08);
+      border: 1px solid var(--border);
       border-radius: var(--radius-card);
       box-shadow: var(--shadow-card);
       padding: 2rem;
@@ -91,7 +102,7 @@
       inset: 0;
       border-radius: var(--radius-card);
       padding: 1px;
-      background: linear-gradient(135deg, rgba(37,99,235,.5), rgba(99,102,241,.3));
+      background: linear-gradient(135deg, rgba(37,99,235,.5), rgba(139,92,246,.3));
       -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
       mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
       -webkit-mask-composite: xor;
@@ -104,7 +115,7 @@
       align-items: center;
       gap: .5rem;
       background: var(--brand-600);
-      color: #fff;
+      color: var(--content-primary);
       font-family: var(--font-sans);
       font-weight: 600;
       font-size: .9rem;
@@ -112,7 +123,7 @@
       border-radius: var(--radius-pill);
       border: none;
       cursor: pointer;
-      transition: all .2s cubic-bezier(.32,.72,0,1);
+      transition: background-color .2s cubic-bezier(.32,.72,0,1), transform .2s cubic-bezier(.32,.72,0,1), box-shadow .2s cubic-bezier(.32,.72,0,1);
     }
     .btn-primary:hover {
       background: var(--brand-500);
@@ -130,7 +141,7 @@
       padding: .25rem .75rem;
       border-radius: var(--radius-pill);
     }
-    .badge-brand { background: var(--brand-600); color: #fff; }
+    .badge-brand { background: var(--brand-600); color: var(--content-primary); }
     .badge-success { background: rgba(16,185,129,.15); color: var(--emerald); border: 1px solid rgba(16,185,129,.2); }
     .badge-error   { background: rgba(248,113,113,.15); color: var(--red);    border: 1px solid rgba(248,113,113,.2); }
     .badge-amber   { background: rgba(251,191,36,.15);  color: var(--amber);  border: 1px solid rgba(251,191,36,.2); }
@@ -139,18 +150,28 @@
     /* ─── LAYOUT ─────────────────────────────────────────────────── */
     .container { max-width: 1100px; margin: 0 auto; padding: 0 1.5rem; }
     .section   { padding: 5rem 0; }
-    .section + .section { border-top: 1px solid rgba(255,255,255,.06); }
+    .section + .section { border-top: 1px solid var(--border-soft); }
 
     .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
     .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem; }
     .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.25rem; }
 
-    @media (max-width: 768px) {
-      .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
-    }
     @media (max-width: 1024px) {
       .grid-4 { grid-template-columns: repeat(2, 1fr); }
       .grid-3 { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 768px) {
+      .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 640px) {
+      .swatch-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: .375rem; overflow: visible; }
+      .swatch-row .swatch,
+      .swatch-row .swatch:first-child,
+      .swatch-row .swatch:last-child { border-radius: .5rem; }
+    }
+    @media (pointer: coarse) {
+      .copy-btn { min-height: 44px; }
+      .header-nav a { padding: .5rem 0; }
     }
 
     .section-label {
@@ -183,14 +204,15 @@
       z-index: 100;
       background: rgba(7,7,15,.85);
       backdrop-filter: blur(20px);
-      border-bottom: 1px solid rgba(255,255,255,.06);
+      border-bottom: 1px solid var(--border-soft);
       padding: 1rem 0;
     }
     .header-inner {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 2rem;
+      gap: 1rem 2rem;
+      flex-wrap: wrap;
     }
     .header-brand {
       font-family: var(--font-display);
@@ -199,10 +221,13 @@
     }
     .header-nav {
       display: flex;
-      gap: 1.5rem;
+      flex-wrap: wrap;
+      gap: .5rem 1.5rem;
       list-style: none;
     }
     .header-nav a {
+      display: inline-block;
+      padding: .35rem 0;
       font-size: .85rem;
       color: var(--content-secondary);
       text-decoration: none;
@@ -466,7 +491,7 @@
       align-items: center;
       gap: .3rem;
       background: var(--brand-600);
-      color: #fff;
+      color: var(--content-primary);
       font-family: var(--font-sans);
       font-weight: 600;
       border-radius: 9999px;
@@ -479,17 +504,10 @@
       border-radius: 1px;
     }
 
-    /* decorative bars */
-    .tpl-bar {
-      width: 3px;
-      border-radius: 2px;
-      background: linear-gradient(to bottom, var(--brand-600), transparent);
-    }
-
     /* ─── COPYWRITING ────────────────────────────────────────────── */
     .copy-card {
       background: var(--surface-elevated);
-      border: 1px solid rgba(255,255,255,.06);
+      border: 1px solid var(--border-soft);
       border-radius: 1.25rem;
       padding: 1.25rem 1.5rem;
       display: flex;
@@ -519,11 +537,12 @@
       font-size: .6rem;
       color: var(--content-muted);
       background: none;
-      border: 1px solid rgba(255,255,255,.08);
+      border: 1px solid var(--border);
       border-radius: .4rem;
-      padding: .2rem .5rem;
+      padding: .4rem .7rem;
+      min-height: 32px;
       cursor: pointer;
-      transition: all .15s;
+      transition: color .15s, border-color .15s;
     }
     .copy-btn:hover { color: var(--content-primary); border-color: rgba(255,255,255,.2); }
 
@@ -624,14 +643,14 @@
 </head>
 <body>
 
-<div id="toast">Copiado!</div>
+<div id="toast" role="status" aria-live="polite">Copiado!</div>
 
 <!-- ── HEADER ──────────────────────────────────────────────────── -->
 <header class="header">
   <div class="container">
     <div class="header-inner">
       <img src="logos/logo-primary-color.svg" alt="dev.RR" style="height:28px;width:auto;" />
-      <nav>
+      <nav aria-label="Seções do guia">
         <ul class="header-nav">
           <li><a href="#cores">Cores</a></li>
           <li><a href="#tipografia">Tipografia</a></li>
@@ -644,6 +663,8 @@
     </div>
   </div>
 </header>
+
+<main>
 
 <!-- ── HERO ────────────────────────────────────────────────────── -->
 <section class="hero dot-grid">
@@ -827,10 +848,10 @@
           </div>
           <span class="swatch-copy">copiar</span>
         </div>
-        <div class="swatch" style="background:rgba(100,116,139,.1);border:1px solid rgba(255,255,255,.08);min-height:80px;" onclick="copy('#64748B')">
+        <div class="swatch" style="background:rgba(124,138,156,.12);border:1px solid rgba(255,255,255,.08);min-height:80px;" onclick="copy('#7C8A9C')">
           <div>
-            <p class="swatch-name" style="color:#64748B;">content-muted</p>
-            <p class="swatch-hex" style="color:#64748B;">#64748B</p>
+            <p class="swatch-name" style="color:#7C8A9C;">content-muted</p>
+            <p class="swatch-hex" style="color:#7C8A9C;">#7C8A9C</p>
           </div>
           <span class="swatch-copy">copiar</span>
         </div>
@@ -843,15 +864,15 @@
       <div class="grid-4">
         <div class="swatch" style="background:#10B981;min-height:80px;" onclick="copy('#10B981')">
           <div>
-            <p class="swatch-name" style="color:#fff;">Sucesso</p>
-            <p class="swatch-hex" style="color:rgba(255,255,255,.7);">#10B981</p>
+            <p class="swatch-name" style="color:#050509;">Sucesso</p>
+            <p class="swatch-hex" style="color:rgba(5,5,9,.88);">#10B981</p>
           </div>
           <span class="swatch-copy">copiar</span>
         </div>
         <div class="swatch" style="background:#F87171;min-height:80px;" onclick="copy('#F87171')">
           <div>
-            <p class="swatch-name" style="color:#fff;">Atenção</p>
-            <p class="swatch-hex" style="color:rgba(255,255,255,.7);">#F87171</p>
+            <p class="swatch-name" style="color:#050509;">Atenção</p>
+            <p class="swatch-hex" style="color:rgba(5,5,9,.88);">#F87171</p>
           </div>
           <span class="swatch-copy">copiar</span>
         </div>
@@ -864,8 +885,8 @@
         </div>
         <div class="swatch" style="background:#8B5CF6;min-height:80px;" onclick="copy('#8B5CF6')">
           <div>
-            <p class="swatch-name" style="color:#fff;">Acento</p>
-            <p class="swatch-hex" style="color:rgba(255,255,255,.7);">#8B5CF6</p>
+            <p class="swatch-name" style="color:#050509;">Acento</p>
+            <p class="swatch-hex" style="color:rgba(5,5,9,.88);">#8B5CF6</p>
           </div>
           <span class="swatch-copy">copiar</span>
         </div>
@@ -886,7 +907,7 @@
           <p class="swatch-hex" style="color:var(--content-muted);font-size:.65rem;">#0D1829 → #07070F</p>
           <span class="swatch-copy" style="position:static;opacity:1;margin-top:.25rem;align-self:flex-start;color:var(--content-muted);">copiar</span>
         </div>
-        <div style="border-radius:1.25rem;overflow:hidden;min-height:80px;display:flex;flex-direction:column;justify-content:flex-end;padding:1rem;background:linear-gradient(135deg,rgba(37,99,235,.5),rgba(99,102,241,.3));cursor:pointer;border:1px solid rgba(255,255,255,.08);" onclick="copy('linear-gradient(135deg, rgba(37,99,235,0.5), rgba(99,102,241,0.3))')">
+        <div style="border-radius:1.25rem;overflow:hidden;min-height:80px;display:flex;flex-direction:column;justify-content:flex-end;padding:1rem;background:linear-gradient(135deg,rgba(37,99,235,.5),rgba(139,92,246,.3));cursor:pointer;border:1px solid rgba(255,255,255,.08);" onclick="copy('linear-gradient(135deg, rgba(37,99,235,0.5), rgba(139,92,246,0.3))')">
           <p class="swatch-name" style="color:#fff;font-size:.7rem;">Brand Border</p>
           <p class="swatch-hex" style="color:rgba(255,255,255,.6);font-size:.65rem;">Blue 50% → Violet 30%</p>
           <span class="swatch-copy" style="position:static;opacity:1;margin-top:.25rem;align-self:flex-start;">copiar</span>
@@ -1261,7 +1282,7 @@
               </div>
               <div style="display:flex;flex-direction:column;gap:.4rem;">
                 <span class="tpl-cta" style="font-size:.5rem;padding:.35rem .7rem;align-self:flex-start;">Fale no WhatsApp →</span>
-                <p style="font-family:var(--font-mono);font-size:.4rem;color:var(--content-muted);">devRR.com.br</p>
+                <p style="font-family:var(--font-mono);font-size:.4rem;color:var(--content-muted);">devrigoni.com.br</p>
               </div>
             </div>
           </div>
@@ -1275,7 +1296,7 @@
         <div class="format-wrap">
           <div class="tpl-story" style="background:var(--surface-elevated);">
             <div class="tpl-dot"></div>
-            <div style="position:absolute;bottom:-40px;right:-40px;width:180px;height:180px;border-radius:50%;background:radial-gradient(circle,rgba(99,102,241,.3) 0%,transparent 70%);"></div>
+            <div style="position:absolute;bottom:-40px;right:-40px;width:180px;height:180px;border-radius:50%;background:radial-gradient(circle,rgba(139,92,246,.3) 0%,transparent 70%);"></div>
             <div class="tpl-content" style="justify-content:space-between;">
               <img src="logos/logo-primary-color.svg" style="height:13px;width:auto;" alt="dev.RR" />
               <div style="display:flex;flex-direction:column;gap:.4rem;">
@@ -1332,7 +1353,7 @@
             <div class="tpl-content" style="justify-content:space-between;align-items:center;text-align:center;">
               <div></div>
               <div style="display:flex;flex-direction:column;gap:.5rem;align-items:center;">
-                <p class="tpl-eyebrow" style="color:rgba(255,255,255,.7);">Só hoje</p>
+                <p class="tpl-eyebrow" style="color:rgba(255,255,255,.7);">Sem custo</p>
                 <p class="tpl-headline" style="font-size:1.2rem;color:#fff;text-align:center;">Diagnóstico<br/>gratuito do<br/>seu negócio</p>
                 <p class="tpl-body" style="font-size:.5rem;color:rgba(255,255,255,.7);text-align:center;margin-top:.25rem;">Vejo onde você está perdendo clientes e te digo como resolver.</p>
               </div>
@@ -1375,7 +1396,7 @@
         <div class="format-wrap">
           <div class="tpl-story tpl-bg-brand">
             <div class="tpl-dot"></div>
-            <div style="position:absolute;bottom:-60px;right:-60px;width:240px;height:240px;border-radius:50%;background:radial-gradient(circle,rgba(99,102,241,.3) 0%,transparent 70%);"></div>
+            <div style="position:absolute;bottom:-60px;right:-60px;width:240px;height:240px;border-radius:50%;background:radial-gradient(circle,rgba(139,92,246,.3) 0%,transparent 70%);"></div>
             <div class="tpl-content" style="justify-content:space-between;align-items:center;text-align:center;">
               <div></div>
               <div style="display:flex;flex-direction:column;gap:.75rem;align-items:center;">
@@ -1386,7 +1407,7 @@
               </div>
               <div style="display:flex;flex-direction:column;gap:.4rem;align-items:center;">
                 <span class="tpl-cta" style="font-size:.45rem;padding:.35rem .7rem;">Conheça nosso trabalho →</span>
-                <p style="font-family:var(--font-mono);font-size:.4rem;color:var(--content-muted);">devRR.com.br</p>
+                <p style="font-family:var(--font-mono);font-size:.4rem;color:var(--content-muted);">devrigoni.com.br</p>
               </div>
             </div>
           </div>
@@ -1424,7 +1445,7 @@
                   <p style="font-size:.5rem;color:var(--content-secondary);font-family:var(--font-mono);">03 — Gera contato enquanto dorme</p>
                 </div>
               </div>
-              <p style="font-family:var(--font-mono);font-size:.4rem;color:var(--content-muted);">devRR.com.br</p>
+              <p style="font-family:var(--font-mono);font-size:.4rem;color:var(--content-muted);">devrigoni.com.br</p>
             </div>
           </div>
           <div style="text-align:center;">
@@ -1437,7 +1458,7 @@
         <div class="format-wrap">
           <div class="tpl-feed" style="background:var(--surface-elevated);">
             <div class="tpl-dot"></div>
-            <div style="position:absolute;bottom:-30px;right:-30px;width:150px;height:150px;border-radius:50%;background:radial-gradient(circle,rgba(99,102,241,.2) 0%,transparent 70%);"></div>
+            <div style="position:absolute;bottom:-30px;right:-30px;width:150px;height:150px;border-radius:50%;background:radial-gradient(circle,rgba(139,92,246,.2) 0%,transparent 70%);"></div>
             <div class="tpl-content" style="justify-content:space-between;align-items:center;text-align:center;">
               <img src="logos/logo-wordmark-color.svg" style="height:11px;width:auto;" alt="dev.RR" />
               <div style="display:flex;flex-direction:column;gap:.4rem;align-items:center;">
@@ -1460,7 +1481,7 @@
         <!-- Feed 3 — Oferta -->
         <div class="format-wrap">
           <div class="tpl-feed" style="background:linear-gradient(145deg,#0D1829,#1E3566);">
-            <div style="position:absolute;inset:0;border-radius:1.25rem;padding:2px;background:linear-gradient(135deg,rgba(37,99,235,.6),rgba(99,102,241,.4));-webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);-webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none;"></div>
+            <div style="position:absolute;inset:0;border-radius:1.25rem;padding:2px;background:linear-gradient(135deg,rgba(37,99,235,.6),rgba(139,92,246,.4));-webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);-webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none;"></div>
             <div class="tpl-content" style="justify-content:space-between;align-items:center;text-align:center;">
               <img src="logos/logo-wordmark-color.svg" style="height:11px;width:auto;" alt="dev.RR" />
               <div style="display:flex;flex-direction:column;gap:.35rem;align-items:center;">
@@ -1493,7 +1514,7 @@
                 <img src="logos/logo-stacked-color.svg" style="height:52px;width:auto;" alt="dev.RR" />
                 <p class="tpl-body" style="font-size:.45rem;text-align:center;line-height:1.6;">Presença digital que<br/>gera contatos de verdade</p>
               </div>
-              <p style="font-family:var(--font-mono);font-size:.4rem;color:var(--content-muted);">devRR.com.br</p>
+              <p style="font-family:var(--font-mono);font-size:.4rem;color:var(--content-muted);">devrigoni.com.br</p>
             </div>
           </div>
           <div style="text-align:center;">
@@ -1566,7 +1587,7 @@
           <div class="format-wrap">
             <div class="tpl-square-ad tpl-bg-brand">
               <div class="tpl-dot"></div>
-              <div style="position:absolute;top:-20px;right:-20px;width:100px;height:100px;border-radius:50%;background:radial-gradient(circle,rgba(99,102,241,.3) 0%,transparent 70%);"></div>
+              <div style="position:absolute;top:-20px;right:-20px;width:100px;height:100px;border-radius:50%;background:radial-gradient(circle,rgba(139,92,246,.3) 0%,transparent 70%);"></div>
               <div class="tpl-content" style="justify-content:space-between;align-items:center;text-align:center;padding:1rem;">
                 <img src="logos/logo-wordmark-color.svg" style="height:10px;width:auto;" alt="dev.RR" />
                 <div style="display:flex;flex-direction:column;gap:.35rem;align-items:center;">
@@ -1702,7 +1723,7 @@
       </table>
     </div>
 
-    <div style="margin-top:1.5rem;display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;">
+    <div class="grid-3" style="margin-top:1.5rem;">
       <div style="padding:1rem 1.25rem;background:var(--surface-elevated);border:1px solid rgba(255,255,255,.06);border-radius:1rem;">
         <p class="section-label" style="margin-bottom:.5rem;">Margem segura</p>
         <p style="font-family:var(--font-mono);font-size:1.1rem;color:var(--content-primary);">~8%</p>
@@ -1918,6 +1939,8 @@
   </div>
 </section>
 
+</main>
+
 <!-- ── FOOTER ────────────────────────────────────────────────────── -->
 <footer style="background:var(--surface-footer);border-top:1px solid rgba(255,255,255,.06);padding:3rem 0;">
   <div class="container" style="display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;">
@@ -1934,14 +1957,58 @@
   const toast = document.getElementById('toast');
   let toastTimer;
 
-  function copy(text) {
-    navigator.clipboard.writeText(text).then(() => {
-      clearTimeout(toastTimer);
-      toast.textContent = 'Copiado: ' + (text.length > 30 ? text.slice(0, 30) + '…' : text);
-      toast.classList.add('show');
-      toastTimer = setTimeout(() => toast.classList.remove('show'), 2000);
-    });
+  function showToast(msg) {
+    clearTimeout(toastTimer);
+    toast.textContent = msg;
+    toast.classList.add('show');
+    toastTimer = setTimeout(() => toast.classList.remove('show'), 2000);
   }
+
+  async function copy(text) {
+    const label = 'Copiado: ' + (text.length > 30 ? text.slice(0, 30) + '…' : text);
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        // Fallback para contexto não-seguro (ex.: abrir via file://)
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.top = '-9999px';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        document.execCommand('copy');
+        ta.remove();
+      }
+      showToast(label);
+    } catch (err) {
+      showToast('Não foi possível copiar. Copie manualmente.');
+    }
+  }
+
+  // Acessibilidade de teclado para gatilhos de cópia que não são <button>
+  document.querySelectorAll('[onclick]').forEach(el => {
+    if (el.tagName === 'BUTTON') return;
+    const oc = el.getAttribute('onclick') || '';
+    if (!oc.trim().startsWith('copy(')) return;
+    el.setAttribute('role', 'button');
+    el.setAttribute('tabindex', '0');
+    if (!el.hasAttribute('aria-label')) {
+      const m = oc.match(/copy\(\s*'([^']*)'/);
+      if (m) {
+        const v = m[1].length > 40 ? m[1].slice(0, 40) + '…' : m[1];
+        el.setAttribute('aria-label', 'Copiar ' + v);
+      }
+    }
+    el.addEventListener('keydown', ev => {
+      if (ev.key === 'Enter' || ev.key === ' ') {
+        ev.preventDefault();
+        el.click();
+      }
+    });
+  });
 
   // Smooth active nav
   const sections = document.querySelectorAll('section[id], div[id]');
