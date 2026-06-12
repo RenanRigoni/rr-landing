@@ -1,12 +1,12 @@
 import { ArrowRight } from '@phosphor-icons/react/dist/ssr'
 
 const PILLS = [
+  'E-commerce',
+  'CRM',
+  'Sistemas personalizados',
+  'Tráfego pago',
+  'Mídias digitais',
   'Link de bio',
-  'Cardápio digital',
-  'E-mail profissional',
-  'Agendamento online',
-  'Chatbot WhatsApp',
-  'Relatório mensal',
 ]
 
 export function OutrosServicosteaser() {
@@ -18,10 +18,10 @@ export function OutrosServicosteaser() {
             Além dos pacotes
           </p>
           <h2 className="font-sans font-bold text-2xl md:text-3xl text-content-primary leading-snug tracking-tight">
-            Precisa de algo diferente?
+            Precisa de uma estrutura digital mais completa?
           </h2>
           <p className="text-sm text-content-secondary leading-relaxed">
-            Cardápio digital, link de bio, agendamento online, chatbot no WhatsApp e mais. Serviços avulsos e mensais para complementar sua presença digital.
+            E-commerce, CRM, sistemas personalizados, tráfego pago, mídias para redes sociais e serviços avulsos para complementar sua presença digital.
           </p>
           <div className="flex flex-wrap gap-2 mt-1">
             {PILLS.map((pill) => (

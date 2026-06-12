@@ -9,7 +9,7 @@ import { WHATSAPP_URL } from '@/lib/constants'
 const NAV_LINKS = [
   { label: 'Como funciona', href: '#como-funciona' },
   { label: 'Pacotes e preços', href: '#pacotes' },
-  { label: 'Outros serviços', href: '/servicos' },
+  { label: 'Outros serviços', href: 'https://www.devrigoni.com.br/servicos' },
   { label: 'Perguntas frequentes', href: '#faq' },
 ]
 

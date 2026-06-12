@@ -114,4 +114,238 @@
     0%, 100% { box-shadow: 0 0 24px rgba(37,99,235,0.3); }
     50%       { box-shadow: 0 0 48px rgba(37,99,235,0.5), 0 0 80px rgba(99,102,241,0.2); }
   }
+
+  .hero-core-panel {
+    transform: var(--hero-panel-transform);
+    transform-style: preserve-3d;
+    animation: heroPanelDrift 9s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+    box-shadow:
+      0 32px 90px rgba(0, 0, 0, 0.58),
+      0 0 80px rgba(37, 99, 235, 0.14),
+      inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  }
+
+  .hero-panel-sheen {
+    background:
+      linear-gradient(
+        108deg,
+        transparent 0%,
+        transparent 34%,
+        rgba(96, 165, 250, 0.12) 45%,
+        rgba(16, 185, 129, 0.08) 50%,
+        transparent 62%,
+        transparent 100%
+      );
+    transform: translateX(-125%);
+    animation: heroSheen 8s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+  }
+
+  .hero-scanline {
+    background:
+      linear-gradient(
+        to bottom,
+        transparent,
+        rgba(96, 165, 250, 0.12),
+        rgba(96, 165, 250, 0.03),
+        transparent
+      );
+    transform: translateY(-120%);
+    animation: heroScanline 5.8s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+  }
+
+  .hero-data-path {
+    stroke-dashoffset: 120;
+    animation: heroDataFlow 6.5s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+  }
+
+  .hero-data-path-delayed {
+    animation-delay: 1.2s;
+  }
+
+  .hero-signal-node {
+    box-shadow: 0 0 18px rgba(96, 165, 250, 0.22);
+    animation: heroNodePulse 3.8s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+  }
+
+  .hero-signal-node::after {
+    content: '';
+    position: absolute;
+    inset: -0.45rem;
+    border-radius: 9999px;
+    border: 1px solid rgba(96, 165, 250, 0.18);
+    opacity: 0;
+    transform: scale(0.7);
+    animation: heroNodeRing 3.8s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+  }
+
+  .hero-chip {
+    animation: heroChipPulse 5.6s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+  }
+
+  .hero-pipeline-item {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .hero-pipeline-item::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent, rgba(96, 165, 250, 0.12), transparent);
+    opacity: 0;
+    transform: translateX(-110%);
+    animation: heroMicroSweep 5.2s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+  }
+
+  .hero-module {
+    animation: heroModulePulse 4.8s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+  }
+
+  .hero-live-pill {
+    position: relative;
+  }
+
+  .hero-live-pill::before {
+    content: '';
+    display: inline-block;
+    width: 0.375rem;
+    height: 0.375rem;
+    margin-right: 0.375rem;
+    border-radius: 0.1875rem;
+    background: #34d399;
+    box-shadow: 0 0 14px rgba(52, 211, 153, 0.62);
+    animation: heroStatusBlink 2.4s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+    vertical-align: 0.08em;
+  }
+
+  .hero-float-near,
+  .hero-float-mid,
+  .hero-float-far {
+    transform: var(--hero-float-transform);
+    animation: heroFloat 7.5s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+    box-shadow:
+      0 18px 48px rgba(0, 0, 0, 0.42),
+      0 0 42px rgba(37, 99, 235, 0.12),
+      inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  }
+
+  .hero-float-mid {
+    animation-duration: 8.4s;
+    animation-delay: -1.1s;
+  }
+
+  .hero-float-far {
+    animation-duration: 9.2s;
+    animation-delay: -2.2s;
+  }
+
+  .hero-card-sweep {
+    background: linear-gradient(120deg, transparent 10%, rgba(96, 165, 250, 0.14), transparent 48%);
+    transform: translateX(-120%);
+    animation: heroCardSweep 6.2s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+  }
+
+  .hero-bar {
+    transform-origin: bottom;
+    animation: heroBarPulse 3.4s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+    box-shadow: 0 0 18px rgba(59, 130, 246, 0.3);
+  }
+
+  .hero-status-led {
+    box-shadow: 0 0 12px rgba(52, 211, 153, 0.58);
+    animation: heroStatusBlink 2.4s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+  }
+
+  .hero-progress {
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.34);
+  }
+
+  .hero-progress::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.45), transparent);
+    transform: translateX(-100%);
+    animation: heroProgressSweep 3.8s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+  }
+
+  @keyframes heroPanelDrift {
+    0%, 100% { transform: var(--hero-panel-transform) translate3d(0, 0, 0); }
+    50%      { transform: var(--hero-panel-transform) translate3d(0, -6px, 0); }
+  }
+
+  @keyframes heroSheen {
+    0%, 52%  { opacity: 0; transform: translateX(-125%); }
+    64%      { opacity: 1; }
+    82%, 100% { opacity: 0; transform: translateX(125%); }
+  }
+
+  @keyframes heroScanline {
+    0%, 18%  { opacity: 0; transform: translateY(-120%); }
+    32%      { opacity: 0.75; }
+    62%, 100% { opacity: 0; transform: translateY(470%); }
+  }
+
+  @keyframes heroDataFlow {
+    0%       { opacity: 0; stroke-dashoffset: 140; }
+    18%      { opacity: 0.85; }
+    78%      { opacity: 0.45; }
+    100%     { opacity: 0; stroke-dashoffset: 0; }
+  }
+
+  @keyframes heroNodePulse {
+    0%, 100% { opacity: 0.52; transform: translate(-50%, -50%) scale(0.92); }
+    45%      { opacity: 1; transform: translate(-50%, -50%) scale(1.08); }
+  }
+
+  @keyframes heroNodeRing {
+    0%       { opacity: 0; transform: scale(0.62); }
+    34%      { opacity: 0.7; }
+    100%     { opacity: 0; transform: scale(1.65); }
+  }
+
+  @keyframes heroChipPulse {
+    0%, 100% { transform: translateZ(0); opacity: 0.82; }
+    44%      { transform: translate3d(0, -2px, 0); opacity: 1; }
+  }
+
+  @keyframes heroMicroSweep {
+    0%, 58%  { opacity: 0; transform: translateX(-110%); }
+    72%      { opacity: 1; }
+    92%, 100% { opacity: 0; transform: translateX(110%); }
+  }
+
+  @keyframes heroModulePulse {
+    0%, 100% { opacity: 0.72; transform: translateZ(0); }
+    50%      { opacity: 1; transform: translate3d(0, -2px, 0); }
+  }
+
+  @keyframes heroStatusBlink {
+    0%, 100% { opacity: 0.48; transform: scale(0.9); }
+    46%      { opacity: 1; transform: scale(1.15); }
+  }
+
+  @keyframes heroFloat {
+    0%, 100% { transform: var(--hero-float-transform) translate3d(0, 0, 0); }
+    50%      { transform: var(--hero-float-transform) translate3d(4px, -8px, 0); }
+  }
+
+  @keyframes heroCardSweep {
+    0%, 50%  { opacity: 0; transform: translateX(-120%); }
+    65%      { opacity: 1; }
+    88%, 100% { opacity: 0; transform: translateX(120%); }
+  }
+
+  @keyframes heroBarPulse {
+    0%, 100% { opacity: 0.68; transform: scaleY(0.88); }
+    48%      { opacity: 1; transform: scaleY(1); }
+  }
+
+  @keyframes heroProgressSweep {
+    0%, 40%  { opacity: 0; transform: translateX(-100%); }
+    58%      { opacity: 1; }
+    82%, 100% { opacity: 0; transform: translateX(100%); }
+  }
 }

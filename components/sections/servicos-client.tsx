@@ -12,10 +12,18 @@ import {
   SquaresFour,
   CalendarCheck,
   Robot,
+  ShoppingCartSimple,
+  Kanban,
+  GearSix,
+  RocketLaunch,
+  Megaphone,
+  Images,
   WhatsappLogo,
   Eye,
+  CheckCircle,
+  ArrowRight,
 } from '@phosphor-icons/react'
-import { EXTRA_SERVICES, WHATSAPP_URL } from '@/lib/constants'
+import { EXTRA_SERVICES, SOLUTION_PACKAGES, WHATSAPP_URL } from '@/lib/constants'
 import { PhoneModal } from '@/components/ui/phone-modal'
 import { MOCKUP_MAP } from '@/components/ui/service-mockups'
 
@@ -30,6 +38,12 @@ const ICON_MAP = {
   SquaresFour,
   CalendarCheck,
   Robot,
+  ShoppingCartSimple,
+  Kanban,
+  GearSix,
+  RocketLaunch,
+  Megaphone,
+  Images,
 } as const
 
 type IconKey = keyof typeof ICON_MAP
@@ -37,6 +51,101 @@ type IconKey = keyof typeof ICON_MAP
 interface ActivePreview {
   iconKey: string
   name: string
+}
+
+function buildWhatsAppUrl(message: string) {
+  const baseUrl = WHATSAPP_URL.split('?')[0]
+  return `${baseUrl}?text=${encodeURIComponent(message)}`
+}
+
+function SolutionPackageCard({
+  icon,
+  name,
+  tagline,
+  price,
+  period,
+  highlight,
+  badge,
+  features,
+  bonus,
+  cta,
+}: {
+  icon: string
+  name: string
+  tagline: string
+  price: string
+  period: string | null
+  highlight: boolean
+  badge: string | null
+  features: readonly string[]
+  bonus: string
+  cta: string
+}) {
+  const Icon = ICON_MAP[icon as IconKey]
+
+  return (
+    <div className={`${highlight ? 'card-border-brand shadow-glow-sm' : 'card-border'} p-px rounded-card`}>
+      <div className={`${highlight ? 'bg-surface-card' : 'bg-surface-elevated'} rounded-[1.875rem] p-8 flex flex-col gap-6 h-full`}>
+        <div className="flex items-start justify-between gap-4">
+          <div className="w-12 h-12 rounded-xl bg-brand-600/15 border border-brand-400/20 flex items-center justify-center shrink-0">
+            {Icon && <Icon size={22} weight="duotone" className="text-brand-400" />}
+          </div>
+          {badge && (
+            <span className="rounded-pill bg-brand-600 text-white px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] whitespace-nowrap">
+              {badge}
+            </span>
+          )}
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <h3 className="font-semibold text-lg text-content-primary leading-snug">{name}</h3>
+          <p className="text-sm text-content-secondary leading-relaxed">{tagline}</p>
+        </div>
+
+        <div className="flex flex-col gap-0.5">
+          <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-content-muted">
+            A partir de
+          </span>
+          <div className="flex flex-wrap items-baseline gap-1.5">
+            <span className="text-sm text-content-muted">R$</span>
+            <span className="font-mono font-medium text-4xl text-content-primary">{price}</span>
+            {period && <span className="text-xs text-content-muted">{period}</span>}
+          </div>
+        </div>
+
+        <div className="border-t border-white/[0.08]" />
+
+        <ul className="flex flex-col gap-3 flex-1">
+          {features.map((feature) => (
+            <li key={feature} className="flex items-start gap-3 text-sm text-content-secondary leading-relaxed">
+              <CheckCircle size={16} weight="fill" className="text-brand-400 shrink-0 mt-0.5" />
+              {feature}
+            </li>
+          ))}
+        </ul>
+
+        <div className="rounded-xl bg-brand-600/10 border border-brand-400/15 p-3">
+          <p className="text-xs text-content-secondary leading-relaxed">{bonus}</p>
+        </div>
+
+        <a
+          href={buildWhatsAppUrl(`Olá! Tenho interesse no pacote: ${name}`)}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={highlight
+            ? 'group flex items-center justify-center gap-2 rounded-pill bg-brand-600 text-white px-6 py-3.5 text-sm font-semibold transition-all duration-200 ease-spring hover:bg-brand-500 hover:scale-[1.02] hover:shadow-glow-sm active:scale-[0.98]'
+            : 'group flex items-center justify-center gap-2 rounded-pill glass text-content-primary px-6 py-3.5 text-sm font-semibold transition-all duration-200 ease-spring hover:border-brand-400/30 hover:text-brand-400 hover:bg-brand-600/10'
+          }
+        >
+          <WhatsappLogo size={16} weight="fill" />
+          {cta}
+          <span className="w-6 h-6 rounded-full bg-white/15 flex items-center justify-center transition-transform duration-200 ease-spring group-hover:translate-x-0.5">
+            <ArrowRight size={12} weight="bold" />
+          </span>
+        </a>
+      </div>
+    </div>
+  )
 }
 
 function ServiceCard({
@@ -101,7 +210,7 @@ function ServiceCard({
         </div>
 
         <a
-          href={`${WHATSAPP_URL}&text=${encodeURIComponent(`Olá! Tenho interesse no serviço: ${name}`)}`}
+          href={buildWhatsAppUrl(`Olá! Tenho interesse no serviço: ${name}`)}
           target="_blank"
           rel="noopener noreferrer"
           onClick={(e) => e.stopPropagation()}
@@ -124,6 +233,27 @@ export function ServicosClient() {
 
   return (
     <>
+      <div className="flex flex-col gap-8">
+        <div className="flex flex-col gap-3 max-w-2xl">
+          <p className="text-xs font-semibold uppercase tracking-[0.15em] text-brand-400">
+            Soluções completas
+          </p>
+          <h2 className="font-sans font-bold text-[clamp(1.75rem,3.5vw,2.5rem)] leading-[1.2] tracking-[-0.02em] text-content-primary">
+            Quando você quer a estrutura inteira funcionando
+          </h2>
+          <p className="text-content-secondary leading-[1.7]">
+            Pacotes para unir presença digital, captação de clientes, organização comercial,
+            vendas online e conteúdo profissional em uma entrega só.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-stretch">
+          {SOLUTION_PACKAGES.map((plan) => (
+            <SolutionPackageCard key={plan.name} {...plan} />
+          ))}
+        </div>
+      </div>
+
       {EXTRA_SERVICES.map((group) => (
         <div key={group.category} className="flex flex-col gap-8">
           <div className="flex items-center gap-4">

@@ -112,6 +112,60 @@ export const PRICING_PLANS = [
   },
 ] as const
 
+export const SOLUTION_PACKAGES = [
+  {
+    icon: 'ShoppingCartSimple',
+    name: 'Vendas Online',
+    tagline: 'Para transformar presença digital em pedido, orçamento ou compra.',
+    price: '4.997',
+    period: null,
+    highlight: false,
+    badge: null,
+    features: [
+      'E-commerce inicial com catálogo organizado',
+      'Fluxo de pedido, pagamento ou orçamento',
+      'Páginas essenciais para vender com confiança',
+      'Base de mídias digitais para lançamento',
+    ],
+    bonus: 'Ideal para lojas, marcas locais e serviços que querem vender online',
+    cta: 'Quero vender online',
+  },
+  {
+    icon: 'Kanban',
+    name: 'Operação Comercial',
+    tagline: 'Para captar, organizar e acompanhar oportunidades comerciais.',
+    price: '3.497',
+    period: null,
+    highlight: true,
+    badge: 'Solução completa',
+    features: [
+      'CRM simples ajustado ao seu processo',
+      'Funil de vendas com etapas e responsáveis',
+      'Formulários de captação conectados ao fluxo',
+      'Painel básico para acompanhar oportunidades',
+    ],
+    bonus: 'Organiza atendimento, follow-up e histórico de contatos em um só lugar',
+    cta: 'Quero organizar vendas',
+  },
+  {
+    icon: 'Megaphone',
+    name: 'Crescimento Digital Mensal',
+    tagline: 'Para manter tráfego, conteúdo e acompanhamento rodando todo mês.',
+    price: '997',
+    period: '/mês + verba',
+    highlight: false,
+    badge: null,
+    features: [
+      'Gestão de campanhas de tráfego pago',
+      'Posts, carrosséis e artes para anúncios',
+      'Ajustes mensais com foco em captação',
+      'Relatório com resultados e próximos passos',
+    ],
+    bonus: 'Une aquisição de clientes, conteúdo profissional e leitura de resultados',
+    cta: 'Quero crescer todo mês',
+  },
+] as const
+
 export const EXTRA_SERVICES = [
   {
     category: 'Entregáveis rápidos',
@@ -119,7 +173,7 @@ export const EXTRA_SERVICES = [
       {
         icon: 'Link',
         name: 'Link de bio personalizado',
-        description: 'Página única com todos os seus links — Instagram, WhatsApp, site, cardápio. Substitui o Linktree com identidade visual do seu negócio.',
+        description: 'Página única com todos os seus links: Instagram, WhatsApp, site e cardápio. Substitui o Linktree com identidade visual do seu negócio.',
         price: '297',
         period: null,
         cta: 'Quero meu link de bio',
@@ -177,6 +231,22 @@ export const EXTRA_SERVICES = [
         period: '/mês',
         cta: 'Quero manutenção',
       },
+      {
+        icon: 'Megaphone',
+        name: 'Gestão de tráfego pago',
+        description: 'Configuração, acompanhamento e otimização de campanhas no Google ou Meta Ads para gerar visitas, leads e conversas no WhatsApp.',
+        price: '697',
+        period: '/mês + verba',
+        cta: 'Quero tráfego pago',
+      },
+      {
+        icon: 'Images',
+        name: 'Mídias digitais para redes sociais',
+        description: 'Criação de posts, carrosséis e artes para anúncios com identidade visual profissional para Instagram, Facebook e campanhas pagas.',
+        price: '497',
+        period: '/mês',
+        cta: 'Quero mídias digitais',
+      },
     ],
   },
   {
@@ -185,10 +255,42 @@ export const EXTRA_SERVICES = [
       {
         icon: 'SquaresFour',
         name: 'Site multi-página',
-        description: 'Site completo com até 5 páginas — Home, Sobre, Serviços, Blog e Contato. Copy incluso, domínio e hospedagem configurados.',
+        description: 'Site completo com até 5 páginas: Home, Sobre, Serviços, Blog e Contato. Copy incluso, domínio e hospedagem configurados.',
         price: '3.997',
         period: null,
         cta: 'Quero site completo',
+      },
+      {
+        icon: 'ShoppingCartSimple',
+        name: 'Criação de e-commerce',
+        description: 'Loja virtual com catálogo, páginas de produto, fluxo de pedido e configuração inicial de pagamento ou orçamento pelo WhatsApp.',
+        price: '4.997',
+        period: null,
+        cta: 'Quero e-commerce',
+      },
+      {
+        icon: 'Kanban',
+        name: 'CRM comercial personalizado',
+        description: 'Organização de leads, etapas de venda, responsáveis e histórico de contatos para o time parar de perder oportunidades no WhatsApp.',
+        price: '2.497',
+        period: null,
+        cta: 'Quero CRM',
+      },
+      {
+        icon: 'GearSix',
+        name: 'Sistema personalizado',
+        description: 'Sistema sob medida para automatizar processos internos, cadastros, solicitações, acompanhamento de tarefas ou operação comercial.',
+        price: '5.997',
+        period: null,
+        cta: 'Quero sistema sob medida',
+      },
+      {
+        icon: 'RocketLaunch',
+        name: 'Solução SaaS ou MVP digital',
+        description: 'Primeira versão funcional de um produto digital, painel ou plataforma SaaS para validar uma ideia com usuários reais.',
+        price: '8.997',
+        period: null,
+        cta: 'Quero criar um SaaS',
       },
       {
         icon: 'CalendarCheck',

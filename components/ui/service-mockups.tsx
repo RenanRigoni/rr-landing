@@ -10,6 +10,12 @@ import {
   EnvelopeSimple,
   ArrowRight,
   ChatCircleDots,
+  ShoppingCartSimple,
+  Kanban,
+  GearSix,
+  RocketLaunch,
+  Megaphone,
+  Images,
 } from '@phosphor-icons/react/dist/ssr'
 
 export function LinkBioMock() {
@@ -509,6 +515,272 @@ export function ChatbotMock() {
   )
 }
 
+export function EcommerceMock() {
+  const products = [
+    { name: 'Kit Premium', price: 'R$ 189,90', tag: 'Mais vendido' },
+    { name: 'Produto Essencial', price: 'R$ 79,90', tag: null },
+    { name: 'Combo Especial', price: 'R$ 249,90', tag: 'Oferta' },
+  ]
+
+  return (
+    <div className="flex flex-col bg-zinc-50 min-h-full">
+      <div className="bg-zinc-950 px-4 py-3 flex items-center justify-between">
+        <div>
+          <p className="text-white font-semibold text-[11px]">Loja Aura</p>
+          <p className="text-white/40 text-[9px]">Catálogo online</p>
+        </div>
+        <div className="w-8 h-8 rounded-full bg-brand-500 flex items-center justify-center">
+          <ShoppingCartSimple size={15} weight="fill" className="text-white" />
+        </div>
+      </div>
+      <div className="px-3 py-3">
+        <div className="bg-brand-600 rounded-2xl p-3 mb-3">
+          <p className="text-white/70 text-[9px]">Nova coleção</p>
+          <p className="text-white text-sm font-bold leading-tight">Compre pelo site ou peça no WhatsApp</p>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          {products.map((product, index) => (
+            <div key={product.name} className={`${index === 2 ? 'col-span-2 flex-row' : 'flex-col'} bg-white border border-zinc-100 rounded-xl p-2 flex gap-2`}>
+              <div className={`${index === 2 ? 'w-16 h-14' : 'w-full h-14'} rounded-lg bg-gradient-to-br from-blue-100 via-cyan-100 to-emerald-100 shrink-0`} />
+              <div className="flex-1 min-w-0">
+                {product.tag && <p className="text-brand-600 text-[8px] font-semibold">{product.tag}</p>}
+                <p className="text-zinc-800 text-[10px] font-semibold leading-tight truncate">{product.name}</p>
+                <p className="text-zinc-950 text-[11px] font-bold">{product.price}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="mt-3 bg-green-500 rounded-xl py-2 flex items-center justify-center gap-1.5">
+          <WhatsappLogo size={13} weight="fill" className="text-white" />
+          <p className="text-white text-[10px] font-semibold">Finalizar pedido</p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export function CrmMock() {
+  const columns = [
+    { label: 'Novo', count: 8, color: 'bg-blue-500' },
+    { label: 'Contato', count: 5, color: 'bg-amber-500' },
+    { label: 'Proposta', count: 3, color: 'bg-green-500' },
+  ]
+
+  return (
+    <div className="flex flex-col bg-zinc-950 min-h-full px-3 py-4 gap-3">
+      <div className="flex items-center gap-2">
+        <div className="w-8 h-8 rounded-lg bg-brand-500/20 border border-brand-400/30 flex items-center justify-center">
+          <Kanban size={15} weight="fill" className="text-brand-400" />
+        </div>
+        <div>
+          <p className="text-white text-[11px] font-semibold">CRM Comercial</p>
+          <p className="text-white/40 text-[9px]">Funil de vendas</p>
+        </div>
+      </div>
+      <div className="grid grid-cols-3 gap-1.5">
+        {columns.map((column) => (
+          <div key={column.label} className="bg-white/[0.05] border border-white/[0.08] rounded-xl p-2 min-h-36">
+            <div className="flex items-center justify-between gap-1 mb-2">
+              <p className="text-white/60 text-[8px] font-semibold">{column.label}</p>
+              <span className="text-white/30 text-[8px]">{column.count}</span>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              {[1, 2, 3].map((item) => (
+                <div key={item} className="bg-zinc-900 border border-white/[0.06] rounded-lg p-1.5">
+                  <div className={`w-4 h-1 rounded-full ${column.color} mb-1`} />
+                  <p className="text-white/80 text-[8px] leading-tight">Lead #{item + column.count}</p>
+                  <p className="text-white/30 text-[7px]">WhatsApp</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-2.5">
+        <p className="text-green-300 text-[10px] font-medium">R$ 18.400 em oportunidades abertas</p>
+      </div>
+    </div>
+  )
+}
+
+export function SistemaMock() {
+  const rows = [
+    ['Pedido #1842', 'Em produção', 'Hoje'],
+    ['Cadastro novo', 'Pendente', 'Amanhã'],
+    ['Solicitação', 'Concluída', 'Ontem'],
+  ]
+
+  return (
+    <div className="flex flex-col bg-white min-h-full">
+      <div className="bg-zinc-900 px-4 py-3 flex items-center gap-2">
+        <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center">
+          <GearSix size={15} weight="fill" className="text-white" />
+        </div>
+        <div>
+          <p className="text-white text-[11px] font-semibold">Sistema Interno</p>
+          <p className="text-white/40 text-[9px]">Operação em tempo real</p>
+        </div>
+      </div>
+      <div className="grid grid-cols-3 gap-2 px-3 py-3">
+        {[
+          ['24', 'tarefas'],
+          ['12', 'clientes'],
+          ['91%', 'entregas'],
+        ].map(([value, label]) => (
+          <div key={label} className="bg-zinc-50 border border-zinc-100 rounded-xl p-2">
+            <p className="text-zinc-900 text-base font-bold leading-none">{value}</p>
+            <p className="text-zinc-400 text-[8px] mt-1">{label}</p>
+          </div>
+        ))}
+      </div>
+      <div className="px-3 pb-3">
+        <p className="text-zinc-500 text-[9px] font-semibold uppercase tracking-wider mb-2">Fluxo da operação</p>
+        <div className="flex flex-col divide-y divide-zinc-100 border border-zinc-100 rounded-xl overflow-hidden">
+          {rows.map(([name, status, date]) => (
+            <div key={name} className="grid grid-cols-[1fr_auto] gap-2 bg-white px-3 py-2">
+              <div>
+                <p className="text-zinc-800 text-[10px] font-semibold">{name}</p>
+                <p className="text-zinc-400 text-[8px]">{date}</p>
+              </div>
+              <span className="self-center rounded-full bg-blue-50 text-blue-700 px-2 py-1 text-[8px] font-medium">
+                {status}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export function SaasMock() {
+  return (
+    <div className="flex flex-col bg-[#08111f] min-h-full px-4 py-4 gap-3">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-white text-[11px] font-semibold">MVP SaaS</p>
+          <p className="text-white/40 text-[9px]">Painel do usuário</p>
+        </div>
+        <div className="w-8 h-8 rounded-lg bg-violet-500/20 border border-violet-400/30 flex items-center justify-center">
+          <RocketLaunch size={15} weight="fill" className="text-violet-300" />
+        </div>
+      </div>
+      <div className="bg-gradient-to-br from-violet-600 to-blue-600 rounded-2xl p-3">
+        <p className="text-white/70 text-[9px]">Validação</p>
+        <p className="text-white font-bold text-lg leading-none mt-1">128 usuários</p>
+        <p className="text-white/60 text-[9px] mt-1">+34% nos últimos 7 dias</p>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        {['Onboarding', 'Pagamentos', 'Dashboard', 'Convites'].map((item, index) => (
+          <div key={item} className="bg-white/[0.05] border border-white/[0.08] rounded-xl p-2.5">
+            <div className={`w-6 h-6 rounded-lg mb-2 ${index % 2 === 0 ? 'bg-violet-400/20' : 'bg-cyan-400/20'}`} />
+            <p className="text-white/80 text-[9px] font-medium">{item}</p>
+            <p className="text-white/30 text-[8px]">ativo</p>
+          </div>
+        ))}
+      </div>
+      <div className="bg-white/[0.04] border border-white/[0.08] rounded-xl p-2.5">
+        <div className="flex items-center gap-2">
+          <CheckCircle size={13} weight="fill" className="text-green-400" />
+          <p className="text-green-300 text-[10px]">Pronto para testar com clientes</p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export function TrafegoPagoMock() {
+  const bars = [55, 72, 40, 88, 64, 76]
+
+  return (
+    <div className="flex flex-col bg-zinc-50 min-h-full">
+      <div className="bg-blue-700 px-4 py-3 flex items-center gap-2">
+        <div className="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center">
+          <Megaphone size={15} weight="fill" className="text-white" />
+        </div>
+        <div>
+          <p className="text-white text-[11px] font-semibold">Tráfego Pago</p>
+          <p className="text-white/50 text-[9px]">Campanhas ativas</p>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-2 px-3 py-3">
+        {[
+          ['312', 'cliques'],
+          ['47', 'leads'],
+          ['R$ 8,40', 'custo/lead'],
+          ['4,2x', 'retorno'],
+        ].map(([value, label]) => (
+          <div key={label} className="bg-white border border-zinc-100 rounded-xl p-2.5">
+            <p className="text-zinc-900 text-sm font-bold">{value}</p>
+            <p className="text-zinc-400 text-[8px]">{label}</p>
+          </div>
+        ))}
+      </div>
+      <div className="px-3 pb-3">
+        <p className="text-zinc-500 text-[9px] mb-2">Resultados por campanha</p>
+        <div className="flex items-end gap-1 h-16 bg-white border border-zinc-100 rounded-xl p-2">
+          {bars.map((height, index) => (
+            <div key={index} className="flex-1 flex flex-col items-center justify-end gap-1">
+              <div className="w-full rounded-sm bg-blue-600" style={{ height: `${height}%` }} />
+              <span className="text-zinc-300 text-[7px]">C{index + 1}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export function MidiasDigitaisMock() {
+  return (
+    <div className="flex flex-col bg-zinc-950 min-h-full px-4 py-4 gap-3">
+      <div className="flex items-center gap-2">
+        <div className="w-8 h-8 rounded-lg bg-pink-500/20 border border-pink-400/30 flex items-center justify-center">
+          <Images size={15} weight="fill" className="text-pink-300" />
+        </div>
+        <div>
+          <p className="text-white text-[11px] font-semibold">Mídias Digitais</p>
+          <p className="text-white/40 text-[9px]">Posts, carrosséis e anúncios</p>
+        </div>
+      </div>
+      <div className="grid grid-cols-3 gap-1.5">
+        {Array.from({ length: 9 }).map((_, index) => (
+          <div
+            key={index}
+            className={`aspect-square rounded-lg border border-white/10 ${
+              index % 3 === 0
+                ? 'bg-gradient-to-br from-pink-500 to-orange-400'
+                : index % 3 === 1
+                  ? 'bg-gradient-to-br from-blue-500 to-cyan-400'
+                  : 'bg-gradient-to-br from-zinc-700 to-zinc-900'
+            }`}
+          >
+            <div className="h-full p-1.5 flex flex-col justify-between">
+              <div className="w-4 h-1 rounded-full bg-white/60" />
+              <div className="space-y-1">
+                <div className="w-full h-1 rounded-full bg-white/50" />
+                <div className="w-2/3 h-1 rounded-full bg-white/30" />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="grid grid-cols-3 gap-2">
+        {[
+          ['12', 'posts'],
+          ['4', 'carrosséis'],
+          ['6', 'anúncios'],
+        ].map(([value, label]) => (
+          <div key={label} className="bg-white/[0.05] border border-white/[0.08] rounded-xl p-2 text-center">
+            <p className="text-white font-bold text-sm leading-none">{value}</p>
+            <p className="text-white/35 text-[8px] mt-1">{label}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export const MOCKUP_MAP: Record<string, React.ComponentType> = {
   Link: LinkBioMock,
   ForkKnife: CardapioMock,
@@ -520,4 +792,10 @@ export const MOCKUP_MAP: Record<string, React.ComponentType> = {
   SquaresFour: SiteMultiMock,
   CalendarCheck: AgendamentoMock,
   Robot: ChatbotMock,
+  ShoppingCartSimple: EcommerceMock,
+  Kanban: CrmMock,
+  GearSix: SistemaMock,
+  RocketLaunch: SaasMock,
+  Megaphone: TrafegoPagoMock,
+  Images: MidiasDigitaisMock,
 }
