@@ -682,7 +682,7 @@ Composição:
 
 **Tema:** CRM — parar de perder orçamento e follow-up no WhatsApp  
 **Objetivo:** educar sobre organização comercial simples para pequenos negócios  
-**Template:** Carrossel Listicle — capa Hook + slides Educativo + CTA  
+**Template:** Carrossel Tutorial/Processo — capa Hook + slides Educativo + CTA  
 
 ### Legenda
 ```

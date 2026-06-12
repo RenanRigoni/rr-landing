@@ -103,7 +103,7 @@ A sequência de slides segue uma das 5 estruturas abaixo:
 | 10 | 23/Jun (Ter) | Feed único | Hook | — |
 | 11 | 24/Jun (Qua) | Carrossel | Hook (capa) + Educativo (slides) | Checklist — Capa + 3 Perguntas + Resultado CTA |
 | 12 | 25/Jun (Qui) | Feed único | Antes / Depois | — |
-| 13 | 26/Jun (Sex) | Carrossel | Hook (capa) + Educativo (slides) | Listicle — Capa + 3 Etapas + CTA |
+| 13 | 26/Jun (Sex) | Carrossel | Hook (capa) + Educativo (slides) | Tutorial / Processo — Capa + 3 Etapas + CTA |
 | 14 | 27/Jun (Sáb) | Feed único | Hook | — |
 | 15 | 28/Jun (Dom) | Carrossel | Hook (capa) + Educativo (slides) | Educativo — Capa + 3 Peças + CTA |
 | 16 | 29/Jun (Seg) | Feed único | Educativo | — |
