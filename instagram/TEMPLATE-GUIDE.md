@@ -4,6 +4,10 @@ Mapeamento de tipo de conteúdo → modo visual.
 **Consultar antes de criar qualquer imagem do cronograma.**
 
 Referência visual: `../brand-guide.html` → Seção 06 (Templates).
+Diretriz estratégica de conteúdo: `DIRETRIZ-CONTEUDO-JULHO-2026.md`.
+
+Antes de escolher o template visual, validar a hierarquia de conteúdo:
+dor clara do negócio local → gancho forte → promessa simples → exemplo prático → CTA comercial.
 
 ---
 
