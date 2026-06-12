@@ -89,7 +89,7 @@ Composição:
 
 ---
 
-## Post 02 — 13/Jun (Sáb) · 20h30 · Carrossel (5 slides)
+## Post 02 — 20h30 — 13/Jun (Sáb) · Carrossel (5 slides)
 
 **Tema:** 5 sinais que seu negócio precisa de um site  
 **Objetivo:** educação, identificação com dor do cliente  
@@ -153,7 +153,7 @@ SLIDE 6 — ÚLTIMO + CTA:
 
 ---
 
-## Post 03 — 14/Jun (Dom) · 20h30 · Feed Único
+## Post 03 — 20h30 — 14/Jun (Dom) · Feed Único
 
 **Tema:** Estatística impactante — mais da metade dos negócios locais sem presença digital efetiva  
 **Objetivo:** gerar consciência do problema, urgência  
@@ -202,7 +202,7 @@ Composição:
 
 ---
 
-## Post 04 — 16/Jun (Ter) · 19h · Carrossel (4 slides)
+## Post 04 — 19h — 16/Jun (Ter) · Carrossel (4 slides)
 
 **Tema:** Como funciona trabalhar com a dev.RR — o processo em 3 etapas  
 **Objetivo:** quebrar objeção de "não sei como funciona / é complicado"  
@@ -254,7 +254,7 @@ SLIDES 2, 3, 4 (etapas 01/02/03):
 
 ---
 
-## Post 05 — 17/Jun (Qua) · 18h30 · Feed Único
+## Post 05 — 18h30 — 17/Jun (Qua) · Feed Único
 
 **Tema:** "Mas tenho Instagram, preciso de site?" — destruindo o mito  
 **Objetivo:** objeção mais comum de clientes, posicionamento  
@@ -303,7 +303,7 @@ Composição:
 
 ---
 
-## Post 06 — 18/Jun (Qui) · 9h · Feed Único
+## Post 06 — 9h — 18/Jun (Qui) · Feed Único
 
 **Tema:** Dado de impacto — velocidade do site = dinheiro  
 **Objetivo:** educação técnica acessível, autoridade  
@@ -352,7 +352,7 @@ Composição:
 
 ---
 
-## Post 07 — 19/Jun (Sex) · 21h · Carrossel (5 slides)
+## Post 07 — 21h — 19/Jun (Sex) · Carrossel (5 slides)
 
 **Tema:** 3 tipos de site que faço + para quem é cada um  
 **Objetivo:** segmentar o público, mostrar portfólio de soluções  
@@ -409,7 +409,7 @@ SLIDE 5 — ÚLTIMO + CTA:
 
 ---
 
-## Post 08 — 20/Jun (Sáb) · 20h30 · Feed Único
+## Post 08 — 20h30 — 20/Jun (Sáb) · Feed Único
 
 **Tema:** Bastidores — o processo de desenvolvimento  
 **Objetivo:** humanizar, mostrar trabalho real, gerar curiosidade  
@@ -456,7 +456,7 @@ Composição:
 
 ---
 
-## Post 09 — 21/Jun (Dom) · 20h30 · Carrossel (5 slides)
+## Post 09 — 20h30 — 21/Jun (Dom) · Carrossel (5 slides)
 
 **Tema:** "Seu negócio aparece no Google?" — SEO local explicado  
 **Objetivo:** educação sobre SEO, mostrar valor agregado  
@@ -518,7 +518,7 @@ SLIDE 5 — CTA:
 
 ---
 
-## Post 10 — 23/Jun (Ter) · 19h · Feed Único
+## Post 10 — 19h — 23/Jun (Ter) · Feed Único
 
 **Tema:** CTA emocional — o custo invisível de não ter site  
 **Objetivo:** criar urgência, conversão  
@@ -565,7 +565,7 @@ Composição:
 
 ---
 
-## Post 11 — 24/Jun (Qua) · 12h15 · Carrossel (5 slides)
+## Post 11 — 12h15 — 24/Jun (Qua) · Carrossel (5 slides)
 
 **Tema:** Checklist — seu negócio está pronto para o digital?  
 **Objetivo:** engajamento (salvar/compartilhar), conversão  
@@ -629,7 +629,7 @@ SLIDE 5 — RESULTADO + CTA:
 
 ---
 
-## Post 12 — 25/Jun (Qui) · 9h · Feed Único
+## Post 12 — 9h — 25/Jun (Qui) · Feed Único
 
 **Tema:** E-commerce — loja online própria para vender fora do improviso  
 **Objetivo:** mostrar quando Instagram/WhatsApp deixam de ser suficientes para vender produtos  
@@ -678,7 +678,7 @@ Composição:
 
 ---
 
-## Post 13 — 26/Jun (Sex) · 21h · Carrossel (5 slides)
+## Post 13 — 21h — 26/Jun (Sex) · Carrossel (5 slides)
 
 **Tema:** CRM — parar de perder orçamento e follow-up no WhatsApp  
 **Objetivo:** educar sobre organização comercial simples para pequenos negócios  
@@ -743,7 +743,7 @@ SLIDE 5 — CTA:
 
 ---
 
-## Post 14 — 27/Jun (Sáb) · 20h30 · Feed Único
+## Post 14 — 20h30 — 27/Jun (Sáb) · Feed Único
 
 **Tema:** Sistemas personalizados — quando a planilha começa a atrapalhar  
 **Objetivo:** mostrar valor de sistema sob medida sem linguagem técnica pesada  
@@ -789,7 +789,7 @@ Composição:
 
 ---
 
-## Post 15 — 28/Jun (Dom) · 20h30 · Carrossel (5 slides)
+## Post 15 — 20h30 — 28/Jun (Dom) · Carrossel (5 slides)
 
 **Tema:** Tráfego pago — anúncio sem estrutura desperdiça dinheiro  
 **Objetivo:** explicar que anúncio precisa de página, oferta e acompanhamento  
@@ -857,7 +857,7 @@ SLIDE 5 — CTA:
 
 ---
 
-## Post 16 — 29/Jun (Seg) · 19h · Feed Único
+## Post 16 — 19h — 29/Jun (Seg) · Feed Único
 
 **Tema:** Mídias digitais — posts, carrosséis e artes para anúncios com objetivo  
 **Objetivo:** posicionar criação de conteúdo como peça de venda e confiança  
@@ -907,7 +907,7 @@ Composição:
 
 ---
 
-## Post 17 — 30/Jun (Ter) · 19h · Carrossel (5 slides)
+## Post 17 — 19h — 30/Jun (Ter) · Carrossel (5 slides)
 
 **Tema:** SaaS / MVP — transformar ideia ou processo em produto digital  
 **Objetivo:** abrir conversa com empresas que precisam de produto, portal ou ferramenta própria  
