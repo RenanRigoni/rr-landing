@@ -1,0 +1,36 @@
+name: Campanhas Instagram
+
+on:
+  schedule:
+    - cron: "0 11 * * *"  # 08:00 BRT (UTC-3)
+  workflow_dispatch:       # permite rodar manualmente pelo GitHub
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instalar dependências
+        run: pip install requests
+
+      - name: Criar/atualizar campanhas
+        env:
+          META_PAGE_TOKEN: ${{ secrets.META_PAGE_TOKEN }}
+          META_SYS_TOKEN: ${{ secrets.META_SYS_TOKEN }}
+        run: python instagram/criar_campanhas.py
+
+      - name: Salvar resultados no repositório
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add instagram/campanhas_criadas.json
+          git diff --cached --quiet || git commit -m "chore: atualiza campanhas_criadas.json [skip ci]"
+          git push
