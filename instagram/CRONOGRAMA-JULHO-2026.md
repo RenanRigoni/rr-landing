@@ -5,6 +5,22 @@
 **Paleta:** `#07070F` (fundo), `#7C3AED` (violeta), `#60A5FA` (azul claro), `#2563EB` (azul deep)  
 **Tom:** direto, técnico mas humano, sem papo de agência
 
+---
+
+## Estrutura de arquivos
+
+Todos os arquivos deste mês ficam em `instagram/julho-2026/`, seguindo o mesmo padrão de junho (`instagram/junho-2026/`):
+
+| Tipo | Convenção de nome | Exemplo |
+|------|-------------------|---------|
+| HTML do post (feed único ou capa do carrossel) | `postNN-tema.html` | `post01-humanizacao.html` |
+| Pasta de slides exportados (carrossel ou imagem final) | `postNN-slides/` | `post02-slides/` |
+| Imagens dentro da pasta | `slide_01.png`, `slide_02.png`… ou `postNN.png` para feed único | `post01-slides/post01.png` |
+
+**Regra:** `NN` = número do post com zero à esquerda (01, 02… 12). `tema` = slug curto do assunto.
+
+Logos: referenciar sempre como `../../logos/logo-icon-color.svg` (dois níveis acima de `julho-2026/`).
+
 > 🎯 Posts com **🎯 Campanha Alcance** → rodar `criar_campanhas.py` assim que publicar. R$8/dia × 7 dias. Targeting Triângulo MG (Patrocínio / Patos de Minas / Uberlândia, 17km). Objetivo: REACH.
 
 > **Aprendizados de junho aplicados:**
