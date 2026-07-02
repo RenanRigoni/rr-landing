@@ -44,6 +44,27 @@ Pergunta que para o scroll?         → Hook
 
 ---
 
+## Regra crítica: palavra de destaque (keyword highlight)
+
+**Toda headline (feed único e cada slide de carrossel) deve ter UMA palavra-âncora em destaque gradient + glow.**
+
+Escolher a palavra que carrega o sentido/tensão da frase — não sempre a mesma posição. Restante da headline permanece branco (`#F1F5F9`).
+
+Tratamento (envolver só a palavra no `<span>`):
+```html
+<span style="background:linear-gradient(135deg,#7C3AED 12%,#60A5FA 92%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  filter:drop-shadow(0 0 20px rgba(96,165,250,.42));">PALAVRA</span>
+```
+
+Regras:
+- **1 palavra por headline** (ou expressão curta de 2 palavras, ex: "seu negócio", "Google Maps"). Nunca 2 destaques na mesma frase.
+- Pontuação (`.`, `,`, `?`) fica **fora** do span.
+- Em headlines menores (carrossel ~28px) reduzir o glow para `0 0 18px`.
+- Não aplicar em eyebrow, corpo, sub ou CTA — só na headline.
+
+---
+
 ## Regra crítica: transições seamless em carrosséis
 
 Para eliminar o "risco preto" visível entre slides no swipe do Instagram:
