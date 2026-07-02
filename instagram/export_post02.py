@@ -7,8 +7,8 @@ import asyncio
 from pathlib import Path
 from playwright.async_api import async_playwright
 
-INPUT_HTML   = Path(r"C:\Users\Renan\Desktop\RR\instagram\post02-carousel.html")
-OUTPUT_DIR   = Path(r"C:\Users\Renan\Desktop\RR\instagram\post02-slides")
+INPUT_HTML   = Path(r"C:\Users\Renan\Desktop\RR\instagram\junho-2026\post02-carousel.html")
+OUTPUT_DIR   = Path(r"C:\Users\Renan\Desktop\RR\instagram\junho-2026\post02-slides")
 OUTPUT_DIR.mkdir(exist_ok=True)
 
 TOTAL_SLIDES = 7
