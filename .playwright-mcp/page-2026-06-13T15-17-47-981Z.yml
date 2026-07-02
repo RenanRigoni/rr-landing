@@ -1,0 +1,131 @@
+- generic [ref=e1]:
+  - link "Pular para o conteúdo" [ref=e2] [cursor=pointer]:
+    - /url: "#main"
+  - generic [ref=e6]:
+    - generic [ref=e8]:
+      - navigation "Barra lateral":
+        - generic:
+          - generic:
+            - generic:
+              - button "Abrir barra lateral":
+                - img
+        - generic:
+          - generic:
+            - link "Novo chat":
+              - /url: /
+              - generic:
+                - img
+              - generic: Novo chat
+          - generic:
+            - generic:
+              - generic:
+                - img
+              - generic: Buscar chats
+          - generic:
+            - link "Imagens":
+              - /url: /images
+              - generic:
+                - img
+              - generic: Imagens
+        - generic:
+          - generic:
+            - button "Abrir menu do perfil":
+              - generic:
+                - generic:
+                  - img
+      - generic [ref=e9]:
+        - heading "Histórico de chats" [level=2] [ref=e10]
+        - navigation "Histórico de chats" [ref=e12]:
+          - generic [ref=e15]:
+            - link "Início" [ref=e16] [cursor=pointer]:
+              - /url: /
+              - img [ref=e17]
+            - button "Fechar barra lateral" [expanded] [ref=e20]:
+              - img [ref=e21]
+          - list [ref=e24]:
+            - listitem [ref=e25]:
+              - link "Novo chat" [ref=e26] [cursor=pointer]:
+                - /url: /
+                - img [ref=e28]
+                - generic [ref=e31]: Novo chat
+            - listitem [ref=e32]:
+              - generic [ref=e33] [cursor=pointer]:
+                - img [ref=e35]
+                - generic [ref=e38]: Buscar chats
+          - link "Imagens" [ref=e39] [cursor=pointer]:
+            - /url: /images
+            - img [ref=e41]
+            - generic [ref=e44]: Imagens
+          - generic [ref=e45]:
+            - link "Aplicativos" [ref=e46] [cursor=pointer]:
+              - /url: /apps
+              - img [ref=e48]
+              - generic [ref=e51]: Aplicativos
+            - generic [ref=e52] [cursor=pointer]:
+              - img [ref=e54]
+              - generic [ref=e57]: Investigação
+          - generic [ref=e59]:
+            - link "Confira planos e preços" [ref=e60] [cursor=pointer]:
+              - /url: https://openai.com/chatgpt/pricing/
+              - generic [ref=e61]:
+                - img [ref=e63]
+                - text: Confira planos e preços
+              - img [ref=e66]
+            - generic [ref=e68] [cursor=pointer]:
+              - img [ref=e70]
+              - text: Configurações
+            - generic [ref=e72] [cursor=pointer]:
+              - generic [ref=e73]:
+                - img [ref=e75]
+                - generic [ref=e78]: Ajuda
+              - img [ref=e80]
+          - generic [ref=e82]:
+            - generic [ref=e83]:
+              - paragraph [ref=e84]: Receba respostas personalizadas para você
+              - paragraph [ref=e85]: Entre para receber respostas com base em chats salvos, além de criar imagens e carregar arquivos.
+            - button "Entrar" [ref=e87] [cursor=pointer]:
+              - generic [ref=e88]: Entrar
+    - generic [ref=e90]:
+      - generic [ref=e91]:
+        - banner:
+          - button "Seletor de modelo" [ref=e92] [cursor=pointer]:
+            - generic [ref=e93]:
+              - generic [ref=e94]: ChatGPT
+              - img [ref=e95]
+          - generic [ref=e101]:
+            - button "Entrar" [ref=e102] [cursor=pointer]:
+              - generic [ref=e103]: Entrar
+            - button "Cadastre-se gratuitamente" [ref=e104] [cursor=pointer]:
+              - generic [ref=e105]: Cadastre-se gratuitamente
+      - main [ref=e107]:
+        - generic [ref=e110]:
+          - generic:
+            - generic:
+              - button:
+                - img
+          - generic [ref=e116]:
+            - generic [ref=e120]:
+              - button "Adicionar arquivos e mais" [ref=e123] [cursor=pointer]:
+                - img
+              - textbox "Converse com o ChatGPT" [active] [ref=e126]:
+                - /placeholder: Envie uma mensagem para o ChatGPT
+              - generic [ref=e128]:
+                - button "Iniciar ditado" [ref=e129] [cursor=pointer]:
+                  - img
+                - button "Iniciar Voz" [ref=e133] [cursor=pointer]:
+                  - img [ref=e135]
+                  - generic [ref=e137]: Voz
+            - button [ref=e138]
+            - button [ref=e139]
+          - generic [ref=e144]:
+            - text: ChatGPT é IA. Ao usá-lo, você concorda com nossos
+            - link "Termos" [ref=e145] [cursor=pointer]:
+              - /url: https://openai.com/terms
+            - text: e
+            - link "Política de Privacidade" [ref=e146] [cursor=pointer]:
+              - /url: https://openai.com/privacy
+            - text: . As conversas podem ser revisadas e usadas para melhorar nossos modelos de IA.
+            - link "Saiba mais" [ref=e147] [cursor=pointer]:
+              - /url: https://help.openai.com/en/articles/5722486-how-your-data-is-used-to-improve-model-performance
+  - alert [ref=e148]
+  - status [ref=e149]

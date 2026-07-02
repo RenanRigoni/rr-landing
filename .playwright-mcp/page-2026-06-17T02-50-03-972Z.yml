@@ -1,0 +1,28 @@
+- generic [ref=e5]:
+  - banner:
+    - generic [ref=e8]:
+      - generic [ref=e10]:
+        - generic:
+          - button [disabled]:
+            - img
+        - button "Facebook" [ref=e12] [cursor=pointer]:
+          - img "Facebook" [ref=e13]
+      - generic [ref=e18]:
+        - textbox "Email ou telefone" [ref=e21]
+        - textbox "Senha" [ref=e24]
+        - button "Entrar" [ref=e27] [cursor=pointer]:
+          - generic [ref=e31]: Entrar
+        - link "Esqueceu a conta?" [ref=e34] [cursor=pointer]:
+          - /url: https://www.facebook.com/recover/initiate?ars=royal_blue_bar
+  - dialog "Post de Dev.RR Serviços Digitais" [ref=e41]:
+    - generic [ref=e44]:
+      - generic [ref=e45]:
+        - generic [ref=e46]:
+          - heading "Post de Dev.RR Serviços Digitais" [level=2] [ref=e49]:
+            - generic [ref=e50]: Post de Dev.RR Serviços Digitais
+          - button "Fechar" [active] [ref=e52] [cursor=pointer]:
+            - img [ref=e53]
+        - separator [ref=e55]
+      - article [ref=e61]:
+        - status "Carregando..." [ref=e62]
+      - status "Carregando..." [ref=e79]

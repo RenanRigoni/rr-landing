@@ -58,6 +58,25 @@ Track com 4 slides = 1680px. Fronteiras em x=420, 840, 1260. Orbs devem cruzar e
 
 ---
 
+## Regra crítica: quebras de linha com lógica
+
+Em textos curtos de slide, não confiar só na quebra automática do navegador. Sempre que uma nova frase ou nova ideia começar, preferir quebrar para a linha de baixo com `<br>` quando isso deixar a leitura mais simétrica.
+
+Exemplo:
+`Quando alguém pesquisa por um serviço perto<br>dele, não ganha o melhor negócio.<br>Ganha quem está visível.`
+
+Evitar finais de linha estranhos como "Ganha quem" solto na frente quando a frase nova poderia começar limpa na próxima linha.
+
+---
+
+## Regra crítica: alinhamento em slides numerados
+
+Em carrosséis com número decorativo grande (`01`, `02`, `03`), slides equivalentes devem manter o início do bloco textual na mesma coordenada visual, preferencialmente com posição fixa por CSS (`left`, `right`, `top`) em vez de depender de `flex-end`.
+
+Referência prática: em slides 4:5 com `deco-num`, o eyebrow dos slides equivalentes deve começar no mesmo `x/y`. O título pode passar levemente sobre o número, mas não deve invadir mais do que os outros slides da mesma sequência. Se um slide tiver card, estatística ou chips extras, compactar esses elementos auxiliares para caber no espaço, sem deslocar o bloco principal.
+
+---
+
 ## Regra crítica: CTA sempre em slide próprio
 
 **Slides de conteúdo (Capa, Item, Stat, Educativo) NUNCA devem conter botão CTA ou logo-primary.**

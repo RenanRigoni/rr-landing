@@ -1,0 +1,551 @@
+- generic [active] [ref=e1]:
+  - link "Ir para o conteúdo" [ref=e2] [cursor=pointer]:
+    - /url: "#main-content"
+  - banner [ref=e3]:
+    - navigation "Navegação principal" [ref=e4]:
+      - generic [ref=e5]:
+        - 'link "dev.RR: página inicial" [ref=e6] [cursor=pointer]':
+          - /url: /
+          - img "dev.RR" [ref=e7]
+        - generic [ref=e8]:
+          - link "Como funciona" [ref=e9] [cursor=pointer]:
+            - /url: "#como-funciona"
+          - link "Pacotes e preços" [ref=e10] [cursor=pointer]:
+            - /url: "#pacotes"
+          - link "Outros serviços" [ref=e11] [cursor=pointer]:
+            - /url: https://www.devrigoni.com.br/servicos
+          - link "Perguntas frequentes" [ref=e12] [cursor=pointer]:
+            - /url: "#faq"
+        - link "Falar no WhatsApp" [ref=e13] [cursor=pointer]:
+          - /url: https://wa.me/5534991415238?text=Ol%C3%A1!%20Vim%20pelo%20site%20e%20quero%20saber%20mais%20sobre%20os%20servi%C3%A7os.
+          - img [ref=e14]
+          - text: Falar no WhatsApp
+  - main [ref=e16]:
+    - generic [ref=e18]:
+      - generic [ref=e19]:
+        - generic [ref=e20]:
+          - generic [ref=e21]: ~/dev.rr
+          - generic [ref=e22]: $
+          - generic [ref=e23]: criar-site --local --prazo 7d
+        - heading "Seu concorrente já aparece no Google. E você?" [level=1] [ref=e25]:
+          - text: Seu concorrente já aparece no Google.
+          - generic [ref=e26]: E você?
+        - paragraph [ref=e27]: "Crio sites profissionais, landing pages e perfis no Google para negócios locais, com foco em uma coisa só: fazer seu WhatsApp receber mais contatos."
+        - generic [ref=e28]:
+          - generic [ref=e29]: Entrega em 7 dias
+          - generic [ref=e31]: Atendo online · Brasil todo
+          - generic [ref=e33]: Sem agência
+        - generic [ref=e35]:
+          - link "Quero mais clientes pelo WhatsApp" [ref=e36] [cursor=pointer]:
+            - /url: https://wa.me/5534991415238?text=Ol%C3%A1!%20Vim%20pelo%20site%20e%20quero%20saber%20mais%20sobre%20os%20servi%C3%A7os.
+            - img [ref=e37]
+            - text: Quero mais clientes pelo WhatsApp
+            - img [ref=e40]
+          - link "Ver pacotes e preços" [ref=e42] [cursor=pointer]:
+            - /url: "#pacotes"
+        - paragraph [ref=e43]: Sem compromisso. Respondo em até 1 hora em dias úteis.
+      - generic [ref=e47]:
+        - paragraph [ref=e48]: Exemplo de resultado
+        - generic [ref=e49]:
+          - generic [ref=e50]:
+            - img [ref=e51]
+            - generic [ref=e53]: fisioterapia Patrocínio
+            - img [ref=e54]
+          - generic [ref=e56]:
+            - generic [ref=e57]: "1"
+            - generic [ref=e58]:
+              - generic [ref=e59]: Clínica São Lucas — Fisioterapia
+              - generic [ref=e60]:
+                - img [ref=e61]
+                - img [ref=e63]
+                - img [ref=e65]
+                - img [ref=e67]
+                - img [ref=e69]
+          - generic [ref=e71]:
+            - generic [ref=e72]: "2"
+            - generic [ref=e73]:
+              - generic [ref=e74]: Clínica Reabilita — Fisioterapia
+              - generic [ref=e75]:
+                - img [ref=e76]
+                - img [ref=e78]
+                - img [ref=e80]
+                - img [ref=e82]
+                - img [ref=e84]
+          - generic [ref=e86]:
+            - generic [ref=e87]: "3"
+            - generic [ref=e88]:
+              - generic [ref=e89]: Fisioterapia Vida Plena
+              - generic [ref=e90]:
+                - img [ref=e91]
+                - img [ref=e93]
+                - img [ref=e95]
+                - img [ref=e97]
+                - img [ref=e99]
+        - generic [ref=e102]:
+          - img [ref=e104]
+          - generic [ref=e106]:
+            - paragraph [ref=e107]: Contatos esta semana
+            - paragraph [ref=e108]: "+0"
+          - generic [ref=e109]: ↑ 3×
+        - paragraph [ref=e110]: Ilustrativo · Resultados variam por negócio e mercado
+    - generic [ref=e114]:
+      - generic [ref=e115]:
+        - generic [ref=e116]: O problema
+        - heading "Você é bom no que faz. O problema é que seu cliente não te encontra." [level=2] [ref=e117]
+        - paragraph [ref=e118]:
+          - text: Pensa no que acontece quando alguém pesquisa
+          - emphasis [ref=e119]: “[seu serviço] perto de mim”
+          - text: agora mesmo. Quem aparece? Seu concorrente (que talvez nem seja tão bom quanto você).
+      - generic [ref=e120]:
+        - generic [ref=e121]:
+          - img [ref=e122]
+          - paragraph [ref=e124]: Seu cliente pesquisa "clínica perto de mim" e encontra seu concorrente, não você.
+        - generic [ref=e125]:
+          - img [ref=e126]
+          - paragraph [ref=e128]: Você não tem site, ou tem um que parece abandonado desde 2017.
+        - generic [ref=e129]:
+          - img [ref=e130]
+          - paragraph [ref=e132]: Tentou criar no Wix mas ficou pela metade. Ou pagou barato e ficou envergonhado.
+        - generic [ref=e133]:
+          - img [ref=e134]
+          - paragraph [ref=e136]: Recebe indicações, mas elas estão secando. Quer novos clientes, não só quem já te conhece.
+        - generic [ref=e137]:
+          - img [ref=e138]
+          - paragraph [ref=e140]: Toda vez que alguém pesquisa seu serviço na sua cidade, você perde para quem tem presença digital.
+      - generic [ref=e142]:
+        - paragraph [ref=e143]: "A boa notícia: isso tem solução. E é mais simples do que você imagina."
+        - paragraph [ref=e144]: Você não precisa de agência. Não precisa aprender tecnologia. Precisa de alguém que faça por você.
+    - generic [ref=e147]:
+      - generic [ref=e148]:
+        - heading "Por que negócios locais escolhem a dev.RR" [level=2] [ref=e149]
+        - paragraph [ref=e150]: Não somos agência. Não temos gerente de conta nem reuniões de 2 horas. Você fala diretamente comigo, de qualquer cidade do Brasil, por call ou WhatsApp.
+      - generic [ref=e151]:
+        - generic [ref=e153]:
+          - img [ref=e155]
+          - generic [ref=e157]:
+            - heading "Você fala direto com o dev" [level=3] [ref=e158]
+            - paragraph [ref=e159]: Sem atendente, sem gerente de conta. Do briefing à entrega, é você e eu.
+        - generic [ref=e160]:
+          - generic [ref=e161]:
+            - img [ref=e163]
+            - generic [ref=e165]:
+              - heading "Entrega em até 7 dias úteis" [level=3] [ref=e166]
+              - paragraph [ref=e167]: Não 3 meses. Não "quando a equipe tiver disponibilidade". Sete dias.
+          - generic [ref=e168]:
+            - img [ref=e170]
+            - generic [ref=e172]:
+              - heading "Foco em contatos reais" [level=3] [ref=e173]
+              - paragraph [ref=e174]: Site bonito que não gera contato não serve. Cada escolha visa fazer seu WhatsApp tocar.
+          - generic [ref=e175]:
+            - img [ref=e177]
+            - generic [ref=e179]:
+              - heading "Briefing de 30 minutos" [level=3] [ref=e180]
+              - paragraph [ref=e181]: Você fala, eu escrevo e estruturo. Você não precisa saber o que colocar no site.
+          - generic [ref=e182]:
+            - img [ref=e184]
+            - generic [ref=e186]:
+              - heading "Linguagem simples, sem jargão" [level=3] [ref=e187]
+              - paragraph [ref=e188]: Você vai entender tudo o que eu entregar. Sem termos técnicos, sem surpresas.
+          - generic [ref=e189]:
+            - img [ref=e191]
+            - generic [ref=e193]:
+              - heading "Não sumimos depois de entregar" [level=3] [ref=e194]
+              - paragraph [ref=e195]: Todo pacote inclui suporte. Se precisar ajustar algo, estou aqui.
+    - generic [ref=e198]:
+      - generic [ref=e199]:
+        - heading "É mais simples do que parece" [level=2] [ref=e200]
+        - paragraph [ref=e201]: Sem formulário complicado. Sem briefing de 10 páginas. Sem esperar semanas para ter uma resposta.
+      - generic [ref=e202]:
+        - generic [ref=e204]:
+          - generic [ref=e205]:
+            - generic [ref=e206]: "01"
+            - img [ref=e208]
+          - generic [ref=e210]:
+            - heading "Você me chama no WhatsApp" [level=3] [ref=e211]
+            - paragraph [ref=e212]: Me conta sobre seu negócio em até 30 minutos. Pode ser por mensagem ou ligação rápida. Você não precisa preparar nada.
+        - generic [ref=e213]:
+          - generic [ref=e215]:
+            - generic [ref=e216]:
+              - img [ref=e218]
+              - generic [ref=e220]: "02"
+            - generic [ref=e221]:
+              - heading "Eu faço tudo" [level=3] [ref=e222]
+              - paragraph [ref=e223]: Site, Google Empresa, texto, botão de WhatsApp, imagens. Você não precisa fazer nada além de aprovar o resultado.
+          - generic [ref=e225]:
+            - generic [ref=e226]:
+              - img [ref=e228]
+              - generic [ref=e230]: "03"
+            - generic [ref=e231]:
+              - heading "Seu negócio começa a aparecer" [level=3] [ref=e232]
+              - paragraph [ref=e233]: Perfil no Google ativo. Site no ar. Seus clientes te encontrando e te chamando no WhatsApp.
+      - generic [ref=e234]:
+        - link "Começar agora" [ref=e235] [cursor=pointer]:
+          - /url: https://wa.me/5534991415238?text=Ol%C3%A1!%20Vim%20pelo%20site%20e%20quero%20saber%20mais%20sobre%20os%20servi%C3%A7os.
+          - img [ref=e236]
+          - text: Começar agora
+        - paragraph [ref=e238]: Sem compromisso · Respondo em até 1h
+    - generic [ref=e241]:
+      - generic [ref=e242]:
+        - heading "Escolha o que faz sentido para o seu negócio agora" [level=2] [ref=e243]
+        - paragraph [ref=e244]: Sem contrato mínimo. Sem taxa de setup. Sem surpresas. O que está aqui é o que você paga.
+      - generic [ref=e245]:
+        - generic [ref=e247]:
+          - generic [ref=e248]:
+            - heading "Presença Local" [level=3] [ref=e249]
+            - paragraph [ref=e250]: Apareça no Google a partir de amanhã.
+          - generic [ref=e251]:
+            - generic [ref=e252]: R$
+            - generic [ref=e253]: "797"
+          - list [ref=e255]:
+            - listitem [ref=e256]:
+              - img [ref=e257]
+              - text: Configuração completa do Google Empresa
+            - listitem [ref=e259]:
+              - img [ref=e260]
+              - text: Descrição profissional do negócio
+            - listitem [ref=e262]:
+              - img [ref=e263]
+              - text: Fotos, horários e serviços configurados
+            - listitem [ref=e265]:
+              - img [ref=e266]
+              - text: Link direto para WhatsApp no perfil
+            - listitem [ref=e268]:
+              - img [ref=e269]
+              - text: Briefing de 30 minutos
+            - listitem [ref=e271]:
+              - img [ref=e272]
+              - text: 15 dias de suporte
+          - generic [ref=e274]:
+            - img [ref=e275]
+            - paragraph [ref=e277]: "Bônus: Guia: como pedir avaliações no Google"
+          - link "Quero Presença Local" [ref=e278] [cursor=pointer]:
+            - /url: https://wa.me/5534991415238?text=Ol%C3%A1!%20Vim%20pelo%20site%20e%20quero%20saber%20mais%20sobre%20os%20servi%C3%A7os.
+            - img [ref=e279]
+            - text: Quero Presença Local
+        - generic [ref=e282]:
+          - generic [ref=e283]:
+            - img [ref=e284]
+            - text: Mais vendido
+          - generic [ref=e286]:
+            - heading "Presença Profissional" [level=3] [ref=e287]
+            - paragraph [ref=e288]: Site + Google. Clientes te encontram e chamam.
+          - generic [ref=e289]:
+            - generic [ref=e290]: R$
+            - generic [ref=e291]: "1.797"
+          - list [ref=e293]:
+            - listitem [ref=e294]:
+              - img [ref=e295]
+              - text: Landing page profissional completa
+            - listitem [ref=e297]:
+              - img [ref=e298]
+              - text: Google Empresa configurado e otimizado
+            - listitem [ref=e300]:
+              - img [ref=e301]
+              - text: Copy escrito por mim (você não escreve nada)
+            - listitem [ref=e303]:
+              - img [ref=e304]
+              - text: Botão de WhatsApp rastreável
+            - listitem [ref=e306]:
+              - img [ref=e307]
+              - text: Imagens profissionais incluídas
+            - listitem [ref=e309]:
+              - img [ref=e310]
+              - text: SEO básico e hospedagem configurada
+            - listitem [ref=e312]:
+              - img [ref=e313]
+              - text: 30 dias de ajustes e suporte
+          - generic [ref=e315]:
+            - img [ref=e316]
+            - paragraph [ref=e318]: "Bônus: Análise dos 3 maiores concorrentes + Bio do Instagram"
+          - link "Quero este pacote" [ref=e319] [cursor=pointer]:
+            - /url: https://wa.me/5534991415238?text=Ol%C3%A1!%20Vim%20pelo%20site%20e%20quero%20saber%20mais%20sobre%20os%20servi%C3%A7os.
+            - img [ref=e320]
+            - text: Quero este pacote
+            - img [ref=e323]
+        - generic [ref=e326]:
+          - generic [ref=e327]:
+            - heading "Parceria Digital" [level=3] [ref=e328]
+            - paragraph [ref=e329]: Presença completa + alguém cuidando todo mês.
+          - generic [ref=e330]:
+            - generic [ref=e331]: R$
+            - generic [ref=e332]: "2.497"
+            - generic [ref=e333]: + R$297/mês
+          - list [ref=e335]:
+            - listitem [ref=e336]:
+              - img [ref=e337]
+              - text: Site completo até 5 páginas
+            - listitem [ref=e339]:
+              - img [ref=e340]
+              - text: Google Empresa + estratégia de avaliações
+            - listitem [ref=e342]:
+              - img [ref=e343]
+              - text: Copy completo por mim
+            - listitem [ref=e345]:
+              - img [ref=e346]
+              - text: 1 mês de manutenção incluso
+            - listitem [ref=e348]:
+              - img [ref=e349]
+              - text: Relatório mensal de desempenho
+            - listitem [ref=e351]:
+              - img [ref=e352]
+              - text: Suporte prioritário (resposta em 4h)
+          - generic [ref=e354]:
+            - img [ref=e355]
+            - paragraph [ref=e357]: "Bônus: Página de depoimentos + Link WhatsApp inteligente + 1h consultoria"
+          - link "Quero Parceria Digital" [ref=e358] [cursor=pointer]:
+            - /url: https://wa.me/5534991415238?text=Ol%C3%A1!%20Vim%20pelo%20site%20e%20quero%20saber%20mais%20sobre%20os%20servi%C3%A7os.
+            - img [ref=e359]
+            - text: Quero Parceria Digital
+      - paragraph [ref=e361]:
+        - text: Em dúvida sobre qual pacote escolher?
+        - link "Me chama no WhatsApp" [ref=e362] [cursor=pointer]:
+          - /url: https://wa.me/5534991415238?text=Ol%C3%A1!%20Vim%20pelo%20site%20e%20quero%20saber%20mais%20sobre%20os%20servi%C3%A7os.
+        - text: e te indico o certo em 5 minutos.
+    - generic [ref=e365]:
+      - generic [ref=e366]:
+        - paragraph [ref=e367]: Além dos pacotes
+        - heading "Precisa de uma estrutura digital mais completa?" [level=2] [ref=e368]
+        - paragraph [ref=e369]: E-commerce, CRM, sistemas personalizados, tráfego pago, mídias para redes sociais e serviços avulsos para complementar sua presença digital.
+        - generic [ref=e370]:
+          - generic [ref=e371]: E-commerce
+          - generic [ref=e372]: CRM
+          - generic [ref=e373]: Sistemas personalizados
+          - generic [ref=e374]: Tráfego pago
+          - generic [ref=e375]: Mídias digitais
+          - generic [ref=e376]: Link de bio
+      - link "Ver todos os serviços" [ref=e377] [cursor=pointer]:
+        - /url: /servicos
+        - text: Ver todos os serviços
+        - img [ref=e379]
+    - generic [ref=e383]:
+      - heading "O que donos de negócios locais estão dizendo" [level=2] [ref=e385]
+      - generic [ref=e386]:
+        - generic [ref=e388]:
+          - generic [ref=e389]:
+            - img [ref=e390]
+            - paragraph [ref=e392]: “Antes eu dependia só de indicação. Hoje apareço na primeira página do Google para fisioterapia na minha cidade. Recebi 3 novos contatos na primeira semana. Valeu cada centavo.”
+          - generic [ref=e394]:
+            - generic [ref=e395]:
+              - generic [ref=e397]: CS
+              - generic [ref=e398]:
+                - paragraph [ref=e399]: Dra. Camila S.
+                - paragraph [ref=e400]: Clínica de Fisioterapia · Patrocínio/MG
+            - generic [ref=e401]:
+              - img [ref=e402]
+              - img [ref=e404]
+              - img [ref=e406]
+              - img [ref=e408]
+              - img [ref=e410]
+        - generic [ref=e413]:
+          - img [ref=e414]
+          - paragraph [ref=e416]: “Achei que ia ser complicado, mas foi uma conversa de meia hora e em 6 dias o site estava no ar. Profissional, claro e com o botão do WhatsApp bem visível. Meus clientes adoraram.”
+          - generic [ref=e418]:
+            - generic [ref=e420]: RM
+            - generic [ref=e421]:
+              - paragraph [ref=e422]: Rodrigo M.
+              - paragraph [ref=e423]: Eletricista Autônomo · Patrocínio/MG
+            - generic [ref=e424]:
+              - img [ref=e425]
+              - img [ref=e427]
+              - img [ref=e429]
+              - img [ref=e431]
+              - img [ref=e433]
+        - generic [ref=e436]:
+          - img [ref=e437]
+          - paragraph [ref=e439]: “Paguei quase o mesmo que uma agência cobrou só para fazer o orçamento. Aqui saí com site, Google Empresa configurado e ainda tive suporte por 30 dias. Recomendo sem hesitar.”
+          - generic [ref=e441]:
+            - generic [ref=e443]: AP
+            - generic [ref=e444]:
+              - paragraph [ref=e445]: Ana Paula F.
+              - paragraph [ref=e446]: Salão de Beleza · Patrocínio/MG
+            - generic [ref=e447]:
+              - img [ref=e448]
+              - img [ref=e450]
+              - img [ref=e452]
+              - img [ref=e454]
+              - img [ref=e456]
+      - paragraph [ref=e458]: "* Depoimentos reais de clientes. Nomes usados com autorização."
+    - generic [ref=e461]:
+      - generic [ref=e462]:
+        - generic [ref=e463]:
+          - img [ref=e464]
+          - text: Dados reais · Fontes verificadas
+        - heading "O que os números dizem sobre presença digital" [level=2] [ref=e466]
+        - paragraph [ref=e467]: "Não é opinião: é o que estudos com milhares de negócios mostram. A diferença entre aparecer e não aparecer no Google é mensurável."
+      - generic [ref=e469]:
+        - paragraph [ref=e470]: Negócios com perfil Google otimizado geram 4× mais visitas ao site, convertem 2,5× mais visitantes em contatos, e 76% das buscas locais resultam em ligação ou visita em menos de 24 horas.
+        - generic [ref=e471]:
+          - generic [ref=e472]: "Fontes:"
+          - link "Birdeye" [ref=e473] [cursor=pointer]:
+            - /url: https://birdeye.com/blog/state-of-google-business-profiles/
+          - link "SQ Magazine" [ref=e474] [cursor=pointer]:
+            - /url: https://www.contentbycass.com/blog/75-google-business-profile-stats-2025
+          - link "Safari Digital" [ref=e475] [cursor=pointer]:
+            - /url: https://searchendurance.com/google-business-profile-statistics/
+      - generic [ref=e476]:
+        - 'heading "Comparativo: com vs. sem presença digital estruturada" [level=3] [ref=e477]'
+        - generic [ref=e478]:
+          - generic [ref=e479]:
+            - img [ref=e480]
+            - generic [ref=e482]: Sem presença
+          - generic [ref=e483]:
+            - img [ref=e484]
+            - generic [ref=e486]: Com Google + Site
+        - generic [ref=e487]:
+          - generic [ref=e488]:
+            - paragraph [ref=e489]: Visitas ao site por mês
+            - generic [ref=e493]: Muito baixo
+            - generic [ref=e497]: 4× mais
+          - generic [ref=e498]:
+            - paragraph [ref=e499]: Taxa de conversão de visitas em contatos
+            - generic [ref=e503]: 1,8%
+            - generic [ref=e507]: 4,5%
+          - generic [ref=e508]:
+            - paragraph [ref=e509]: Buscas locais que viram contato em 24h
+            - generic [ref=e513]: Quase zero
+            - generic [ref=e517]: 76% das buscas
+          - generic [ref=e518]:
+            - paragraph [ref=e519]: Ações mensais (ligações + rotas + site)
+            - generic [ref=e523]: ~15/mês
+            - generic [ref=e527]: ~81/mês
+      - generic [ref=e528]:
+        - generic [ref=e529]: "Fontes:"
+        - link "Birdeye" [ref=e530] [cursor=pointer]:
+          - /url: https://birdeye.com/blog/state-of-google-business-profiles/
+        - link "SQ Magazine" [ref=e531] [cursor=pointer]:
+          - /url: https://www.contentbycass.com/blog/75-google-business-profile-stats-2025
+        - link "Safari Digital" [ref=e532] [cursor=pointer]:
+          - /url: https://searchendurance.com/google-business-profile-statistics/
+        - link "SEO Sherpa" [ref=e533] [cursor=pointer]:
+          - /url: https://seosherpa.com/landing-page-statistics/
+    - generic [ref=e536]:
+      - 'heading "De invisível a 1ª página: como uma fisioterapeuta passou a receber 3 contatos novos por semana" [level=2] [ref=e538]'
+      - generic [ref=e539]:
+        - generic [ref=e540]:
+          - generic [ref=e541]:
+            - paragraph [ref=e542]: A situação
+            - paragraph [ref=e543]: "Dra. Camila tem 8 anos de experiência em fisioterapia. Sua agenda nunca ficou vazia, mas sempre dependeu de uma coisa só: indicação. Ela é boa no que faz. O problema era que quem nunca a conheceu não tinha como chegar até ela."
+          - generic [ref=e544]:
+            - paragraph [ref=e545]: O problema real
+            - blockquote [ref=e546]: “Minha concorrente abriu o consultório dois quarteirões abaixo e em seis meses estava lotada. Eu já estava lá há anos. Fui pesquisar e vi que ela aparecia na primeira página do Google. Eu nem aparecia.”
+          - generic [ref=e547]:
+            - paragraph [ref=e548]: O que foi feito
+            - paragraph [ref=e549]: "Pacote Presença Profissional. Uma conversa de 35 minutos. Em 6 dias úteis: Google Empresa configurado com as categorias certas, landing page com o copy que ela tinha falado na conversa, e botão de WhatsApp direto na página."
+          - generic [ref=e550]:
+            - paragraph [ref=e551]: O resultado
+            - paragraph [ref=e552]: "Na segunda semana, chegou o primeiro contato de alguém que ela nunca tinha visto: encontrou no Google, achou o perfil profissional, clicou no WhatsApp. Três meses depois: top 3 nas buscas e média de 3–4 contatos novos por semana."
+            - blockquote [ref=e553]: "“Agora quando alguém me pede indicação de fisioterapeuta, eu falo: pesquisa no Google. E eu apareço.”"
+        - generic [ref=e554]:
+          - generic [ref=e556]:
+            - img [ref=e558]
+            - generic [ref=e560]:
+              - paragraph [ref=e561]: Posição no Google
+              - generic [ref=e562]:
+                - generic [ref=e563]: Não aparecia
+                - generic [ref=e564]: →
+                - generic [ref=e565]: Top 3
+          - generic [ref=e567]:
+            - img [ref=e569]
+            - generic [ref=e571]:
+              - paragraph [ref=e572]: Contatos/semana WhatsApp
+              - generic [ref=e573]:
+                - generic [ref=e574]: "0"
+                - generic [ref=e575]: →
+                - generic [ref=e576]: 3–4
+          - generic [ref=e578]:
+            - img [ref=e580]
+            - generic [ref=e582]:
+              - paragraph [ref=e583]: Novos clientes no 1º mês
+              - generic [ref=e584]:
+                - generic [ref=e585]: "0"
+                - generic [ref=e586]: →
+                - generic [ref=e587]: 2 fechados
+          - generic [ref=e589]:
+            - img [ref=e591]
+            - generic [ref=e593]:
+              - paragraph [ref=e594]: Prazo de entrega
+              - generic [ref=e595]:
+                - generic [ref=e596]: N/A
+                - generic [ref=e597]: →
+                - generic [ref=e598]: 6 dias úteis
+          - generic [ref=e600]:
+            - paragraph [ref=e601]: Pacote utilizado
+            - paragraph [ref=e602]: "Presença Profissional: R$ 1.797"
+            - paragraph [ref=e603]: Resultado visível na 2ª semana após entrega
+          - link "Quero o mesmo resultado" [ref=e604] [cursor=pointer]:
+            - /url: https://wa.me/5534991415238?text=Ol%C3%A1!%20Vim%20pelo%20site%20e%20quero%20saber%20mais%20sobre%20os%20servi%C3%A7os.
+            - img [ref=e605]
+            - text: Quero o mesmo resultado
+    - generic [ref=e611]:
+      - img [ref=e613]
+      - generic [ref=e615]:
+        - heading "Se não ficar bom, você não paga." [level=2] [ref=e617]
+        - paragraph [ref=e618]:
+          - text: Você recebe o site, mostra para quem quiser, usa por até
+          - strong [ref=e619]: 7 dias
+          - text: . Se por qualquer motivo não ficar satisfeito com a qualidade e profissionalismo do resultado, devolvemos
+          - strong [ref=e620]: 100% do valor
+          - text: . Sem burocracia, sem justificativa, sem formulário complicado. Uma mensagem no WhatsApp resolve.
+        - generic [ref=e621]:
+          - paragraph [ref=e622]: "Pacote Parceria Digital: Garantia extra de 90 dias"
+          - paragraph [ref=e623]: Se em 90 dias você não estiver recebendo mais contatos pelo WhatsApp ou aparecendo melhor no Google, trabalho mais 30 dias gratuitamente até isso acontecer.
+        - paragraph [ref=e624]: Por que ofereço isso? Porque confio no trabalho. E porque não quero clientes insatisfeitos.
+    - generic [ref=e627]:
+      - heading "Ficou alguma dúvida?" [level=2] [ref=e629]
+      - generic [ref=e630]:
+        - button "Preciso entender de tecnologia para contratar?" [ref=e632] [cursor=pointer]:
+          - generic [ref=e633]: Preciso entender de tecnologia para contratar?
+          - img [ref=e635]
+        - button "Quanto tempo demora para criar um site profissional?" [ref=e638] [cursor=pointer]:
+          - generic [ref=e639]: Quanto tempo demora para criar um site profissional?
+          - img [ref=e641]
+        - button "Qual é o preço para criar um site profissional?" [ref=e644] [cursor=pointer]:
+          - generic [ref=e645]: Qual é o preço para criar um site profissional?
+          - img [ref=e647]
+        - button "Vocês atendem que tipo de negócio?" [ref=e650] [cursor=pointer]:
+          - generic [ref=e651]: Vocês atendem que tipo de negócio?
+          - img [ref=e653]
+        - button "Posso pagar parcelado?" [ref=e656] [cursor=pointer]:
+          - generic [ref=e657]: Posso pagar parcelado?
+          - img [ref=e659]
+        - button "Já tenho um site. Vale refazer ou reformar?" [ref=e662] [cursor=pointer]:
+          - generic [ref=e663]: Já tenho um site. Vale refazer ou reformar?
+          - img [ref=e665]
+        - button "O que acontece depois que o site é entregue?" [ref=e668] [cursor=pointer]:
+          - generic [ref=e669]: O que acontece depois que o site é entregue?
+          - img [ref=e671]
+      - paragraph [ref=e673]:
+        - text: Não encontrou o que procurava?
+        - link "Me manda uma mensagem no WhatsApp" [ref=e674] [cursor=pointer]:
+          - /url: https://wa.me/5534991415238?text=Ol%C3%A1!%20Vim%20pelo%20site%20e%20quero%20saber%20mais%20sobre%20os%20servi%C3%A7os.
+        - text: . Respondo em até 1 hora.
+    - generic [ref=e677]:
+      - generic [ref=e678]:
+        - heading "Enquanto você lê isso, alguém está pesquisando no Google pelo serviço que você oferece." [level=2] [ref=e679]
+        - paragraph [ref=e680]: Ele vai encontrar você, ou o seu concorrente. Cada semana sem presença digital é mais uma semana de clientes indo para quem aparece no Google.
+      - link "Falar agora no WhatsApp" [ref=e682] [cursor=pointer]:
+        - /url: https://wa.me/5534991415238?text=Ol%C3%A1!%20Vim%20pelo%20site%20e%20quero%20saber%20mais%20sobre%20os%20servi%C3%A7os.
+        - img [ref=e683]
+        - text: Falar agora no WhatsApp
+        - img [ref=e686]
+      - paragraph [ref=e688]: Respondo em até 1 hora em dias úteis · Sem compromisso · Só uma conversa
+  - contentinfo [ref=e689]:
+    - generic [ref=e690]:
+      - generic [ref=e691]:
+        - img "dev.RR" [ref=e692]
+        - paragraph [ref=e693]: Presença digital que gera contatos de verdade.
+      - generic [ref=e694]:
+        - link "WhatsApp" [ref=e695] [cursor=pointer]:
+          - /url: https://wa.me/5534991415238?text=Ol%C3%A1!%20Vim%20pelo%20site%20e%20quero%20saber%20mais%20sobre%20os%20servi%C3%A7os.
+          - img [ref=e696]
+        - link "Email" [ref=e698] [cursor=pointer]:
+          - /url: mailto:renan.rigoni@gmail.com
+          - img [ref=e699]
+      - paragraph [ref=e701]:
+        - text: © 2026 dev.RR · Patrocínio, MG
+        - text: Todos os direitos reservados.
+  - link "Falar no WhatsApp" [ref=e702] [cursor=pointer]:
+    - /url: https://wa.me/5534991415238?text=Ol%C3%A1!%20Vim%20pelo%20site%20e%20quero%20saber%20mais%20sobre%20os%20servi%C3%A7os.
+    - img [ref=e703]
+    - generic [ref=e705]: Falar no WhatsApp
+  - alert [ref=e706]

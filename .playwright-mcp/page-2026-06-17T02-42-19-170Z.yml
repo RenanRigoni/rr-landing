@@ -1,0 +1,33 @@
+- generic [ref=e5]:
+  - banner:
+    - generic [ref=e8]:
+      - generic [ref=e10]:
+        - generic:
+          - button [disabled]:
+            - img
+        - button "Facebook" [ref=e12] [cursor=pointer]:
+          - img "Facebook" [ref=e13]
+      - generic [ref=e18]:
+        - textbox "Email ou telefone" [ref=e21]
+        - textbox "Senha" [ref=e24]
+        - button "Entrar" [ref=e27] [cursor=pointer]:
+          - generic [ref=e31]: Entrar
+        - link "Esqueceu a conta?" [ref=e34] [cursor=pointer]:
+          - /url: https://www.facebook.com/recover/initiate?ars=royal_blue_bar
+  - main [ref=e40]:
+    - generic [ref=e41]:
+      - generic [ref=e42]:
+        - img [ref=e44]
+        - generic [ref=e53]:
+          - heading "Este conteúdo não está disponível no momento" [level=2] [ref=e55]:
+            - generic [ref=e56]: Este conteúdo não está disponível no momento
+          - generic [ref=e58]: Quando isso acontece, geralmente é porque o dono compartilhou o conteúdo apenas com um pequeno grupo de pessoas, alterou quem pode vê-lo ou ele foi excluído.
+        - link "Ir para o Feed" [ref=e60] [cursor=pointer]:
+          - /url: /
+          - generic [ref=e63]: Ir para o Feed
+      - generic [ref=e64]:
+        - button "Voltar" [ref=e65] [cursor=pointer]:
+          - generic [ref=e66]: Voltar
+        - link "Acessar a Central de Ajuda" [ref=e68] [cursor=pointer]:
+          - /url: https://www.facebook.com/help
+          - generic [ref=e69]: Acessar a Central de Ajuda

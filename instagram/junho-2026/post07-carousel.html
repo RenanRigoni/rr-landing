@@ -1,0 +1,212 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Post 07 - Tipos de site dev.RR</title>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,700;12..96,800&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#000;display:flex;justify-content:center;align-items:flex-start;padding:20px;min-height:100vh}
+.ig-frame{width:420px;background:#0A0A14;border-radius:12px;overflow:hidden;box-shadow:0 20px 80px rgba(0,0,0,.9)}
+.ig-header{display:flex;align-items:center;gap:10px;padding:10px 14px;background:#0A0A14;border-bottom:1px solid rgba(255,255,255,.05)}
+.ig-avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#7C3AED,#2563EB);display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden}
+.ig-info{flex:1}
+.ig-handle{font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:700;color:#fff;line-height:1}
+.ig-sub{font-family:'Plus Jakarta Sans',sans-serif;font-size:11px;color:rgba(255,255,255,.4);margin-top:2px}
+.ig-more{color:rgba(255,255,255,.4);font-size:20px;line-height:1;letter-spacing:1px}
+.carousel-viewport{width:420px;height:525px;overflow:hidden;position:relative;cursor:grab;user-select:none}
+.carousel-viewport:active{cursor:grabbing}
+.carousel-track{display:flex;width:2100px;height:525px;transition:transform .38s cubic-bezier(.4,0,.2,1);will-change:transform;background:#07070F;position:relative}
+.slide{width:420px;min-width:420px;height:525px;position:relative;overflow:hidden;display:flex;flex-direction:column;padding:36px 36px 64px;background:transparent}
+.dot-grid{position:absolute;inset:0;background-image:radial-gradient(circle,rgba(255,255,255,.055) 1px,transparent 1px);background-size:18px 18px;pointer-events:none;z-index:0}
+.content{position:relative;z-index:2;display:flex;flex-direction:column}
+.item-content{position:absolute;left:36px;right:36px;top:145px}
+.eyebrow{font-family:'DM Mono',monospace;font-size:10px;font-weight:500;letter-spacing:2.5px;text-transform:uppercase;color:#60A5FA;display:block;margin-bottom:10px}
+.divider{width:24px;height:2px;background:linear-gradient(90deg,#7C3AED,#60A5FA);border-radius:2px;margin-bottom:14px}
+.headline-xl{font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:47px;line-height:1.04;letter-spacing:-.035em;color:#F1F5F9;margin-bottom:14px}
+.headline-lg{font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:35px;line-height:1.08;letter-spacing:-.03em;color:#F1F5F9;margin-bottom:12px}
+.headline-cta{font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:34px;line-height:1.08;letter-spacing:-.03em;color:#F1F5F9;margin-bottom:14px}
+.body{font-family:'Plus Jakarta Sans',sans-serif;font-size:15px;line-height:1.55;color:rgba(255,255,255,.48)}
+.sub{font-family:'Plus Jakarta Sans',sans-serif;font-size:14px;font-weight:500;color:rgba(255,255,255,.45)}
+.grad-text{background:linear-gradient(135deg,#7C3AED 20%,#60A5FA 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.logo-corner{position:absolute;top:18px;right:18px;z-index:10;height:20px;width:auto}
+.deco-num{position:absolute;top:4px;left:14px;font-family:'Bricolage Grotesque',sans-serif;font-size:138px;font-weight:800;line-height:1;letter-spacing:-8px;background:linear-gradient(135deg,#7C3AED 0%,#60A5FA 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;opacity:.82;pointer-events:none;user-select:none;z-index:0}
+.pill{display:inline-flex;align-items:center;width:max-content;max-width:100%;padding:7px 12px;margin-bottom:14px;border:1px solid rgba(124,58,237,.35);border-radius:999px;background:rgba(124,58,237,.12);font-family:'DM Mono',monospace;font-size:10px;letter-spacing:1.3px;text-transform:uppercase;color:#60A5FA}
+.mini-list{display:grid;gap:8px;margin-top:16px}
+.mini-item{display:flex;align-items:center;gap:9px;font-family:'Plus Jakarta Sans',sans-serif;font-size:12px;color:rgba(255,255,255,.52)}
+.mini-dot{width:7px;height:7px;border-radius:50%;background:linear-gradient(135deg,#7C3AED,#60A5FA);box-shadow:0 0 14px rgba(96,165,250,.4);flex-shrink:0}
+.separator{height:1px;background:rgba(255,255,255,.08);margin:22px 0}
+.cta-btn{display:inline-flex;align-items:center;gap:8px;padding:13px 26px;background:linear-gradient(135deg,#7C3AED 0%,#2563EB 100%);color:#fff;font-family:'Bricolage Grotesque',sans-serif;font-size:14px;font-weight:700;border-radius:9999px;letter-spacing:-.2px;box-shadow:0 4px 24px rgba(124,58,237,.45)}
+.progress{position:absolute;bottom:0;left:0;right:0;padding:16px 28px 20px;z-index:10;display:flex;align-items:center;gap:10px}
+.progress-track{flex:1;height:3px;background:rgba(255,255,255,.12);border-radius:2px;overflow:hidden}
+.progress-fill{height:100%;background:#fff;border-radius:2px}
+.progress-label{font-family:'DM Mono',monospace;font-size:11px;color:rgba(255,255,255,.4);font-weight:500}
+.swipe-arrow{position:absolute;right:0;top:0;bottom:0;width:48px;z-index:9;display:flex;align-items:center;justify-content:center;background:transparent}
+.ig-dots{display:flex;justify-content:center;gap:6px;padding:10px;background:#0A0A14}
+.dot{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.2);transition:.3s;cursor:pointer}
+.dot.active{width:18px;border-radius:3px;background:#60A5FA}
+.ig-actions{display:flex;align-items:center;padding:10px 14px;background:#0A0A14;gap:14px}
+.ig-actions-l{display:flex;gap:14px;flex:1}
+.ig-caption{padding:8px 14px 16px;background:#0A0A14}
+.ig-caption p{font-family:'Plus Jakarta Sans',sans-serif;font-size:12px;color:rgba(255,255,255,.65);line-height:1.5}
+.ig-caption strong{color:#fff}
+.ig-caption-time{font-family:'DM Mono',monospace;font-size:10px;color:rgba(255,255,255,.3);margin-top:4px;letter-spacing:1px;display:block}
+</style>
+</head>
+<body>
+<div class="ig-frame">
+
+  <div class="ig-header">
+    <div class="ig-avatar"><img src="../../logos/logo-icon-color.svg" style="height:20px;width:auto" alt="dev.RR" onerror="this.style.display='none'"></div>
+    <div class="ig-info">
+      <div class="ig-handle">dev.rr_studio</div>
+      <div class="ig-sub">Desenvolvedor Web · Negócios Locais</div>
+    </div>
+    <div class="ig-more">···</div>
+  </div>
+
+  <div class="carousel-viewport" id="vp">
+    <div class="carousel-track" id="track">
+
+      <div style="position:absolute;top:-90px;left:-60px;width:420px;height:420px;border-radius:50%;background:radial-gradient(circle,rgba(124,58,237,.18) 0%,transparent 65%);pointer-events:none;z-index:0"></div>
+      <div style="position:absolute;bottom:-120px;left:220px;width:480px;height:480px;border-radius:50%;background:radial-gradient(circle,rgba(37,99,235,.17) 0%,transparent 65%);pointer-events:none;z-index:0"></div>
+      <div style="position:absolute;top:-80px;left:620px;width:440px;height:440px;border-radius:50%;background:radial-gradient(circle,rgba(124,58,237,.15) 0%,transparent 65%);pointer-events:none;z-index:0"></div>
+      <div style="position:absolute;bottom:-100px;left:1050px;width:450px;height:450px;border-radius:50%;background:radial-gradient(circle,rgba(37,99,235,.16) 0%,transparent 65%);pointer-events:none;z-index:0"></div>
+      <div style="position:absolute;top:-80px;left:1480px;width:430px;height:430px;border-radius:50%;background:radial-gradient(circle,rgba(124,58,237,.18) 0%,transparent 65%);pointer-events:none;z-index:0"></div>
+      <div style="position:absolute;bottom:-80px;left:1760px;width:460px;height:460px;border-radius:50%;background:radial-gradient(circle,rgba(37,99,235,.22) 0%,transparent 65%);pointer-events:none;z-index:0"></div>
+
+      <div class="slide" style="justify-content:center">
+        <div class="dot-grid"></div>
+        <img class="logo-corner" src="../../logos/logo-icon-color.svg" alt="dev.RR" onerror="this.style.display='none'">
+        <div class="content">
+          <span class="eyebrow">TIPOS DE SITE · dev.RR</span>
+          <div class="divider"></div>
+          <h1 class="headline-xl">Qual tipo de site o seu negócio precisa?</h1>
+          <p class="sub">Não existe "um site serve para tudo". Arraste para decidir melhor.</p>
+        </div>
+        <div class="progress"><div class="progress-track"><div class="progress-fill" style="width:20%"></div></div><span class="progress-label">1/5</span></div>
+        <div class="swipe-arrow"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="rgba(255,255,255,.35)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      </div>
+
+      <div class="slide">
+        <div class="dot-grid"></div>
+        <span class="deco-num">01</span>
+        <img class="logo-corner" src="../../logos/logo-icon-color.svg" alt="dev.RR" onerror="this.style.display='none'">
+        <div class="content item-content">
+          <span class="eyebrow">TIPO 01</span>
+          <div class="divider"></div>
+          <span class="pill">Serviços locais · Profissionais</span>
+          <h2 class="headline-lg">Landing page ou site institucional</h2>
+          <p class="body">Ideal para explicar o que você faz, passar confiança e levar o cliente direto para o WhatsApp.</p>
+          <div class="mini-list">
+            <div class="mini-item"><span class="mini-dot"></span>Clínicas, consultórios e salões</div>
+            <div class="mini-item"><span class="mini-dot"></span>Prestadores de serviço</div>
+            <div class="mini-item"><span class="mini-dot"></span>Negócios que precisam ser encontrados</div>
+          </div>
+        </div>
+        <div class="progress"><div class="progress-track"><div class="progress-fill" style="width:40%"></div></div><span class="progress-label">2/5</span></div>
+        <div class="swipe-arrow"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="rgba(255,255,255,.35)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      </div>
+
+      <div class="slide">
+        <div class="dot-grid"></div>
+        <span class="deco-num">02</span>
+        <img class="logo-corner" src="../../logos/logo-icon-color.svg" alt="dev.RR" onerror="this.style.display='none'">
+        <div class="content item-content">
+          <span class="eyebrow">TIPO 02</span>
+          <div class="divider"></div>
+          <span class="pill">Google · Conteúdo · Autoridade</span>
+          <h2 class="headline-lg">Site com blog e páginas de conteúdo</h2>
+          <p class="body">Para quem quer aparecer no Google no longo prazo e responder dúvidas antes do cliente chamar.</p>
+          <div class="mini-list">
+            <div class="mini-item"><span class="mini-dot"></span>Serviços com busca recorrente</div>
+            <div class="mini-item"><span class="mini-dot"></span>Conteúdo que educa e gera confiança</div>
+            <div class="mini-item"><span class="mini-dot"></span>Base melhor para SEO local</div>
+          </div>
+        </div>
+        <div class="progress"><div class="progress-track"><div class="progress-fill" style="width:60%"></div></div><span class="progress-label">3/5</span></div>
+        <div class="swipe-arrow"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="rgba(255,255,255,.35)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      </div>
+
+      <div class="slide">
+        <div class="dot-grid"></div>
+        <span class="deco-num">03</span>
+        <img class="logo-corner" src="../../logos/logo-icon-color.svg" alt="dev.RR" onerror="this.style.display='none'">
+        <div class="content item-content">
+          <span class="eyebrow">TIPO 03</span>
+          <div class="divider"></div>
+          <span class="pill">Produtos · Catálogo · Venda</span>
+          <h2 class="headline-lg">Site de vendas ou catálogo online</h2>
+          <p class="body">Para mostrar produtos, organizar pedidos<br>e tirar a venda do improviso<br>do direct.</p>
+          <div class="mini-list">
+            <div class="mini-item"><span class="mini-dot"></span>Lojas e marcas locais</div>
+            <div class="mini-item"><span class="mini-dot"></span>Produtos físicos ou cardápios</div>
+            <div class="mini-item"><span class="mini-dot"></span>Compra mais simples para o cliente</div>
+          </div>
+        </div>
+        <div class="progress"><div class="progress-track"><div class="progress-fill" style="width:80%"></div></div><span class="progress-label">4/5</span></div>
+        <div class="swipe-arrow"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="rgba(255,255,255,.35)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      </div>
+
+      <div class="slide" style="justify-content:center">
+        <div class="dot-grid"></div>
+        <div class="content">
+          <span class="eyebrow">PRÓXIMO PASSO</span>
+          <div class="divider"></div>
+          <h2 class="headline-cta">Não sabe qual é o seu?</h2>
+          <p class="body">Me chama. A gente entende seu negócio, sua rotina e escolhe a estrutura certa.</p>
+          <div class="separator"></div>
+          <div style="display:flex;align-items:center;justify-content:center;gap:16px;flex-wrap:wrap">
+            <div class="cta-btn">Me chama</div>
+            <img src="../../logos/logo-primary-color.svg" style="height:28px;width:auto" alt="dev.RR" onerror="this.style.display='none'">
+          </div>
+        </div>
+        <div class="progress"><div class="progress-track"><div class="progress-fill" style="width:100%;background:linear-gradient(90deg,#7C3AED,#60A5FA)"></div></div><span class="progress-label">5/5</span></div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="ig-dots" id="dots">
+    <div class="dot active" data-i="0"></div>
+    <div class="dot" data-i="1"></div>
+    <div class="dot" data-i="2"></div>
+    <div class="dot" data-i="3"></div>
+    <div class="dot" data-i="4"></div>
+  </div>
+
+  <div class="ig-actions">
+    <div class="ig-actions-l">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.65)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.65)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.65)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+    </div>
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.65)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+  </div>
+
+  <div class="ig-caption">
+    <p><strong>dev.rr_studio </strong>Não existe "um site serve para tudo". Depende do seu negócio, do seu cliente e do que o site precisa fazer por você.</p>
+    <span class="ig-caption-time">HÁ 2 HORAS</span>
+  </div>
+
+</div>
+
+<script>
+const track=document.getElementById('track');
+const vp=document.getElementById('vp');
+const dotEls=document.querySelectorAll('.dot');
+const TOTAL=5,W=420;
+let cur=0,sx=0,drag=false;
+function go(i){cur=Math.max(0,Math.min(TOTAL-1,i));track.style.transform=`translateX(-${cur*W}px)`;dotEls.forEach((d,j)=>d.classList.toggle('active',j===cur))}
+vp.addEventListener('mousedown',e=>{drag=true;sx=e.clientX;track.style.transition='none'});
+vp.addEventListener('touchstart',e=>{drag=true;sx=e.touches[0].clientX;track.style.transition='none'},{passive:true});
+vp.addEventListener('mousemove',e=>{if(!drag)return;track.style.transform=`translateX(${-cur*W+e.clientX-sx}px)`});
+vp.addEventListener('touchmove',e=>{if(!drag)return;track.style.transform=`translateX(${-cur*W+e.touches[0].clientX-sx}px)`},{passive:true});
+function end(ex){drag=false;track.style.transition='transform .38s cubic-bezier(.4,0,.2,1)';const dx=ex-sx;if(dx<-50)go(cur+1);else if(dx>50)go(cur-1);else go(cur)}
+vp.addEventListener('mouseup',e=>end(e.clientX));
+vp.addEventListener('touchend',e=>end(e.changedTouches[0].clientX));
+vp.addEventListener('mouseleave',e=>{if(drag)end(e.clientX)});
+dotEls.forEach(d=>d.addEventListener('click',()=>go(+d.dataset.i)));
+</script>
+</body>
+</html>

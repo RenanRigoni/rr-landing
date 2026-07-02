@@ -1,0 +1,217 @@
+- generic [ref=e11]:
+  - generic [ref=e13]:
+    - link "Instagram" [ref=e16] [cursor=pointer]:
+      - /url: /
+      - img "Instagram" [ref=e19]
+    - generic [ref=e24]:
+      - link "Entrar" [ref=e26] [cursor=pointer]:
+        - /url: /accounts/login/?next=%2Fp%2FDZi2hufiBZw%2F&source=desktop_nav
+      - link "Cadastre-se" [ref=e28] [cursor=pointer]:
+        - /url: /accounts/emailsignup/
+  - main [ref=e29]:
+    - dialog [ref=e34]:
+      - generic [ref=e35]:
+        - button "Fechar" [ref=e37] [cursor=pointer]:
+          - img "Fechar" [ref=e39]
+        - generic [ref=e43]:
+          - generic [ref=e44]:
+            - link "Foto do perfil de devrigoni" [ref=e46] [cursor=pointer]:
+              - img "Foto do perfil de devrigoni" [ref=e47]
+            - generic [ref=e49]:
+              - generic [ref=e50]: Não perca nenhum post de devrigoni
+              - generic [ref=e52]: Cadastre-se no Instagram para ficar por dentro das novidades.
+              - generic [ref=e54]:
+                - text: Ao continuar, você concorda com os
+                - link "Termos de Uso" [ref=e55] [cursor=pointer]:
+                  - /url: https://help.instagram.com/581066165581870/?locale=pt_BR
+                - text: e a
+                - link "Política de Privacidade" [ref=e56] [cursor=pointer]:
+                  - /url: https://privacycenter.instagram.com/policy/
+                - text: do Instagram.
+          - generic [ref=e57]:
+            - link "Cadastre-se" [ref=e60] [cursor=pointer]:
+              - /url: /accounts/emailsignup/
+            - link "Entrar" [ref=e63] [cursor=pointer]:
+              - /url: /accounts/login/?source=desktop_dynamic_landing_dialog
+    - generic [ref=e66]:
+      - generic [ref=e76]:
+        - list [ref=e78]:
+          - listitem [ref=e79]
+          - listitem [ref=e80]:
+            - img "Photo by dev.RR on June 13, 2026. Pode ser uma imagem de texto que diz \"0 0102030405 02 01 03 04 05 VOCÊ SE IDENTIFICA? 5 sinais que seu negócio precisa de um site Arrasteparavercadasinal\"." [ref=e86]
+          - listitem [ref=e88]:
+            - img "Photo by dev.RR on June 13, 2026. Pode ser um meme de texto que diz \"砂 01 SINAL SINAL01 01 Você indica WhatsApp quando alguém pergunta onde te achar WhatsAppépraconversa. Whtafpopacomomnde Endereçonainternet praserencontrado- presrencontad-sacosdie -saocoisasdiferentes. encontrado\"." [ref=e94]
+        - button "Avançar" [ref=e96] [cursor=pointer]
+      - generic [ref=e99]:
+        - generic [ref=e101]:
+          - link "Foto do perfil de devrigoni" [ref=e103] [cursor=pointer]:
+            - img "Foto do perfil de devrigoni" [ref=e104]
+          - generic [ref=e107]:
+            - link "devrigoni" [ref=e110] [cursor=pointer]:
+              - /url: /devrigoni/
+              - generic [ref=e113]: devrigoni
+            - generic [ref=e114]:
+              - generic [ref=e116]: •
+              - button "Seguir" [ref=e117] [cursor=pointer]
+          - button "Mais opções" [ref=e120] [cursor=pointer]:
+            - img "Mais opções" [ref=e123]
+        - separator [ref=e127]
+        - generic [ref=e129]:
+          - generic [ref=e131]:
+            - link "Foto do perfil de devrigoni" [ref=e133] [cursor=pointer]:
+              - /url: /devrigoni/
+              - img "Foto do perfil de devrigoni" [ref=e134]
+            - generic [ref=e138]:
+              - generic [ref=e139]:
+                - link "devrigoni" [ref=e140] [cursor=pointer]:
+                  - /url: /devrigoni/
+                  - generic [ref=e143]: devrigoni
+                - time [ref=e145]: 3 d
+              - generic [ref=e146]:
+                - text: Se você se identificou com algum desses, a gente precisa conversar. 👆
+                - text: Pode parecer que "tá funcionando sem site" — mas o que você não vê são os clientes que te procuraram no Google, não te acharam, e foram para o concorrente.
+                - text: Site não é gasto. É estrutura.
+                - text: Me chama no WhatsApp 👇
+                - text: 🔗 Link na bio
+                - link "#sitepronto" [ref=e147] [cursor=pointer]:
+                  - /url: /explore/tags/sitepronto/
+                - link "#negóciolocal" [ref=e148] [cursor=pointer]:
+                  - /url: /explore/tags/neg%C3%B3ciolocal/
+                - link "#marketingdigital" [ref=e149] [cursor=pointer]:
+                  - /url: /explore/tags/marketingdigital/
+                - link "#presençadigital" [ref=e150] [cursor=pointer]:
+                  - /url: /explore/tags/presen%C3%A7adigital/
+                - link "#vendasonline" [ref=e151] [cursor=pointer]:
+                  - /url: /explore/tags/vendasonline/
+          - button "Carregar mais comentários" [ref=e153] [cursor=pointer]:
+            - img "Carregar mais comentários" [ref=e155]
+          - generic [ref=e159]:
+            - heading "Ainda não há nenhum comentário." [level=2] [ref=e161]
+            - generic [ref=e163]: Inicie a conversa.
+        - generic [ref=e164]:
+          - generic [ref=e165]:
+            - generic [ref=e166]:
+              - button "Curtir" [ref=e169] [cursor=pointer]:
+                - img "Curtir" [ref=e172]
+              - button "13" [ref=e174] [cursor=pointer]
+              - button "Comentar" [ref=e176] [cursor=pointer]:
+                - img "Comentar" [ref=e178]
+              - button "Compartilhar" [ref=e180] [cursor=pointer]:
+                - img "Compartilhar" [ref=e181]
+            - button "Salvar" [ref=e185] [cursor=pointer]:
+              - img "Salvar" [ref=e187]
+          - link "há 3 dias" [ref=e191] [cursor=pointer]:
+            - /url: /devrigoni/p/DZi2hufiBZw/
+            - time [ref=e193]: há 3 dias
+        - generic [ref=e198]:
+          - link "Entrar" [ref=e199] [cursor=pointer]:
+            - /url: /accounts/login/?next=%2Fp%2FDZi2hufiBZw%2F&source=post_comment_input
+          - text: para curtir ou comentar.
+  - contentinfo [ref=e200]:
+    - generic [ref=e201]:
+      - generic [ref=e203]:
+        - link "Meta" [ref=e205] [cursor=pointer]:
+          - /url: https://about.meta.com/
+          - generic [ref=e206]: Meta
+        - link "Sobre" [ref=e208] [cursor=pointer]:
+          - /url: https://about.instagram.com/
+          - generic [ref=e209]: Sobre
+        - link "Blog" [ref=e211] [cursor=pointer]:
+          - /url: https://about.instagram.com/blog/
+          - generic [ref=e212]: Blog
+        - link "Carreiras" [ref=e214] [cursor=pointer]:
+          - /url: https://about.instagram.com/about-us/careers
+          - generic [ref=e215]: Carreiras
+        - link "Ajuda" [ref=e217] [cursor=pointer]:
+          - /url: https://help.instagram.com/
+          - generic [ref=e218]: Ajuda
+        - link "API" [ref=e220] [cursor=pointer]:
+          - /url: https://developers.facebook.com/docs/instagram
+          - generic [ref=e221]: API
+        - link "Privacidade" [ref=e223] [cursor=pointer]:
+          - /url: /legal/privacy/
+          - generic [ref=e224]: Privacidade
+        - link "Termos" [ref=e226] [cursor=pointer]:
+          - /url: /legal/terms/
+          - generic [ref=e227]: Termos
+        - link "Localizações" [ref=e229] [cursor=pointer]:
+          - /url: /explore/locations/
+          - generic [ref=e230]: Localizações
+        - link "Popular" [ref=e232] [cursor=pointer]:
+          - /url: /popular/
+          - generic [ref=e233]: Popular
+        - link "Instagram Lite" [ref=e235] [cursor=pointer]:
+          - /url: /web/lite/
+          - generic [ref=e236]: Instagram Lite
+        - link "Meta AI" [ref=e238] [cursor=pointer]:
+          - /url: https://www.meta.ai/?utm_source=foa_web_footer
+          - generic [ref=e239]: Meta AI
+        - link "Threads" [ref=e241] [cursor=pointer]:
+          - /url: https://www.threads.com/
+          - generic [ref=e242]: Threads
+        - link "Upload de contatos e não usuários" [ref=e244] [cursor=pointer]:
+          - /url: https://www.facebook.com/help/instagram/261704639352628
+          - generic [ref=e245]: Upload de contatos e não usuários
+        - link "Meta Verified" [ref=e247] [cursor=pointer]:
+          - /url: /accounts/meta_verified/?entrypoint=web_footer
+          - generic [ref=e248]: Meta Verified
+      - generic [ref=e249]:
+        - generic [ref=e250] [cursor=pointer]:
+          - generic [ref=e251]:
+            - generic [ref=e252]: Português (Brasil)
+            - img "Ícone de seta para baixo" [ref=e255]
+          - combobox "Trocar idioma de exibição" [ref=e257]:
+            - option "Afrikaans"
+            - option "العربية"
+            - option "Čeština"
+            - option "Dansk"
+            - option "Deutsch"
+            - option "Ελληνικά"
+            - option "English"
+            - option "English (UK)"
+            - option "Español (España)"
+            - option "Español"
+            - option "فارسی"
+            - option "Suomi"
+            - option "Français"
+            - option "עברית"
+            - option "Bahasa Indonesia"
+            - option "Italiano"
+            - option "日本語"
+            - option "한국어"
+            - option "Bahasa Melayu"
+            - option "Norsk"
+            - option "Nederlands"
+            - option "Polski"
+            - option "Português (Brasil)" [selected]
+            - option "Português (Portugal)"
+            - option "Русский"
+            - option "Svenska"
+            - option "ภาษาไทย"
+            - option "Filipino"
+            - option "Türkçe"
+            - option "中文(简体)"
+            - option "中文(台灣)"
+            - option "বাংলা"
+            - option "ગુજરાતી"
+            - option "हिन्दी"
+            - option "Hrvatski"
+            - option "Magyar"
+            - option "ಕನ್ನಡ"
+            - option "മലയാളം"
+            - option "मराठी"
+            - option "नेपाली"
+            - option "ਪੰਜਾਬੀ"
+            - option "සිංහල"
+            - option "Slovenčina"
+            - option "தமிழ்"
+            - option "తెలుగు"
+            - option "اردو"
+            - option "Tiếng Việt"
+            - option "中文(香港)"
+            - option "Български"
+            - option "Français (Canada)"
+            - option "Română"
+            - option "Српски"
+            - option "Українська"
+        - generic [ref=e259]: © 2026 Instagram from Meta

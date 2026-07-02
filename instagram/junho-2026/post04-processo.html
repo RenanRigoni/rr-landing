@@ -1,0 +1,338 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Post 04 — Processo dev.RR</title>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,700;12..96,800&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#000;display:flex;justify-content:center;align-items:flex-start;padding:20px;min-height:100vh}
+.ig-frame{width:420px;background:#0A0A14;border-radius:12px;overflow:hidden;box-shadow:0 20px 80px rgba(0,0,0,.9)}
+.ig-header{display:flex;align-items:center;gap:10px;padding:10px 14px;background:#0A0A14;border-bottom:1px solid rgba(255,255,255,.05)}
+.ig-avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#7C3AED,#2563EB);display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden}
+.ig-info{flex:1}
+.ig-handle{font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:700;color:#fff;line-height:1}
+.ig-sub{font-family:'Plus Jakarta Sans',sans-serif;font-size:11px;color:rgba(255,255,255,.4);margin-top:2px}
+.ig-more{color:rgba(255,255,255,.4);font-size:20px;line-height:1;letter-spacing:1px}
+.carousel-viewport{width:420px;height:525px;overflow:hidden;position:relative;cursor:grab}
+.carousel-viewport:active{cursor:grabbing}
+.carousel-track{
+  display:flex;width:2100px;height:525px;
+  transition:transform .38s cubic-bezier(.4,0,.2,1);
+  will-change:transform;
+  background:#07070F;
+  position:relative;
+}
+.slide{
+  width:420px;min-width:420px;height:525px;
+  position:relative;overflow:hidden;
+  display:flex;flex-direction:column;
+  padding:36px 36px 64px;
+  background:transparent;
+}
+.ig-dots{display:flex;justify-content:center;gap:6px;padding:10px;background:#0A0A14}
+.dot{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.2);transition:.3s;cursor:pointer}
+.dot.active{width:18px;border-radius:3px;background:#60A5FA}
+.ig-actions{display:flex;align-items:center;padding:10px 14px;background:#0A0A14;gap:14px}
+.ig-actions-l{display:flex;gap:14px;flex:1}
+.ig-caption{padding:8px 14px 16px;background:#0A0A14}
+.ig-caption p{font-family:'Plus Jakarta Sans',sans-serif;font-size:12px;color:rgba(255,255,255,.65);line-height:1.5}
+.ig-caption strong{color:#fff}
+.ig-caption-time{font-family:'DM Mono',monospace;font-size:10px;color:rgba(255,255,255,.3);margin-top:4px;letter-spacing:1px;display:block}
+.dot-grid{position:absolute;inset:0;background-image:radial-gradient(circle,rgba(255,255,255,.055) 1px,transparent 1px);background-size:18px 18px;pointer-events:none;z-index:0}
+.content{position:relative;z-index:2;display:flex;flex-direction:column}
+.eyebrow{font-family:'DM Mono',monospace;font-size:10px;font-weight:500;letter-spacing:2.5px;text-transform:uppercase;color:#60A5FA;display:block;margin-bottom:10px}
+.divider{width:24px;height:2px;background:linear-gradient(90deg,#7C3AED,#60A5FA);border-radius:2px;margin-bottom:14px}
+.headline-xl{font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:46px;line-height:1.06;letter-spacing:-.03em;color:#F1F5F9;margin-bottom:14px}
+.headline-lg{font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:38px;line-height:1.1;letter-spacing:-.025em;color:#F1F5F9;margin-bottom:10px}
+.headline-cta{font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:30px;line-height:1.12;letter-spacing:-.025em;color:#F1F5F9;margin-bottom:14px}
+.body{font-family:'Plus Jakarta Sans',sans-serif;font-size:15px;line-height:1.55;color:rgba(255,255,255,.45)}
+.sub{font-family:'Plus Jakarta Sans',sans-serif;font-size:14px;font-weight:500;color:rgba(255,255,255,.45)}
+.grad-text{background:linear-gradient(135deg,#7C3AED 20%,#60A5FA 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.logo-corner{position:absolute;top:18px;right:18px;z-index:10;height:20px;width:auto}
+.deco-num{position:absolute;top:6px;left:14px;font-family:'Bricolage Grotesque',sans-serif;font-size:130px;font-weight:800;line-height:1;letter-spacing:-8px;background:linear-gradient(135deg,#7C3AED 0%,#60A5FA 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;opacity:.85;pointer-events:none;user-select:none;z-index:0}
+.separator{height:1px;background:rgba(255,255,255,.08);margin:22px 0}
+.cta-btn{display:inline-flex;align-items:center;gap:8px;padding:13px 26px;background:linear-gradient(135deg,#7C3AED 0%,#2563EB 100%);color:#fff;font-family:'Bricolage Grotesque',sans-serif;font-size:14px;font-weight:700;border-radius:9999px;letter-spacing:-.2px;box-shadow:0 4px 24px rgba(124,58,237,.45)}
+.progress{position:absolute;bottom:0;left:0;right:0;padding:16px 28px 20px;z-index:10;display:flex;align-items:center;gap:10px}
+.progress-track{flex:1;height:3px;background:rgba(255,255,255,.12);border-radius:2px;overflow:hidden}
+.progress-fill{height:100%;background:#fff;border-radius:2px}
+.progress-label{font-family:'DM Mono',monospace;font-size:11px;color:rgba(255,255,255,.4);font-weight:500}
+.swipe-arrow{position:absolute;right:0;top:0;bottom:0;width:48px;z-index:9;display:flex;align-items:center;justify-content:center;background:transparent}
+.process-visual{position:absolute;left:62px;right:62px;top:176px;height:118px;z-index:2;pointer-events:none}
+.visual-card{position:absolute;border:1px solid rgba(96,165,250,.18);background:linear-gradient(135deg,rgba(15,23,42,.78),rgba(12,12,27,.52));border-radius:18px;box-shadow:0 20px 55px rgba(37,99,235,.12),inset 0 1px 0 rgba(255,255,255,.08);backdrop-filter:blur(8px)}
+.mini-label{font-family:'DM Mono',monospace;font-size:8px;font-weight:500;letter-spacing:1.8px;text-transform:uppercase;color:#60A5FA}
+.brief-label{font-family:'DM Mono',monospace;font-size:9px;font-weight:500;letter-spacing:2px;text-transform:uppercase;color:#60A5FA}
+.mini-text{font-family:'Plus Jakarta Sans',sans-serif;font-size:10px;font-weight:700;color:rgba(241,245,249,.86)}
+.mini-muted{font-family:'Plus Jakarta Sans',sans-serif;font-size:9px;font-weight:600;color:rgba(255,255,255,.36)}
+.mini-line{height:5px;border-radius:99px;background:rgba(255,255,255,.16);display:block}
+.mini-line.grad{background:linear-gradient(90deg,#7C3AED,#60A5FA)}
+.mini-dot{width:7px;height:7px;border-radius:50%;background:linear-gradient(135deg,#7C3AED,#60A5FA);box-shadow:0 0 18px rgba(96,165,250,.45);display:block;flex:0 0 auto}
+.brief-card-a{left:0;top:0;width:178px;height:62px;padding:0 14px;display:flex;flex-direction:column;justify-content:center}
+.brief-card-b{right:0;bottom:0;width:178px;height:62px;padding:0 14px;display:flex;flex-direction:column;justify-content:center}
+.brief-row{display:flex;align-items:center;gap:8px;margin-top:10px}
+.brief-chip{position:absolute;left:0;bottom:8px;padding:6px 10px;border:1px solid rgba(124,58,237,.25);border-radius:999px;background:rgba(124,58,237,.08);font-family:'DM Mono',monospace;font-size:8px;font-weight:500;letter-spacing:1.4px;text-transform:uppercase;color:rgba(241,245,249,.72);box-shadow:0 10px 28px rgba(124,58,237,.10)}
+.brief-connector{position:absolute;left:118px;top:50px;width:40px;height:28px;border-right:1px solid rgba(96,165,250,.18);border-bottom:1px solid rgba(96,165,250,.18);border-radius:0 0 16px 0}
+.code-window{left:8px;right:8px;top:0;height:112px;padding:14px 16px 13px}
+.code-top{display:flex;align-items:center;gap:5px;margin-bottom:12px}
+.code-dot{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.22)}
+.code-grid{display:grid;grid-template-columns:48px 1fr;gap:8px 10px;align-items:center}
+.code-num{font-family:'DM Mono',monospace;font-size:8px;color:rgba(96,165,250,.56)}
+.code-bar{height:6px;border-radius:99px;background:rgba(255,255,255,.12)}
+.code-bar.short{width:70%}
+.code-progress{position:absolute;left:16px;right:16px;bottom:13px;height:5px;border-radius:99px;background:rgba(255,255,255,.1);overflow:hidden}
+.code-progress span{display:block;width:72%;height:100%;border-radius:inherit;background:linear-gradient(90deg,#7C3AED,#60A5FA)}
+.launch-card{left:12px;right:12px;top:2px;height:108px;padding:17px 18px;display:grid;grid-template-columns:52px 1fr;gap:14px;align-items:center}
+.launch-icon{width:52px;height:52px;border-radius:16px;background:linear-gradient(135deg,rgba(124,58,237,.24),rgba(96,165,250,.16));border:1px solid rgba(96,165,250,.22);display:flex;align-items:center;justify-content:center}
+.launch-check{width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#7C3AED,#60A5FA);display:flex;align-items:center;justify-content:center;box-shadow:0 0 22px rgba(96,165,250,.36)}
+.launch-check svg{width:19px;height:19px;display:block;transform:translate(-.5px,-.5px)}
+.launch-lines{display:flex;flex-direction:column;gap:8px}
+.launch-url{display:flex;align-items:center;gap:7px}
+.launch-pill{width:max-content;padding:5px 9px;border-radius:999px;border:1px solid rgba(16,185,129,.24);background:rgba(16,185,129,.08);font-family:'DM Mono',monospace;font-size:8px;letter-spacing:1.3px;text-transform:uppercase;color:rgba(167,243,208,.85)}
+</style>
+</head>
+<body>
+<div class="ig-frame">
+
+  <div class="ig-header">
+    <div class="ig-avatar">
+      <img src="../../logos/logo-icon-color.svg" style="height:20px;width:auto" onerror="this.style.display='none'">
+    </div>
+    <div class="ig-info">
+      <div class="ig-handle">dev.rr_studio</div>
+      <div class="ig-sub">Desenvolvedor Web · Negócios Locais</div>
+    </div>
+    <div class="ig-more">···</div>
+  </div>
+
+  <div class="carousel-viewport" id="vp">
+    <div class="carousel-track" id="track">
+
+      <!--
+        ORBS NO TRACK — 5 slides × 420px = 2100px
+        Fronteiras: 420 | 840 | 1260 | 1680
+        Todos cruzam fronteiras. Opacidade máxima 0.22.
+      -->
+      <div style="position:absolute;top:-80px;left:-60px;width:400px;height:400px;border-radius:50%;background:radial-gradient(circle,rgba(124,58,237,.18) 0%,transparent 65%);pointer-events:none;z-index:0"></div>
+      <div style="position:absolute;bottom:-110px;left:220px;width:460px;height:460px;border-radius:50%;background:radial-gradient(circle,rgba(37,99,235,.16) 0%,transparent 65%);pointer-events:none;z-index:0"></div>
+      <div style="position:absolute;top:-70px;left:200px;width:420px;height:420px;border-radius:50%;background:radial-gradient(circle,rgba(124,58,237,.14) 0%,transparent 65%);pointer-events:none;z-index:0"></div>
+      <div style="position:absolute;bottom:-80px;left:500px;width:380px;height:380px;border-radius:50%;background:radial-gradient(circle,rgba(37,99,235,.15) 0%,transparent 65%);pointer-events:none;z-index:0"></div>
+      <div style="position:absolute;top:-60px;left:640px;width:420px;height:420px;border-radius:50%;background:radial-gradient(circle,rgba(124,58,237,.15) 0%,transparent 65%);pointer-events:none;z-index:0"></div>
+      <div style="position:absolute;bottom:-100px;left:620px;width:460px;height:460px;border-radius:50%;background:radial-gradient(circle,rgba(37,99,235,.14) 0%,transparent 60%);pointer-events:none;z-index:0"></div>
+      <div style="position:absolute;top:-50px;left:900px;width:380px;height:380px;border-radius:50%;background:radial-gradient(circle,rgba(124,58,237,.16) 0%,transparent 65%);pointer-events:none;z-index:0"></div>
+      <div style="position:absolute;bottom:-90px;left:1060px;width:440px;height:440px;border-radius:50%;background:radial-gradient(circle,rgba(37,99,235,.17) 0%,transparent 65%);pointer-events:none;z-index:0"></div>
+      <div style="position:absolute;top:-70px;left:1080px;width:400px;height:400px;border-radius:50%;background:radial-gradient(circle,rgba(124,58,237,.15) 0%,transparent 65%);pointer-events:none;z-index:0"></div>
+      <div style="position:absolute;bottom:-80px;left:1440px;width:440px;height:440px;border-radius:50%;background:radial-gradient(circle,rgba(37,99,235,.16) 0%,transparent 65%);pointer-events:none;z-index:0"></div>
+      <div style="position:absolute;top:-60px;left:1460px;width:400px;height:400px;border-radius:50%;background:radial-gradient(circle,rgba(124,58,237,.15) 0%,transparent 65%);pointer-events:none;z-index:0"></div>
+      <!-- slide 5 CTA — orbs mais intensos -->
+      <div style="position:absolute;top:-80px;left:1760px;width:440px;height:440px;border-radius:50%;background:radial-gradient(circle,rgba(37,99,235,.22) 0%,transparent 65%);pointer-events:none;z-index:0"></div>
+      <div style="position:absolute;bottom:-80px;left:1680px;width:420px;height:420px;border-radius:50%;background:radial-gradient(circle,rgba(124,58,237,.20) 0%,transparent 65%);pointer-events:none;z-index:0"></div>
+
+      <!-- SLIDE 1 — CAPA -->
+      <div class="slide" style="justify-content:center">
+        <div class="dot-grid"></div>
+        <img class="logo-corner" src="../../logos/logo-icon-color.svg" alt="dev.RR" onerror="this.style.display='none'">
+        <div class="content">
+          <span class="eyebrow">PROCESSO · dev.RR</span>
+          <div class="divider"></div>
+          <h1 class="headline-xl">Como ter um site com a <span class="grad-text">dev.RR</span> funciona</h1>
+          <p class="sub">3 etapas. Do zero ao ar.</p>
+        </div>
+        <div class="progress">
+          <div class="progress-track"><div class="progress-fill" style="width:20%"></div></div>
+          <span class="progress-label">1/5</span>
+        </div>
+        <div class="swipe-arrow">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="rgba(255,255,255,.35)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+      </div>
+
+      <!-- SLIDE 2 — ETAPA 01 (só conteúdo) -->
+      <div class="slide" style="justify-content:flex-end">
+        <div class="dot-grid"></div>
+        <span class="deco-num">01</span>
+        <img class="logo-corner" src="../../logos/logo-icon-color.svg" alt="dev.RR" onerror="this.style.display='none'">
+        <div class="process-visual">
+          <div class="visual-card brief-card-a">
+            <span class="brief-label">BRIEFING</span>
+            <div class="brief-row">
+              <span class="mini-dot"></span>
+              <span class="mini-line grad" style="width:92px"></span>
+            </div>
+          </div>
+          <div class="brief-connector"></div>
+          <div class="visual-card brief-card-b">
+            <span class="brief-label">OBJETIVO</span>
+            <div class="brief-row">
+              <span class="mini-line" style="width:54px"></span>
+              <span class="mini-line grad" style="width:76px"></span>
+            </div>
+          </div>
+          <div class="brief-chip">SOLUÇÃO CERTA</div>
+        </div>
+        <div class="content">
+          <span class="eyebrow">ETAPA 01</span>
+          <div class="divider"></div>
+          <h2 class="headline-lg">Conversa inicial</h2>
+          <p class="body">Você me conta o negócio. Eu ouço, entendo, e proponho a solução certa.</p>
+        </div>
+        <div class="progress">
+          <div class="progress-track"><div class="progress-fill" style="width:40%"></div></div>
+          <span class="progress-label">2/5</span>
+        </div>
+        <div class="swipe-arrow">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="rgba(255,255,255,.35)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+      </div>
+
+      <!-- SLIDE 3 — ETAPA 02 (só conteúdo) -->
+      <div class="slide" style="justify-content:flex-end">
+        <div class="dot-grid"></div>
+        <span class="deco-num">02</span>
+        <img class="logo-corner" src="../../logos/logo-icon-color.svg" alt="dev.RR" onerror="this.style.display='none'">
+        <div class="process-visual">
+          <div class="visual-card code-window">
+            <div class="code-top">
+              <span class="code-dot"></span>
+              <span class="code-dot"></span>
+              <span class="code-dot"></span>
+              <span class="mini-label" style="margin-left:8px">Build</span>
+            </div>
+            <div class="code-grid">
+              <span class="code-num">01</span><span class="code-bar"></span>
+              <span class="code-num">02</span><span class="code-bar short"></span>
+              <span class="code-num">03</span><span class="code-bar grad"></span>
+            </div>
+            <div class="code-progress"><span></span></div>
+          </div>
+        </div>
+        <div class="content">
+          <span class="eyebrow">ETAPA 02</span>
+          <div class="divider"></div>
+          <h2 class="headline-lg">Desenvolvimento</h2>
+          <p class="body">Eu crio. Você acompanha e aprova. Sem surpresas, sem esperar meses.</p>
+        </div>
+        <div class="progress">
+          <div class="progress-track"><div class="progress-fill" style="width:60%"></div></div>
+          <span class="progress-label">3/5</span>
+        </div>
+        <div class="swipe-arrow">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="rgba(255,255,255,.35)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+      </div>
+
+      <!-- SLIDE 4 — ETAPA 03 (só conteúdo — sem CTA) -->
+      <div class="slide" style="justify-content:flex-end">
+        <div class="dot-grid"></div>
+        <span class="deco-num">03</span>
+        <img class="logo-corner" src="../../logos/logo-icon-color.svg" alt="dev.RR" onerror="this.style.display='none'">
+        <div class="process-visual">
+          <div class="visual-card launch-card">
+            <div class="launch-icon"><span class="launch-check"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12.5l4.4 4.4L19 7.3" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
+            <div class="launch-lines">
+              <span class="mini-label">Site publicado</span>
+              <div class="launch-url">
+                <span class="mini-dot"></span>
+                <span class="mini-text">devrigoni.com.br</span>
+              </div>
+              <span class="launch-pill">pronto para contato</span>
+            </div>
+          </div>
+        </div>
+        <div class="content">
+          <span class="eyebrow">ETAPA 03</span>
+          <div class="divider"></div>
+          <h2 class="headline-lg">Entrega</h2>
+          <p class="body">Site no ar. Rápido, funcional, seu. Pronto pra receber clientes.</p>
+        </div>
+        <div class="progress">
+          <div class="progress-track"><div class="progress-fill" style="width:80%"></div></div>
+          <span class="progress-label">4/5</span>
+        </div>
+        <div class="swipe-arrow">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="rgba(255,255,255,.35)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+      </div>
+
+      <!-- SLIDE 5 — CTA FINAL (slide exclusivo — sem conteúdo informativo) -->
+      <div class="slide" style="justify-content:center">
+        <div class="dot-grid"></div>
+        <div class="content">
+          <span class="eyebrow">PRÓXIMO PASSO</span>
+          <div class="divider"></div>
+          <h2 class="headline-cta">Pronto pra começar essa semana?</h2>
+          <p class="body">Do zero ao ar, em etapas simples. Sem reunião de 3 meses, sem enrolação.</p>
+          <div class="separator"></div>
+          <div style="display:flex;align-items:center;justify-content:center;gap:16px;flex-wrap:wrap">
+            <div class="cta-btn">Me chama 📲</div>
+            <img src="../../logos/logo-primary-color.svg" style="height:28px;width:auto" alt="dev.RR" onerror="this.style.display='none'">
+          </div>
+        </div>
+        <!-- Progress 100% full -->
+        <div class="progress">
+          <div class="progress-track"><div class="progress-fill" style="width:100%;background:linear-gradient(90deg,#7C3AED,#60A5FA)"></div></div>
+          <span class="progress-label">5/5</span>
+        </div>
+        <!-- sem swipe arrow -->
+      </div>
+
+    </div>
+  </div>
+
+  <div class="ig-dots" id="dots">
+    <div class="dot active" data-i="0"></div>
+    <div class="dot" data-i="1"></div>
+    <div class="dot" data-i="2"></div>
+    <div class="dot" data-i="3"></div>
+    <div class="dot" data-i="4"></div>
+  </div>
+
+  <div class="ig-actions">
+    <div class="ig-actions-l">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.65)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.65)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.65)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+    </div>
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.65)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+  </div>
+
+  <div class="ig-caption">
+    <p><strong>dev.rr_studio </strong>Simples. Rápido. Sem complicação. É assim que funciona ter um site com a dev.RR — do zero até no ar. 📲 Link na bio</p>
+    <span class="ig-caption-time">2 HOURS AGO</span>
+  </div>
+
+</div>
+
+<script>
+const track = document.getElementById('track');
+const vp = document.getElementById('vp');
+const dotEls = document.querySelectorAll('.dot');
+const TOTAL = 5, W = 420;
+let cur = 0, sx = 0, drag = false;
+
+function go(i) {
+  cur = Math.max(0, Math.min(TOTAL-1, i));
+  track.style.transform = `translateX(-${cur*W}px)`;
+  dotEls.forEach((d,j) => d.classList.toggle('active', j===cur));
+}
+
+vp.addEventListener('mousedown', e => { drag=true; sx=e.clientX; track.style.transition='none'; });
+vp.addEventListener('touchstart', e => { drag=true; sx=e.touches[0].clientX; track.style.transition='none'; }, {passive:true});
+vp.addEventListener('mousemove', e => { if(!drag) return; track.style.transform=`translateX(${-cur*W+e.clientX-sx}px)`; });
+vp.addEventListener('touchmove', e => { if(!drag) return; track.style.transform=`translateX(${-cur*W+e.touches[0].clientX-sx}px)`; }, {passive:true});
+
+function end(ex) {
+  drag=false;
+  track.style.transition='transform .38s cubic-bezier(.4,0,.2,1)';
+  const dx=ex-sx;
+  if(dx<-50) go(cur+1);
+  else if(dx>50) go(cur-1);
+  else go(cur);
+}
+
+vp.addEventListener('mouseup', e => end(e.clientX));
+vp.addEventListener('touchend', e => end(e.changedTouches[0].clientX));
+vp.addEventListener('mouseleave', e => { if(drag) end(e.clientX); });
+dotEls.forEach(d => d.addEventListener('click', () => go(+d.dataset.i)));
+</script>
+</body>
+</html>

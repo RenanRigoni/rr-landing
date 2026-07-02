@@ -1,0 +1,489 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>dev.RR — POST 11 — Checklist Digital</title>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,700;12..96,800&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0A0A12;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 32px 24px;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+  }
+  .ig-frame {
+    width: 420px;
+    background: #07070F;
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 32px 100px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,255,255,0.06);
+  }
+  .ig-header {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 16px;
+    background: #07070F;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .ig-avatar-ring { padding: 2px; border-radius: 50%; background: linear-gradient(135deg,#7C3AED,#60A5FA); flex-shrink: 0; }
+  .ig-avatar {
+    width: 34px; height: 34px; border-radius: 50%;
+    background: linear-gradient(135deg,#7C3AED 0%,#2563EB 100%);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Bricolage Grotesque',sans-serif; font-size: 12px; font-weight: 800; color: white;
+  }
+  .ig-handle { font-size: 13px; font-weight: 700; color: #F1F5F9; }
+  .ig-subtitle { font-size: 11px; color: rgba(255,255,255,0.38); margin-top: 1px; }
+  .ig-more { margin-left: auto; color: rgba(255,255,255,0.4); font-size: 20px; letter-spacing: 1px; }
+
+  .carousel-viewport {
+    width: 420px; height: 525px;
+    overflow: hidden; position: relative;
+    cursor: grab; user-select: none;
+    /* SEM background — track é o panorama */
+  }
+  .carousel-viewport:active { cursor: grabbing; }
+
+  .carousel-track {
+    display: flex; height: 100%;
+    transition: transform 0.38s cubic-bezier(0.4,0,0.2,1);
+    will-change: transform;
+    background: #07070F; /* sólido uniforme */
+    position: relative;
+  }
+
+  .slide {
+    width: 420px; height: 525px;
+    flex-shrink: 0; position: relative;
+    overflow: hidden;
+    background: transparent; /* NUNCA background próprio */
+  }
+
+  .dot-grid {
+    position: absolute; inset: 0;
+    background-image: radial-gradient(circle,rgba(255,255,255,.055) 1px,transparent 1px);
+    background-size: 18px 18px;
+    pointer-events: none; z-index: 0;
+  }
+
+  .ig-dots {
+    display: flex; justify-content: center; gap: 5px;
+    padding: 9px; background: #07070F;
+  }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,0.14); transition: all 0.3s ease; }
+  .dot.active { background: #60A5FA; width: 18px; border-radius: 3px; }
+
+  .ig-actions {
+    display: flex; align-items: center; padding: 10px 16px; gap: 16px;
+    background: #07070F; border-top: 1px solid rgba(255,255,255,0.05);
+  }
+  .ig-actions .bookmark { margin-left: auto; }
+  .ig-caption { padding: 8px 16px 16px; background: #07070F; border-top: 1px solid rgba(255,255,255,0.04); }
+  .ig-caption-text { font-size: 12px; color: rgba(255,255,255,0.65); line-height: 1.5; }
+  .ig-caption-handle { font-weight: 700; color: #F1F5F9; }
+  .ig-time { font-size: 10px; color: rgba(255,255,255,0.28); margin-top: 5px; font-family: 'DM Mono',monospace; letter-spacing: 0.5px; }
+</style>
+</head>
+<body>
+
+<div class="ig-frame">
+
+  <!-- IG HEADER -->
+  <div class="ig-header">
+    <div class="ig-avatar-ring"><div class="ig-avatar">dR</div></div>
+    <div>
+      <div class="ig-handle">dev.rr_studio</div>
+      <div class="ig-subtitle">Desenvolvedor Web · Negócios Locais</div>
+    </div>
+    <div class="ig-more">···</div>
+  </div>
+
+  <!-- CAROUSEL -->
+  <div class="carousel-viewport" id="viewport">
+    <div class="carousel-track" id="track">
+
+      <!-- ─── ORBS NO TRACK — cruzam fronteiras (5 slides × 420px = 2100px) ─── -->
+      <!-- Slide 1 topo-esquerda, violeta -->
+      <div style="position:absolute;top:-80px;left:-50px;width:400px;height:400px;border-radius:50%;background:radial-gradient(circle,rgba(124,58,237,.20) 0%,transparent 65%);pointer-events:none;z-index:0;"></div>
+      <!-- Fronteira 1/2 (420px) base, azul -->
+      <div style="position:absolute;bottom:-110px;left:220px;width:460px;height:460px;border-radius:50%;background:radial-gradient(circle,rgba(37,99,235,.18) 0%,transparent 65%);pointer-events:none;z-index:0;"></div>
+      <!-- Fronteira 2/3 (840px) topo, violeta -->
+      <div style="position:absolute;top:-70px;left:640px;width:420px;height:420px;border-radius:50%;background:radial-gradient(circle,rgba(124,58,237,.16) 0%,transparent 65%);pointer-events:none;z-index:0;"></div>
+      <!-- Fronteira 3/4 (1260px) base, azul -->
+      <div style="position:absolute;bottom:-100px;left:1060px;width:440px;height:440px;border-radius:50%;background:radial-gradient(circle,rgba(37,99,235,.17) 0%,transparent 65%);pointer-events:none;z-index:0;"></div>
+      <!-- Fronteira 4/5 (1680px) topo, violeta -->
+      <div style="position:absolute;top:-60px;left:1500px;width:380px;height:380px;border-radius:50%;background:radial-gradient(circle,rgba(124,58,237,.18) 0%,transparent 65%);pointer-events:none;z-index:0;"></div>
+      <!-- Slide 5 base-direita, azul intenso (CTA) -->
+      <div style="position:absolute;bottom:-80px;left:1780px;width:440px;height:440px;border-radius:50%;background:radial-gradient(circle,rgba(37,99,235,.22) 0%,transparent 65%);pointer-events:none;z-index:0;"></div>
+
+      <!-- ═══════════════════════════════════════
+           SLIDE 1 — CAPA / HOOK
+      ═══════════════════════════════════════ -->
+      <div class="slide">
+        <div class="dot-grid"></div>
+
+        <!-- Logo icon top-right -->
+        <div style="position:absolute;top:20px;right:20px;z-index:10;">
+          <img src="../../logos/logo-icon-color.svg" alt="dev.RR" style="height:22px;width:auto;" />
+        </div>
+
+        <!-- Content — centralizado -->
+        <div style="position:absolute;inset:0;display:flex;flex-direction:column;
+          justify-content:center;align-items:flex-start;padding:40px;padding-bottom:64px;z-index:2;gap:0;">
+
+          <!-- Ícone checkbox SVG estilizado -->
+          <div style="margin-bottom:24px;">
+            <svg width="60" height="60" viewBox="0 0 60 60" fill="none">
+              <rect x="2" y="2" width="56" height="56" rx="14"
+                stroke="url(#cbGrad)" stroke-width="2.5" fill="rgba(124,58,237,0.08)"/>
+              <path d="M16 30l10 10 18-18"
+                stroke="url(#cbCheck)" stroke-width="2.8"
+                stroke-linecap="round" stroke-linejoin="round"/>
+              <defs>
+                <linearGradient id="cbGrad" x1="0" y1="0" x2="60" y2="60">
+                  <stop offset="0%" stop-color="#7C3AED"/>
+                  <stop offset="100%" stop-color="#60A5FA"/>
+                </linearGradient>
+                <linearGradient id="cbCheck" x1="16" y1="22" x2="44" y2="40">
+                  <stop offset="0%" stop-color="#7C3AED"/>
+                  <stop offset="100%" stop-color="#60A5FA"/>
+                </linearGradient>
+              </defs>
+            </svg>
+          </div>
+
+          <!-- Eyebrow -->
+          <span style="font-family:'DM Mono',monospace;font-size:10px;font-weight:500;
+            letter-spacing:2.5px;text-transform:uppercase;color:#60A5FA;
+            display:block;margin-bottom:14px;">AUTODIAGNÓSTICO</span>
+
+          <!-- Divider -->
+          <div style="width:24px;height:2px;background:linear-gradient(90deg,#7C3AED,#60A5FA);
+            border-radius:2px;margin-bottom:20px;"></div>
+
+          <!-- Headline -->
+          <h1 style="font-family:'Bricolage Grotesque',sans-serif;font-size:42px;font-weight:800;
+            letter-spacing:-0.03em;line-height:1.06;color:#F1F5F9;margin-bottom:16px;">
+            Checklist: seu negócio está no digital do jeito certo?
+          </h1>
+
+          <!-- Sub -->
+          <p style="font-family:'Plus Jakarta Sans',sans-serif;font-size:14px;
+            color:rgba(255,255,255,0.42);font-weight:400;display:flex;align-items:center;gap:6px;">
+            Salva esse post 📌 · Arraste para responder
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M5 12h14M12 5l7 7-7 7"/>
+            </svg>
+          </p>
+        </div>
+
+        <!-- Progress bar 1/5 -->
+        <div style="position:absolute;bottom:0;left:0;right:0;padding:16px 28px 20px;z-index:10;display:flex;align-items:center;gap:10px;">
+          <div style="flex:1;height:3px;background:rgba(255,255,255,0.12);border-radius:2px;overflow:hidden;">
+            <div style="height:100%;width:20%;background:#fff;border-radius:2px;"></div>
+          </div>
+          <span style="font-size:10px;color:rgba(255,255,255,0.35);font-weight:500;font-family:'DM Mono',monospace;">1/5</span>
+        </div>
+        <!-- Swipe arrow — background TRANSPARENT -->
+        <div style="position:absolute;right:0;top:0;bottom:0;width:44px;z-index:9;display:flex;align-items:center;justify-content:center;background:transparent;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+            <path d="M9 6l6 6-6 6" stroke="rgba(255,255,255,0.32)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+      </div>
+
+      <!-- ═══════════════════════════════════════
+           SLIDE 2 — PERGUNTA 01
+      ═══════════════════════════════════════ -->
+      <div class="slide">
+        <div class="dot-grid"></div>
+
+        <!-- Logo icon top-left -->
+        <div style="position:absolute;top:20px;left:20px;z-index:10;">
+          <img src="../../logos/logo-icon-color.svg" alt="dev.RR" style="height:20px;width:auto;" />
+        </div>
+
+        <!-- Número top-right -->
+        <div style="position:absolute;top:18px;right:22px;z-index:10;
+          font-family:'DM Mono',monospace;font-size:12px;font-weight:500;
+          letter-spacing:1.5px;
+          background:linear-gradient(135deg,#7C3AED,#60A5FA);
+          -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">
+          01 / 03
+        </div>
+
+        <!-- Content -->
+        <div style="position:absolute;inset:0;display:flex;flex-direction:column;
+          justify-content:center;padding:36px;padding-top:60px;padding-bottom:68px;z-index:2;gap:0;">
+
+          <!-- Checkbox + Pergunta -->
+          <div style="display:flex;align-items:flex-start;gap:18px;margin-bottom:18px;">
+            <!-- Checkbox vazio — para o seguidor marcar mentalmente -->
+            <div style="width:52px;height:52px;border-radius:14px;flex-shrink:0;
+              border:2px solid rgba(255,255,255,0.22);
+              background:rgba(255,255,255,0.03);margin-top:2px;">
+            </div>
+            <!-- Pergunta -->
+            <h2 style="font-family:'Bricolage Grotesque',sans-serif;font-size:30px;font-weight:800;
+              letter-spacing:-0.025em;line-height:1.15;color:#F1F5F9;">
+              Tenho site próprio — não só Instagram?
+            </h2>
+          </div>
+
+          <!-- Sub -->
+          <p style="font-family:'Plus Jakarta Sans',sans-serif;font-size:14px;
+            color:rgba(255,255,255,0.42);line-height:1.55;padding-left:70px;">
+            WhatsApp e Instagram são terreno alugado. Site é propriedade sua.
+          </p>
+
+          <!-- Divider bottom -->
+          <div style="width:100%;height:1px;background:rgba(255,255,255,0.07);margin-top:24px;"></div>
+        </div>
+
+        <!-- Progress bar 2/5 -->
+        <div style="position:absolute;bottom:0;left:0;right:0;padding:16px 28px 20px;z-index:10;display:flex;align-items:center;gap:10px;">
+          <div style="flex:1;height:3px;background:rgba(255,255,255,0.12);border-radius:2px;overflow:hidden;">
+            <div style="height:100%;width:40%;background:#fff;border-radius:2px;"></div>
+          </div>
+          <span style="font-size:10px;color:rgba(255,255,255,0.35);font-weight:500;font-family:'DM Mono',monospace;">2/5</span>
+        </div>
+        <div style="position:absolute;right:0;top:0;bottom:0;width:44px;z-index:9;display:flex;align-items:center;justify-content:center;background:transparent;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+            <path d="M9 6l6 6-6 6" stroke="rgba(255,255,255,0.32)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+      </div>
+
+      <!-- ═══════════════════════════════════════
+           SLIDE 3 — PERGUNTA 02
+      ═══════════════════════════════════════ -->
+      <div class="slide">
+        <div class="dot-grid"></div>
+
+        <div style="position:absolute;top:20px;left:20px;z-index:10;">
+          <img src="../../logos/logo-icon-color.svg" alt="dev.RR" style="height:20px;width:auto;" />
+        </div>
+        <div style="position:absolute;top:18px;right:22px;z-index:10;
+          font-family:'DM Mono',monospace;font-size:12px;font-weight:500;
+          letter-spacing:1.5px;
+          background:linear-gradient(135deg,#7C3AED,#60A5FA);
+          -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">
+          02 / 03
+        </div>
+
+        <div style="position:absolute;inset:0;display:flex;flex-direction:column;
+          justify-content:center;padding:36px;padding-top:60px;padding-bottom:68px;z-index:2;gap:0;">
+
+          <div style="display:flex;align-items:flex-start;gap:18px;margin-bottom:18px;">
+            <div style="width:52px;height:52px;border-radius:14px;flex-shrink:0;
+              border:2px solid rgba(255,255,255,0.22);
+              background:rgba(255,255,255,0.03);margin-top:2px;">
+            </div>
+            <h2 style="font-family:'Bricolage Grotesque',sans-serif;font-size:30px;font-weight:800;
+              letter-spacing:-0.025em;line-height:1.15;color:#F1F5F9;">
+              Meu site abre rápido no celular?
+            </h2>
+          </div>
+
+          <p style="font-family:'Plus Jakarta Sans',sans-serif;font-size:14px;
+            color:rgba(255,255,255,0.42);line-height:1.55;padding-left:70px;">
+            40% dos visitantes abandonam se o site demora mais de 3 segundos.
+          </p>
+
+          <div style="width:100%;height:1px;background:rgba(255,255,255,0.07);margin-top:24px;"></div>
+        </div>
+
+        <div style="position:absolute;bottom:0;left:0;right:0;padding:16px 28px 20px;z-index:10;display:flex;align-items:center;gap:10px;">
+          <div style="flex:1;height:3px;background:rgba(255,255,255,0.12);border-radius:2px;overflow:hidden;">
+            <div style="height:100%;width:60%;background:#fff;border-radius:2px;"></div>
+          </div>
+          <span style="font-size:10px;color:rgba(255,255,255,0.35);font-weight:500;font-family:'DM Mono',monospace;">3/5</span>
+        </div>
+        <div style="position:absolute;right:0;top:0;bottom:0;width:44px;z-index:9;display:flex;align-items:center;justify-content:center;background:transparent;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+            <path d="M9 6l6 6-6 6" stroke="rgba(255,255,255,0.32)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+      </div>
+
+      <!-- ═══════════════════════════════════════
+           SLIDE 4 — PERGUNTA 03
+      ═══════════════════════════════════════ -->
+      <div class="slide">
+        <div class="dot-grid"></div>
+
+        <div style="position:absolute;top:20px;left:20px;z-index:10;">
+          <img src="../../logos/logo-icon-color.svg" alt="dev.RR" style="height:20px;width:auto;" />
+        </div>
+        <div style="position:absolute;top:18px;right:22px;z-index:10;
+          font-family:'DM Mono',monospace;font-size:12px;font-weight:500;
+          letter-spacing:1.5px;
+          background:linear-gradient(135deg,#7C3AED,#60A5FA);
+          -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">
+          03 / 03
+        </div>
+
+        <div style="position:absolute;inset:0;display:flex;flex-direction:column;
+          justify-content:center;padding:36px;padding-top:60px;padding-bottom:68px;z-index:2;gap:0;">
+
+          <div style="display:flex;align-items:flex-start;gap:18px;margin-bottom:18px;">
+            <div style="width:52px;height:52px;border-radius:14px;flex-shrink:0;
+              border:2px solid rgba(255,255,255,0.22);
+              background:rgba(255,255,255,0.03);margin-top:2px;">
+            </div>
+            <h2 style="font-family:'Bricolage Grotesque',sans-serif;font-size:28px;font-weight:800;
+              letter-spacing:-0.025em;line-height:1.15;color:#F1F5F9;">
+              Alguém que pesquisa meu serviço no Google me encontra?
+            </h2>
+          </div>
+
+          <p style="font-family:'Plus Jakarta Sans',sans-serif;font-size:14px;
+            color:rgba(255,255,255,0.42);line-height:1.55;padding-left:70px;">
+            Se não aparecer no Google, o cliente vai para quem aparece.
+          </p>
+
+          <div style="width:100%;height:1px;background:rgba(255,255,255,0.07);margin-top:24px;"></div>
+        </div>
+
+        <div style="position:absolute;bottom:0;left:0;right:0;padding:16px 28px 20px;z-index:10;display:flex;align-items:center;gap:10px;">
+          <div style="flex:1;height:3px;background:rgba(255,255,255,0.12);border-radius:2px;overflow:hidden;">
+            <div style="height:100%;width:80%;background:#fff;border-radius:2px;"></div>
+          </div>
+          <span style="font-size:10px;color:rgba(255,255,255,0.35);font-weight:500;font-family:'DM Mono',monospace;">4/5</span>
+        </div>
+        <div style="position:absolute;right:0;top:0;bottom:0;width:44px;z-index:9;display:flex;align-items:center;justify-content:center;background:transparent;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+            <path d="M9 6l6 6-6 6" stroke="rgba(255,255,255,0.32)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+      </div>
+
+      <!-- ═══════════════════════════════════════
+           SLIDE 5 — RESULTADO + CTA
+      ═══════════════════════════════════════ -->
+      <div class="slide">
+        <div class="dot-grid"></div>
+
+        <div style="position:absolute;inset:0;display:flex;flex-direction:column;
+          justify-content:center;padding:40px;padding-bottom:60px;z-index:2;">
+
+          <!-- Eyebrow -->
+          <span style="font-family:'DM Mono',monospace;font-size:10px;font-weight:500;
+            letter-spacing:2.5px;text-transform:uppercase;color:#60A5FA;
+            display:block;margin-bottom:14px;">RESULTADO</span>
+
+          <!-- Divider -->
+          <div style="width:24px;height:2px;background:linear-gradient(90deg,#7C3AED,#60A5FA);
+            border-radius:2px;margin-bottom:20px;"></div>
+
+          <!-- Headline -->
+          <h2 style="font-family:'Bricolage Grotesque',sans-serif;font-size:38px;font-weight:800;
+            letter-spacing:-0.025em;line-height:1.1;color:#F1F5F9;margin-bottom:14px;">
+            Não marcou tudo?
+          </h2>
+
+          <!-- Sub -->
+          <p style="font-family:'Plus Jakarta Sans',sans-serif;font-size:15px;font-weight:400;
+            color:rgba(255,255,255,0.50);line-height:1.55;margin-bottom:28px;">
+            É aqui que eu entro. Site profissional, rápido, feito pro seu negócio — sem template, sem enrolação.
+          </p>
+
+          <!-- Separador -->
+          <div style="width:100%;height:1px;background:rgba(255,255,255,0.08);margin-bottom:24px;"></div>
+
+          <!-- CTA + Logo centralizados -->
+          <div style="display:flex;align-items:center;justify-content:center;gap:16px;flex-wrap:wrap;">
+            <div style="display:inline-flex;align-items:center;gap:8px;
+              padding:12px 24px;
+              background:linear-gradient(135deg,#7C3AED 0%,#2563EB 100%);
+              color:#fff;
+              font-family:'Bricolage Grotesque',sans-serif;font-size:14px;font-weight:700;
+              border-radius:9999px;letter-spacing:-0.2px;
+              box-shadow:0 4px 24px rgba(124,58,237,0.45);">
+              Fala comigo 📲
+            </div>
+            <img src="../../logos/logo-primary-color.svg" alt="dev.RR" style="height:28px;width:auto;" />
+          </div>
+        </div>
+
+        <!-- Progress bar 5/5 FULL -->
+        <div style="position:absolute;bottom:0;left:0;right:0;padding:16px 28px 20px;z-index:10;display:flex;align-items:center;gap:10px;">
+          <div style="flex:1;height:3px;background:rgba(255,255,255,0.12);border-radius:2px;overflow:hidden;">
+            <div style="height:100%;width:100%;background:linear-gradient(90deg,#7C3AED,#60A5FA);border-radius:2px;"></div>
+          </div>
+          <span style="font-size:10px;color:rgba(255,255,255,0.35);font-weight:500;font-family:'DM Mono',monospace;">5/5</span>
+        </div>
+        <!-- Sem swipe arrow no último slide -->
+      </div>
+
+    </div><!-- /.carousel-track -->
+  </div><!-- /.carousel-viewport -->
+
+  <!-- Dots -->
+  <div class="ig-dots" id="dots">
+    <div class="dot active"></div>
+    <div class="dot"></div>
+    <div class="dot"></div>
+    <div class="dot"></div>
+    <div class="dot"></div>
+  </div>
+
+  <!-- Actions -->
+  <div class="ig-actions">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="rgba(241,245,249,0.7)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+    </svg>
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="rgba(241,245,249,0.7)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+    </svg>
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="rgba(241,245,249,0.7)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+    </svg>
+    <svg class="bookmark" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="rgba(241,245,249,0.7)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+    </svg>
+  </div>
+
+  <!-- Caption -->
+  <div class="ig-caption">
+    <p class="ig-caption-text">
+      <span class="ig-caption-handle">dev.rr_studio</span>
+      Salva esse post 📌 — é o checklist que todo negócio local deveria fazer uma vez por ano. Link na bio.
+    </p>
+    <p class="ig-time">HÁ 2 HORAS</p>
+  </div>
+
+</div>
+
+<script>
+  const track  = document.getElementById('track');
+  const vp     = document.getElementById('viewport');
+  const dotsEl = document.querySelectorAll('.dot');
+  const TOTAL  = 5;
+  const W      = 420;
+  let current  = 0;
+  let startX   = 0;
+  let drag     = 0;
+  let active   = false;
+
+  function goTo(idx) {
+    if (idx < 0 || idx >= TOTAL) return;
+    current = idx;
+    track.style.transition = 'transform 0.38s cubic-bezier(0.4,0,0.2,1)';
+    track.style.transform  = `translateX(${-current * W}px)`;
+    dotsEl.forEach((d,i) => d.classList.toggle('active', i === current));
+  }
+
+  vp.addEventListener('mousedown', e => { active = true; startX = e.clientX; track.style.transition = 'none'; });
+  window.addEventListener('mousemove', e => { if (!active) return; drag = e.clientX - startX; track.style.transform = `translateX(${-current * W + drag}px)`; });
+  window.addEventListener('mouseup',  () => { if (!active) return; active = false; goTo(drag < -60 ? current+1 : drag > 60 ? current-1 : current); drag = 0; });
+  vp.addEventListener('touchstart', e => { startX = e.touches[0].clientX; track.style.transition = 'none'; });
+  vp.addEventListener('touchmove',  e => { drag = e.touches[0].clientX - startX; track.style.transform = `translateX(${-current * W + drag}px)`; });
+  vp.addEventListener('touchend',   () => { goTo(drag < -60 ? current+1 : drag > 60 ? current-1 : current); drag = 0; });
+</script>
+</body>
+</html>

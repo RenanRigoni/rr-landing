@@ -1,0 +1,98 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Post 10 — Custo Invisível dev.RR</title>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,700;12..96,800&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#000;display:flex;justify-content:center;align-items:flex-start;padding:20px;min-height:100vh}
+.ig-frame{width:420px;background:#0A0A14;border-radius:12px;overflow:hidden;box-shadow:0 20px 80px rgba(0,0,0,.9)}
+.ig-header{display:flex;align-items:center;gap:10px;padding:10px 14px;background:#0A0A14;border-bottom:1px solid rgba(255,255,255,.05)}
+.ig-avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#7C3AED,#2563EB);display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden}
+.ig-handle{font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:700;color:#fff;line-height:1}
+.ig-sub{font-family:'Plus Jakarta Sans',sans-serif;font-size:11px;color:rgba(255,255,255,.4);margin-top:2px}
+.ig-more{color:rgba(255,255,255,.4);font-size:20px;line-height:1;letter-spacing:1px}
+.ig-actions{display:flex;align-items:center;padding:10px 14px;background:#0A0A14;gap:14px}
+.ig-actions-l{display:flex;gap:14px;flex:1}
+.ig-caption{padding:8px 14px 16px;background:#0A0A14}
+.ig-caption p{font-family:'Plus Jakarta Sans',sans-serif;font-size:12px;color:rgba(255,255,255,.65);line-height:1.5}
+.ig-caption strong{color:#fff}
+.ig-caption-time{font-family:'DM Mono',monospace;font-size:10px;color:rgba(255,255,255,.3);margin-top:4px;letter-spacing:1px;display:block}
+</style>
+</head>
+<body>
+<div class="ig-frame">
+
+  <div class="ig-header">
+    <div class="ig-avatar">
+      <img src="../../logos/logo-icon-color.svg" style="height:20px;width:auto" onerror="this.style.display='none'">
+    </div>
+    <div style="flex:1">
+      <div class="ig-handle">dev.rr_studio</div>
+      <div class="ig-sub">Desenvolvedor Web · Negócios Locais</div>
+    </div>
+    <div class="ig-more">···</div>
+  </div>
+
+  <!-- Imagem única 4:5 — 420×525px — CTA Brand (azul sólido) -->
+  <div style="width:420px;height:525px;position:relative;overflow:hidden;">
+    <div style="
+      position:absolute;inset:0;
+      background:#1D4ED8;
+      display:flex;flex-direction:column;
+      justify-content:space-between;
+      padding:44px 36px 40px;
+    ">
+      <!-- Orbs com fade de fora pra dentro — centro off-screen, só o degrade aparece no frame -->
+      <div style="position:absolute;top:0;right:0;width:320px;height:320px;
+        background:radial-gradient(circle at top right, rgba(255,255,255,.55) 0%, transparent 65%);
+        pointer-events:none;z-index:0;"></div>
+      <div style="position:absolute;bottom:0;left:0;width:280px;height:280px;
+        background:radial-gradient(circle at bottom left, rgba(0,0,0,.65) 0%, transparent 65%);
+        pointer-events:none;z-index:0;"></div>
+
+      <!-- TOP: Eyebrow + Divider + Headline + Corpo -->
+      <div style="position:relative;z-index:2;display:flex;flex-direction:column;">
+        <span style="font-family:'DM Mono',monospace;font-size:10px;font-weight:500;letter-spacing:2.5px;text-transform:uppercase;color:rgba(255,255,255,.65);display:block;margin-bottom:12px;">O CUSTO INVISÍVEL</span>
+        <div style="width:24px;height:2px;background:rgba(255,255,255,.5);border-radius:2px;margin-bottom:20px;"></div>
+        <h1 style="font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:44px;line-height:1.06;letter-spacing:-.03em;color:#fff;margin-bottom:16px;">A perda que você <span style="color:#60A5FA;">não vê</span> é a pior.</h1>
+        <p style="font-family:'Plus Jakarta Sans',sans-serif;font-size:15px;line-height:1.6;color:rgba(255,255,255,.70);">Clientes que te procuraram, não te acharam, e foram para o concorrente — em silêncio.</p>
+      </div>
+
+      <!-- MIDDLE: Elemento visual — conexão perdida -->
+      <div style="position:relative;z-index:2;display:flex;align-items:center;gap:0;padding:0 8px;">
+        <!-- Nó conectado (esquerda) -->
+        <div style="width:14px;height:14px;border-radius:50%;background:rgba(255,255,255,.9);flex-shrink:0;box-shadow:0 0 12px rgba(255,255,255,.5);"></div>
+        <!-- Linha tracejada -->
+        <div style="flex:1;height:2px;background:repeating-linear-gradient(90deg,rgba(255,255,255,.5) 0,rgba(255,255,255,.5) 8px,transparent 8px,transparent 18px);margin:0 6px;"></div>
+        <!-- Nó desconectado (direita) — vazio -->
+        <div style="width:14px;height:14px;border-radius:50%;border:2px solid rgba(255,255,255,.35);flex-shrink:0;"></div>
+      </div>
+
+      <!-- BOTTOM: Logo branca -->
+      <div style="position:relative;z-index:2;display:flex;justify-content:center;">
+        <img src="../../logos/logo-primary-white.svg" style="height:24px;width:auto;opacity:.85" alt="dev.RR"
+          onerror="this.style.cssText='font-family:Bricolage Grotesque,sans-serif;font-weight:800;font-size:16px;color:rgba(255,255,255,.8)'">
+      </div>
+
+    </div>
+  </div>
+
+  <div class="ig-actions">
+    <div class="ig-actions-l">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.65)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.65)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.65)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+    </div>
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.65)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+  </div>
+
+  <div class="ig-caption">
+    <p><strong>dev.rr_studio </strong>Sabe qual é o pior tipo de perda pra um negócio? A perda invisível. Aquele cliente que te pesquisou, não te achou, e nunca te ligou.</p>
+    <span class="ig-caption-time">2 HOURS AGO</span>
+  </div>
+
+</div>
+</body>
+</html>
