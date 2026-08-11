@@ -60,7 +60,7 @@ export async function updateContact(
 
   revalidatePath('/contacts')
   revalidatePath(`/contacts/${id}`)
-  return { error: null }
+  redirect('/contacts')
 }
 
 export async function deleteContact(id: string): Promise<void> {

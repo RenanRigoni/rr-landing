@@ -64,7 +64,7 @@ export async function updateCompany(
 
   revalidatePath('/companies')
   revalidatePath(`/companies/${id}`)
-  return { error: null }
+  redirect('/companies')
 }
 
 export async function deleteCompany(id: string): Promise<void> {
