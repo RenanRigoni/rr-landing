@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { Modal } from '@/components/ui/Modal'
-import { ERROR_CATEGORIES, type ErrorCategory } from '@/lib/actions/ai'
+import { ERROR_CATEGORIES, type ErrorCategory } from '@/lib/ai/error-categories'
 
 const CATEGORY_LABELS: Record<ErrorCategory, string> = {
   icp_classification: 'Classificação de ICP',

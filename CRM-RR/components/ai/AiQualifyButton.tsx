@@ -2,7 +2,8 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { analyzeDealQualification, applyQualificationSuggestion, rejectAiRun, type ErrorCategory } from '@/lib/actions/ai'
+import { analyzeDealQualification, applyQualificationSuggestion, rejectAiRun } from '@/lib/actions/ai'
+import type { ErrorCategory } from '@/lib/ai/error-categories'
 import type { QualifyDealOutput } from '@/lib/ai/schemas'
 import { AiResultCard } from '@/components/ai/AiResultCard'
 import { RejectFeedbackModal } from '@/components/ai/RejectFeedbackModal'

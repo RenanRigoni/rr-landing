@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { runAiPrompt } from '@/lib/ai/gateway'
 import { computeOverallScore } from '@/lib/domain/qualification-score'
+import type { ErrorCategory } from '@/lib/ai/error-categories'
 import {
   qualifyDealOutputSchema,
   summarizeDealOutputSchema,
@@ -83,21 +84,6 @@ export async function analyzeDealQualification(dealId: string): Promise<AiAction
     return { ok: false, error: errorMessage(err) }
   }
 }
-
-export const ERROR_CATEGORIES = [
-  'icp_classification',
-  'company_size',
-  'need_interpretation',
-  'timing',
-  'budget',
-  'contact_role',
-  'hallucinated_information',
-  'missing_context',
-  'wrong_recommendation',
-  'other',
-] as const
-
-export type ErrorCategory = (typeof ERROR_CATEGORIES)[number]
 
 /**
  * Marca uma sugestão de IA como revisada sem aplicar nenhuma mudança, e grava

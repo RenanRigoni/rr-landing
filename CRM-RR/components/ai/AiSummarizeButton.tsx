@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { summarizeDeal, acknowledgeAiRun, rejectAiRun, type ErrorCategory } from '@/lib/actions/ai'
+import { summarizeDeal, acknowledgeAiRun, rejectAiRun } from '@/lib/actions/ai'
+import type { ErrorCategory } from '@/lib/ai/error-categories'
 import type { SummarizeDealOutput } from '@/lib/ai/schemas'
 import { AiResultCard } from '@/components/ai/AiResultCard'
 import { RejectFeedbackModal } from '@/components/ai/RejectFeedbackModal'
