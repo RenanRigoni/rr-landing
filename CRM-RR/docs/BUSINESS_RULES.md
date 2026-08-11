@@ -79,7 +79,7 @@ progressivamente a partir da Fase 3.
 | 6 | 6 | implementado (`runAiPrompt` é o único ponto de chamada à IA; loga sucesso e erro em `ai_runs`) |
 | 7 | 5 | implementado (`qualification_scores.rationale NOT NULL` no banco + `computeOverallScore`/`classifyQualificationFactors` testados) |
 | 8 | 4,6,7 | implementado (views `crm.v_*` são a única fonte de números em `/dashboard`, `/analytics/sql-learning` e `/ai-quality`, incluindo `v_ai_quality_summary`) |
-| 9 | 8 | pendente |
+| 9 | 8 | implementado (`process_docs.last_reviewed_at` + `updated_at` via trigger; `playbooks.version`) |
 | 10 | 3+ | implementado parcialmente (`audit_log` gravado em mudanças de estágio/won/lost via `moveDealStage`; cobertura de companies/contacts/activities fica para revisão na Fase 9) |
 
 Atualizado ao fim de cada fase (`docs/IMPLEMENTATION_PLAN.md` referencia esta tabela).

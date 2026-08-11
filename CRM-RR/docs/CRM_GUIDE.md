@@ -105,4 +105,18 @@ terminam em "Aplicar"/"Rejeitar" — a aplicação real (ex: gravar
 _(preenchido na Fase 4)_
 
 ## Como a rastreabilidade de processo funciona
-_(preenchido na Fase 8)_
+
+Cada processo documentado (`/processes/[slug]`) tem um conteúdo AS-IS (como
+funciona hoje, na prática) e um TO-BE (como deveria funcionar). Isso já é
+rastreabilidade em prosa. O passo além é comparar o TO-BE contra dado real: o
+processo "Cadência de Follow-up" declara que espera 100% dos deals abertos com
+próxima ação — e a página desse processo calcula, ao vivo, o percentual observado
+via `crm.v_followup_health` (`getFollowupProcessGap`). O gap entre 100% esperado e
+o percentual real observado aparece como um número, não uma opinião — é a mesma
+lógica que "Meu Dia" e o dashboard usam, aplicada ao contexto do processo
+específico. Esse padrão pode ser estendido a outros processos conforme fizer
+sentido, sem exigir mudança de schema.
+
+Feedback operacional (`process_feedback`) fica anexado ao processo — friction,
+ideia, "funcionou bem" ou bug do CRM — criando um histórico de observações reais de
+quem executa o processo, separado da documentação formal.

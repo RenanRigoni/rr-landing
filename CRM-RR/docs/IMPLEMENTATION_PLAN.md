@@ -82,9 +82,18 @@ compila.
       `lib/domain/ai-feedback-aggregation.ts` com 5 testes Vitest (16 no total).
       Build/lint/typecheck/testes limpos. Mesma pendência da Fase 6: precisa de
       `AI_GATEWAY_API_KEY` pra testar de verdade.
-- [ ] **Fase 8 — Processos/Docs/Playbooks/Glossário**: process_docs/process_feedback/
-      playbooks/glossary_terms, seed 3 processos + 3-5 playbooks + 15-20 termos.
-      Pronto quando: páginas navegáveis, feedback anexável a partir de deal real.
+- [x] **Fase 8 — Processos/Docs/Playbooks/Glossário**: `process_docs` (AS-IS/TO-BE,
+      steps, KPIs, exceções) + `process_feedback` + `playbooks` + `glossary_terms`.
+      Seed real: 3 processos (Qualificação de Lead, Cadência de Follow-up,
+      Fechamento de Proposta), 4 playbooks, 20 termos de glossário.
+      Rastreabilidade de processo real (seção 22 da spec) implementada no processo
+      "Cadência de Follow-up": compara o esperado (100% dos deals abertos com
+      próxima ação) contra o observado de verdade via `v_followup_health`
+      (`getFollowupProcessGap`) — não é um exemplo estático, recalcula a cada
+      acesso com dados reais do pipeline.
+      `/processes`, `/processes/[slug]` (com formulário de feedback operacional
+      real), `/playbooks`, `/playbooks/[slug]`, `/glossary`.
+      Build/lint/typecheck/testes limpos.
 - [ ] **Fase 9 — Polish/Testes/Seed removal**: 6 suítes Vitest, checklist das 10
       regras de negócio, `purgeDemoData()`, docs finalizados, deploy produção.
       Pronto quando: fluxo e2e de 26 passos (definition of done) funciona em produção

@@ -655,6 +655,134 @@ export interface Database {
           },
         ]
       }
+      process_docs: {
+        Row: {
+          id: string
+          slug: string
+          title: string
+          objective: string | null
+          trigger_description: string | null
+          inputs: string | null
+          steps: Json
+          decision_points: string | null
+          responsible: string | null
+          systems_involved: string | null
+          expected_output: string | null
+          kpis: string | null
+          known_exceptions: string | null
+          as_is_content: string | null
+          to_be_content: string | null
+          status: 'draft' | 'active' | 'archived'
+          last_reviewed_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          slug: string
+          title: string
+          objective?: string | null
+          trigger_description?: string | null
+          inputs?: string | null
+          steps?: Json
+          decision_points?: string | null
+          responsible?: string | null
+          systems_involved?: string | null
+          expected_output?: string | null
+          kpis?: string | null
+          known_exceptions?: string | null
+          as_is_content?: string | null
+          to_be_content?: string | null
+          status?: 'draft' | 'active' | 'archived'
+          last_reviewed_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: Partial<Database['crm']['Tables']['process_docs']['Insert']>
+        Relationships: []
+      }
+      process_feedback: {
+        Row: {
+          id: string
+          process_id: string
+          deal_id: string | null
+          feedback_type: 'friction' | 'idea' | 'win' | 'bug'
+          content: string
+          resolved: boolean
+          created_at: string
+          created_by: string | null
+        }
+        Insert: {
+          id?: string
+          process_id: string
+          deal_id?: string | null
+          feedback_type: 'friction' | 'idea' | 'win' | 'bug'
+          content: string
+          resolved?: boolean
+          created_at?: string
+          created_by?: string | null
+        }
+        Update: Partial<Database['crm']['Tables']['process_feedback']['Insert']>
+        Relationships: [
+          {
+            foreignKeyName: 'process_feedback_process_id_fkey'
+            columns: ['process_id']
+            isOneToOne: false
+            referencedRelation: 'process_docs'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      playbooks: {
+        Row: {
+          id: string
+          slug: string
+          title: string
+          type: 'playbook' | 'tutorial' | 'faq' | 'checklist' | 'script' | 'onboarding'
+          content: string
+          related_process_id: string | null
+          version: number
+          status: 'draft' | 'active' | 'archived'
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          slug: string
+          title: string
+          type: 'playbook' | 'tutorial' | 'faq' | 'checklist' | 'script' | 'onboarding'
+          content: string
+          related_process_id?: string | null
+          version?: number
+          status?: 'draft' | 'active' | 'archived'
+          updated_at?: string
+        }
+        Update: Partial<Database['crm']['Tables']['playbooks']['Insert']>
+        Relationships: [
+          {
+            foreignKeyName: 'playbooks_related_process_id_fkey'
+            columns: ['related_process_id']
+            isOneToOne: false
+            referencedRelation: 'process_docs'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      glossary_terms: {
+        Row: {
+          id: string
+          term: string
+          definition: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          term: string
+          definition: string
+          created_at?: string
+        }
+        Update: Partial<Database['crm']['Tables']['glossary_terms']['Insert']>
+        Relationships: []
+      }
     }
     Views: {
       v_funnel_conversion: {

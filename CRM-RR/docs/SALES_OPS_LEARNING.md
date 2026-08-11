@@ -80,3 +80,13 @@ e obriga uma decisão explícita (A/B/empate) — é o mesmo princípio de um te
 de copy ou de landing page, aplicado a prompts de IA. Sem isso, não dá pra saber
 se uma mudança de prompt realmente melhorou algo ou só mudou.
 ```
+
+```
+FEATURE: rastreabilidade de processo (esperado vs. observado, seção 22)
+CONCEITO DE SALES OPS: Process adherence measurement / AS-IS vs TO-BE gap analysis
+POR QUE IMPORTA: Documentar um processo (TO-BE) não garante que ele é seguido.
+Medir a aderência real — "esperávamos 100%, temos 68%" — é o que diferencia
+documentação decorativa de gestão de processo de verdade. O gap numérico aponta
+onde investigar; ele não diz automaticamente o porquê (pode ser processo ruim,
+treinamento insuficiente, ou uma exceção legítima) — só torna a pergunta possível.
+```
