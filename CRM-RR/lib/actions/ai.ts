@@ -84,11 +84,32 @@ export async function analyzeDealQualification(dealId: string): Promise<AiAction
   }
 }
 
+export const ERROR_CATEGORIES = [
+  'icp_classification',
+  'company_size',
+  'need_interpretation',
+  'timing',
+  'budget',
+  'contact_role',
+  'hallucinated_information',
+  'missing_context',
+  'wrong_recommendation',
+  'other',
+] as const
+
+export type ErrorCategory = (typeof ERROR_CATEGORIES)[number]
+
 /**
- * Marca uma sugestão de IA como revisada sem aplicar nenhuma mudança —
- * usado quando o output não serve (Regra 3: humano decide, nunca é automático).
+ * Marca uma sugestão de IA como revisada sem aplicar nenhuma mudança, e grava
+ * feedback estruturado com categoria de erro (Regra 3: humano decide, nunca é
+ * automático; alimenta a análise de erros recorrentes em /ai-quality).
  */
-export async function rejectAiRun(runId: string, dealId: string): Promise<{ error: string | null }> {
+export async function rejectAiRun(
+  runId: string,
+  dealId: string,
+  errorCategory: ErrorCategory,
+  correctionNotes: string | null,
+): Promise<{ error: string | null }> {
   const supabase = await createClient()
   const { error } = await supabase
     .from('ai_runs')
@@ -97,14 +118,22 @@ export async function rejectAiRun(runId: string, dealId: string): Promise<{ erro
 
   if (error) return { error: error.message }
 
+  await supabase.from('ai_feedback').insert({
+    ai_run_id: runId,
+    is_useful: false,
+    error_category: errorCategory,
+    correction_notes: correctionNotes,
+  })
+
   await supabase.from('audit_log').insert({
     entity_type: 'ai_run',
     entity_id: runId,
     action: 'ai_suggestion_rejected',
-    diff: null,
+    diff: { error_category: errorCategory },
   })
 
   revalidatePath(`/deals/${dealId}`)
+  revalidatePath('/ai-quality')
   return { error: null }
 }
 
@@ -204,6 +233,8 @@ export async function applyQualificationSuggestion(
     .update({ status: 'reviewed', applied: true, reviewed_at: new Date().toISOString() })
     .eq('id', runId)
 
+  await supabase.from('ai_feedback').insert({ ai_run_id: runId, is_useful: true })
+
   await supabase.from('audit_log').insert({
     entity_type: 'ai_run',
     entity_id: runId,
@@ -212,6 +243,7 @@ export async function applyQualificationSuggestion(
   })
 
   revalidatePath(`/deals/${dealId}`)
+  revalidatePath('/ai-quality')
   return { error: null }
 }
 
@@ -229,6 +261,8 @@ export async function acknowledgeAiRun(runId: string, dealId: string): Promise<{
 
   if (error) return { error: error.message }
 
+  await supabase.from('ai_feedback').insert({ ai_run_id: runId, is_useful: true })
+
   await supabase.from('audit_log').insert({
     entity_type: 'ai_run',
     entity_id: runId,
@@ -237,6 +271,7 @@ export async function acknowledgeAiRun(runId: string, dealId: string): Promise<{
   })
 
   revalidatePath(`/deals/${dealId}`)
+  revalidatePath('/ai-quality')
   return { error: null }
 }
 

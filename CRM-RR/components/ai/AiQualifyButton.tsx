@@ -2,9 +2,10 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { analyzeDealQualification, applyQualificationSuggestion, rejectAiRun } from '@/lib/actions/ai'
+import { analyzeDealQualification, applyQualificationSuggestion, rejectAiRun, type ErrorCategory } from '@/lib/actions/ai'
 import type { QualifyDealOutput } from '@/lib/ai/schemas'
 import { AiResultCard } from '@/components/ai/AiResultCard'
+import { RejectFeedbackModal } from '@/components/ai/RejectFeedbackModal'
 
 const CRITERION_LABELS: Record<string, string> = {
   fit_icp: 'Fit com ICP',
@@ -24,6 +25,7 @@ export function AiQualifyButton({ dealId }: { dealId: string }) {
   const [output, setOutput] = useState<QualifyDealOutput | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [resolved, setResolved] = useState(false)
+  const [showRejectModal, setShowRejectModal] = useState(false)
 
   function handleAnalyze() {
     setError(null)
@@ -52,16 +54,18 @@ export function AiQualifyButton({ dealId }: { dealId: string }) {
     })
   }
 
-  function handleReject() {
+  function handleRejectConfirm(category: ErrorCategory, notes: string | null) {
     if (!runId) return
     startTransition(async () => {
-      await rejectAiRun(runId, dealId)
+      await rejectAiRun(runId, dealId, category, notes)
+      setShowRejectModal(false)
       setResolved(true)
     })
   }
 
   if (output && !resolved) {
     return (
+      <>
       <AiResultCard
         actions={
           <>
@@ -75,7 +79,7 @@ export function AiQualifyButton({ dealId }: { dealId: string }) {
             </button>
             <button
               type="button"
-              onClick={handleReject}
+              onClick={() => setShowRejectModal(true)}
               disabled={pending}
               className="rounded-pill px-4 py-1.5 text-xs font-medium text-content-secondary transition-colors ease-spring hover:text-danger disabled:opacity-60"
             >
@@ -120,6 +124,13 @@ export function AiQualifyButton({ dealId }: { dealId: string }) {
           </div>
         ) : null}
       </AiResultCard>
+      <RejectFeedbackModal
+        open={showRejectModal}
+        onClose={() => setShowRejectModal(false)}
+        onConfirm={handleRejectConfirm}
+        pending={pending}
+      />
+      </>
     )
   }
 

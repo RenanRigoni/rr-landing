@@ -1,9 +1,10 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { summarizeDeal, acknowledgeAiRun, rejectAiRun } from '@/lib/actions/ai'
+import { summarizeDeal, acknowledgeAiRun, rejectAiRun, type ErrorCategory } from '@/lib/actions/ai'
 import type { SummarizeDealOutput } from '@/lib/ai/schemas'
 import { AiResultCard } from '@/components/ai/AiResultCard'
+import { RejectFeedbackModal } from '@/components/ai/RejectFeedbackModal'
 
 export function AiSummarizeButton({ dealId }: { dealId: string }) {
   const [pending, startTransition] = useTransition()
@@ -11,6 +12,7 @@ export function AiSummarizeButton({ dealId }: { dealId: string }) {
   const [output, setOutput] = useState<SummarizeDealOutput | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [resolved, setResolved] = useState(false)
+  const [showRejectModal, setShowRejectModal] = useState(false)
 
   function handleRun() {
     setError(null)
@@ -34,46 +36,55 @@ export function AiSummarizeButton({ dealId }: { dealId: string }) {
     })
   }
 
-  function handleReject() {
+  function handleRejectConfirm(category: ErrorCategory, notes: string | null) {
     if (!runId) return
     startTransition(async () => {
-      await rejectAiRun(runId, dealId)
+      await rejectAiRun(runId, dealId, category, notes)
+      setShowRejectModal(false)
       setResolved(true)
     })
   }
 
   if (output && !resolved) {
     return (
-      <AiResultCard
-        actions={
-          <>
-            <button
-              type="button"
-              onClick={handleAccept}
-              disabled={pending}
-              className="rounded-pill bg-brand-600 px-4 py-1.5 text-xs font-semibold text-white transition-all ease-spring hover:bg-brand-500 disabled:opacity-60"
-            >
-              Útil
-            </button>
-            <button
-              type="button"
-              onClick={handleReject}
-              disabled={pending}
-              className="rounded-pill px-4 py-1.5 text-xs font-medium text-content-secondary transition-colors ease-spring hover:text-danger disabled:opacity-60"
-            >
-              Não útil
-            </button>
-          </>
-        }
-      >
-        <p className="text-sm text-content-primary">{output.summary}</p>
-        <ul className="list-inside list-disc text-xs text-content-secondary">
-          {output.keyPoints.map((p, i) => (
-            <li key={i}>{p}</li>
-          ))}
-        </ul>
-        <p className="text-xs text-brand-400">Próximo passo sugerido: {output.suggestedNextStep}</p>
-      </AiResultCard>
+      <>
+        <AiResultCard
+          actions={
+            <>
+              <button
+                type="button"
+                onClick={handleAccept}
+                disabled={pending}
+                className="rounded-pill bg-brand-600 px-4 py-1.5 text-xs font-semibold text-white transition-all ease-spring hover:bg-brand-500 disabled:opacity-60"
+              >
+                Útil
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowRejectModal(true)}
+                disabled={pending}
+                className="rounded-pill px-4 py-1.5 text-xs font-medium text-content-secondary transition-colors ease-spring hover:text-danger disabled:opacity-60"
+              >
+                Não útil
+              </button>
+            </>
+          }
+        >
+          <p className="text-sm text-content-primary">{output.summary}</p>
+          <ul className="list-inside list-disc text-xs text-content-secondary">
+            {output.keyPoints.map((p, i) => (
+              <li key={i}>{p}</li>
+            ))}
+          </ul>
+          <p className="text-xs text-brand-400">Próximo passo sugerido: {output.suggestedNextStep}</p>
+        </AiResultCard>
+        <RejectFeedbackModal
+          open={showRejectModal}
+          onClose={() => setShowRejectModal(false)}
+          onConfirm={handleRejectConfirm}
+          pending={pending}
+        />
+      </>
     )
   }
 

@@ -71,7 +71,18 @@ atividade pendente com `due_at` no passado), `due_soon` (vence nos próximos 3 d
 em `/my-day` e nos indicadores do topo do `/dashboard`.
 
 ## Como o feedback de IA funciona
-_(preenchido na Fase 7 — avaliação estruturada com categoria de erro)_
+
+Todo output de IA rejeitado passa por `RejectFeedbackModal`, que exige uma categoria
+de erro (classificação de ICP, porte da empresa, interpretação de necessidade,
+timing, orçamento, cargo do contato, informação alucinada, contexto insuficiente,
+recomendação errada, outro) antes de gravar em `crm.ai_feedback`. Aceitar também
+grava feedback (`is_useful=true`), mas sem exigir categoria — o objetivo é entender
+POR QUE a IA erra, não só QUANTO erra.
+
+`/ai-quality` agrupa feedback rejeitado por categoria (`getErrorCategoryBreakdown`) —
+é assim que fica visível se o problema recorrente é, por exemplo, a IA errando
+sistematicamente a classificação de porte de empresa, o que sinaliza que o prompt
+(ou o contexto passado a ele) precisa melhorar especificamente nesse ponto.
 
 ## Como o versionamento de prompt funciona
 

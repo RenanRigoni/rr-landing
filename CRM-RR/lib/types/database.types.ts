@@ -584,6 +584,77 @@ export interface Database {
           },
         ]
       }
+      ai_feedback: {
+        Row: {
+          id: string
+          ai_run_id: string
+          rating: number | null
+          is_useful: boolean
+          error_category: string | null
+          correction_notes: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          ai_run_id: string
+          rating?: number | null
+          is_useful: boolean
+          error_category?: string | null
+          correction_notes?: string | null
+          created_at?: string
+        }
+        Update: Partial<Database['crm']['Tables']['ai_feedback']['Insert']>
+        Relationships: [
+          {
+            foreignKeyName: 'ai_feedback_ai_run_id_fkey'
+            columns: ['ai_run_id']
+            isOneToOne: false
+            referencedRelation: 'ai_runs'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      prompt_lab_comparisons: {
+        Row: {
+          id: string
+          prompt_a_id: string
+          prompt_b_id: string
+          test_input: Json
+          run_a_id: string | null
+          run_b_id: string | null
+          winner: 'a' | 'b' | 'tie' | null
+          notes: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          prompt_a_id: string
+          prompt_b_id: string
+          test_input: Json
+          run_a_id?: string | null
+          run_b_id?: string | null
+          winner?: 'a' | 'b' | 'tie' | null
+          notes?: string | null
+          created_at?: string
+        }
+        Update: Partial<Database['crm']['Tables']['prompt_lab_comparisons']['Insert']>
+        Relationships: [
+          {
+            foreignKeyName: 'prompt_lab_comparisons_prompt_a_id_fkey'
+            columns: ['prompt_a_id']
+            isOneToOne: false
+            referencedRelation: 'ai_prompts'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'prompt_lab_comparisons_prompt_b_id_fkey'
+            columns: ['prompt_b_id']
+            isOneToOne: false
+            referencedRelation: 'ai_prompts'
+            referencedColumns: ['id']
+          },
+        ]
+      }
     }
     Views: {
       v_funnel_conversion: {
@@ -643,6 +714,20 @@ export interface Database {
           company_id: string | null
           value_cents: number
           health_status: 'overdue' | 'due_soon' | 'no_next_action' | 'healthy'
+        }
+        Relationships: []
+      }
+      v_ai_quality_summary: {
+        Row: {
+          slug: string
+          version: number
+          prompt_id: string
+          total_runs: number
+          error_runs: number
+          applied_runs: number
+          acceptance_pct: number | null
+          avg_rating: number | null
+          avg_latency_ms: number | null
         }
         Relationships: []
       }

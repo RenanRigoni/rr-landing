@@ -1,4 +1,4 @@
-import { listAiRuns, listActiveAiPrompts } from '@/lib/queries/ai'
+import { listAiRuns, listActiveAiPrompts, getAiQualitySummary, getErrorCategoryBreakdown } from '@/lib/queries/ai'
 
 const STATUS_LABEL: Record<string, string> = { pending_review: 'Aguardando revisão', reviewed: 'Revisado', error: 'Erro' }
 const STATUS_COLOR: Record<string, string> = {
@@ -7,8 +7,26 @@ const STATUS_COLOR: Record<string, string> = {
   error: 'text-danger',
 }
 
+const CATEGORY_LABELS: Record<string, string> = {
+  icp_classification: 'Classificação de ICP',
+  company_size: 'Porte da empresa',
+  need_interpretation: 'Interpretação da necessidade',
+  timing: 'Timing',
+  budget: 'Orçamento',
+  contact_role: 'Cargo do contato',
+  hallucinated_information: 'Informação alucinada',
+  missing_context: 'Contexto insuficiente',
+  wrong_recommendation: 'Recomendação errada',
+  other: 'Outro',
+}
+
 export default async function AiQualityPage() {
-  const [runs, prompts] = await Promise.all([listAiRuns(), listActiveAiPrompts()])
+  const [runs, prompts, qualitySummary, errorBreakdown] = await Promise.all([
+    listAiRuns(),
+    listActiveAiPrompts(),
+    getAiQualitySummary(),
+    getErrorCategoryBreakdown(),
+  ])
 
   const total = runs.length
   const applied = runs.filter((r) => r.applied).length
@@ -38,6 +56,62 @@ export default async function AiQualityPage() {
           <p className="font-mono text-xl text-danger">{errors}</p>
         </div>
       </div>
+
+      <section className="flex flex-col gap-3">
+        <h2 className="font-mono text-[10px] uppercase tracking-[0.15em] text-content-muted">
+          Performance por versão de prompt
+        </h2>
+        {qualitySummary.length === 0 ? (
+          <p className="text-sm text-content-secondary">Nenhum prompt com execuções ainda.</p>
+        ) : (
+          <div className="overflow-hidden rounded-card border border-white/[0.08]">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-surface-elevated text-xs uppercase tracking-wide text-content-muted">
+                <tr>
+                  <th className="px-4 py-3 font-medium">Prompt</th>
+                  <th className="px-4 py-3 font-medium">Execuções</th>
+                  <th className="px-4 py-3 font-medium">Aceitação</th>
+                  <th className="px-4 py-3 font-medium">Rating médio</th>
+                  <th className="px-4 py-3 font-medium">Latência média</th>
+                </tr>
+              </thead>
+              <tbody>
+                {qualitySummary.map((row) => (
+                  <tr key={row.prompt_id} className="border-t border-white/[0.08]">
+                    <td className="px-4 py-3 text-content-primary">
+                      {row.slug} <span className="text-content-muted">v{row.version}</span>
+                    </td>
+                    <td className="px-4 py-3 font-mono text-xs text-content-secondary">{row.total_runs}</td>
+                    <td className="px-4 py-3 font-mono text-xs text-success">
+                      {row.acceptance_pct !== null ? `${row.acceptance_pct}%` : '—'}
+                    </td>
+                    <td className="px-4 py-3 font-mono text-xs text-content-secondary">{row.avg_rating ?? '—'}</td>
+                    <td className="px-4 py-3 font-mono text-xs text-content-secondary">
+                      {row.avg_latency_ms ? `${row.avg_latency_ms}ms` : '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      {errorBreakdown.length > 0 ? (
+        <section className="flex flex-col gap-3">
+          <h2 className="font-mono text-[10px] uppercase tracking-[0.15em] text-danger">
+            Erros mais comuns (agrupados por categoria)
+          </h2>
+          <ul className="flex flex-col gap-1.5">
+            {errorBreakdown.map((e) => (
+              <li key={e.category} className="flex items-center justify-between text-sm">
+                <span className="text-content-secondary">{CATEGORY_LABELS[e.category] ?? e.category}</span>
+                <span className="font-mono text-content-primary">{e.count}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       <section className="flex flex-col gap-3">
         <h2 className="font-mono text-[10px] uppercase tracking-[0.15em] text-content-muted">Prompts ativos</h2>

@@ -30,3 +30,11 @@ export const draftFollowupEmailOutputSchema = z.object({
 })
 
 export type DraftFollowupEmailOutput = z.infer<typeof draftFollowupEmailOutputSchema>
+
+export const PROMPT_OUTPUT_SCHEMAS = {
+  'qualify-deal': qualifyDealOutputSchema,
+  'summarize-deal': summarizeDealOutputSchema,
+  'draft-followup-email': draftFollowupEmailOutputSchema,
+} as const
+
+export type PromptSlug = keyof typeof PROMPT_OUTPUT_SCHEMAS

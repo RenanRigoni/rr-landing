@@ -68,10 +68,20 @@ compila.
       ainda). Sem a chave, os 3 botões de IA retornam erro de autenticação — todo
       o resto (schema, UI, fluxo de aceitar/rejeitar) está pronto e será testado
       assim que a chave for adicionada.
-- [ ] **Fase 7 — Feedback IA + Prompt Lab**: ai_feedback/prompt_lab_comparisons +
-      view ai_quality, `/prompt-lab`.
-      Pronto quando: v2 comparada com v1 no mesmo input real, vencedor registrado,
-      reflete em ai-quality.
+- [x] **Fase 7 — Feedback IA + Prompt Lab**: `ai_feedback` (rating, is_useful,
+      `error_category` de 10 categorias, `correction_notes`) + `prompt_lab_comparisons`
+      + view `v_ai_quality_summary` (por slug+version: runs, %aceitação, rating
+      médio, latência média). Todo fluxo de rejeição nos 3 botões de IA agora abre
+      `RejectFeedbackModal` pedindo categoria do erro antes de gravar — feedback
+      estruturado desde o primeiro uso.
+      `/prompt-lab`: lista de versões por slug com "Ativar" (nunca sobrescreve —
+      só troca qual está `is_active`), formulário de nova versão pré-preenchido com
+      a versão mais recente, ferramenta de comparação A/B que roda as duas versões
+      no mesmo input JSON real e grava o vencedor. `/ai-quality` atualizado com
+      tabela de performance por versão de prompt + erros agrupados por categoria.
+      `lib/domain/ai-feedback-aggregation.ts` com 5 testes Vitest (16 no total).
+      Build/lint/typecheck/testes limpos. Mesma pendência da Fase 6: precisa de
+      `AI_GATEWAY_API_KEY` pra testar de verdade.
 - [ ] **Fase 8 — Processos/Docs/Playbooks/Glossário**: process_docs/process_feedback/
       playbooks/glossary_terms, seed 3 processos + 3-5 playbooks + 15-20 termos.
       Pronto quando: páginas navegáveis, feedback anexável a partir de deal real.

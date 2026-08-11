@@ -19,32 +19,26 @@ export interface AiRunResult<T> {
   output: T
 }
 
+type PromptRow = {
+  id: string
+  system_prompt: string
+  user_prompt_template: string
+  model: string
+  temperature: number
+}
+
 /**
  * Único ponto de chamada ao Vercel AI Gateway (Regra 6: toda execução de IA é
- * historicamente registrada, inclusive erros). Busca o prompt ATIVO da slug no
- * banco — nunca hardcoded — e grava o resultado em crm.ai_runs com
- * status='pending_review' (Regra 3: nenhum output de IA é aplicado sozinho).
+ * historicamente registrada, inclusive erros). Grava o resultado em crm.ai_runs
+ * com status='pending_review' (Regra 3: nenhum output de IA é aplicado sozinho).
  */
-export async function runAiPrompt<T>({
-  slug,
-  vars,
-  schema,
-  dealId,
-  companyId,
-  contactId,
-}: RunAiPromptParams<T>): Promise<AiRunResult<T>> {
+async function executePrompt<T>(
+  promptRow: PromptRow,
+  vars: Record<string, string>,
+  schema: z.ZodType<T>,
+  ids: { dealId?: string; companyId?: string; contactId?: string },
+): Promise<AiRunResult<T>> {
   const supabase = await createClient()
-
-  const { data: promptRow, error: promptError } = await supabase
-    .from('ai_prompts')
-    .select('*')
-    .eq('slug', slug)
-    .eq('is_active', true)
-    .maybeSingle()
-
-  if (promptError) throw new Error(promptError.message)
-  if (!promptRow) throw new Error(`Nenhum prompt ativo encontrado para "${slug}"`)
-
   const userPrompt = renderTemplate(promptRow.user_prompt_template, vars)
   const inputPayload: Json = { vars }
   const start = Date.now()
@@ -64,9 +58,9 @@ export async function runAiPrompt<T>({
       .from('ai_runs')
       .insert({
         prompt_id: promptRow.id,
-        deal_id: dealId ?? null,
-        company_id: companyId ?? null,
-        contact_id: contactId ?? null,
+        deal_id: ids.dealId ?? null,
+        company_id: ids.companyId ?? null,
+        contact_id: ids.contactId ?? null,
         input_payload: inputPayload,
         raw_response: JSON.stringify(result.output),
         parsed_output: result.output as unknown as Json,
@@ -88,9 +82,9 @@ export async function runAiPrompt<T>({
 
     await supabase.from('ai_runs').insert({
       prompt_id: promptRow.id,
-      deal_id: dealId ?? null,
-      company_id: companyId ?? null,
-      contact_id: contactId ?? null,
+      deal_id: ids.dealId ?? null,
+      company_id: ids.companyId ?? null,
+      contact_id: ids.contactId ?? null,
       input_payload: inputPayload,
       status: 'error',
       model: promptRow.model,
@@ -100,4 +94,54 @@ export async function runAiPrompt<T>({
 
     throw err
   }
+}
+
+/**
+ * Busca o prompt ATIVO da slug no banco — nunca hardcoded — e executa.
+ * Usado pelos botões de IA reais (qualificar, resumir, rascunhar e-mail).
+ */
+export async function runAiPrompt<T>({
+  slug,
+  vars,
+  schema,
+  dealId,
+  companyId,
+  contactId,
+}: RunAiPromptParams<T>): Promise<AiRunResult<T>> {
+  const supabase = await createClient()
+
+  const { data: promptRow, error: promptError } = await supabase
+    .from('ai_prompts')
+    .select('*')
+    .eq('slug', slug)
+    .eq('is_active', true)
+    .maybeSingle()
+
+  if (promptError) throw new Error(promptError.message)
+  if (!promptRow) throw new Error(`Nenhum prompt ativo encontrado para "${slug}"`)
+
+  return executePrompt(promptRow, vars, schema, { dealId, companyId, contactId })
+}
+
+/**
+ * Executa uma versão ESPECÍFICA de prompt por id, ativa ou não — usado pelo
+ * Prompt Lab para comparar versões lado a lado sem precisar ativá-las.
+ */
+export async function runAiPromptById<T>(
+  promptId: string,
+  vars: Record<string, string>,
+  schema: z.ZodType<T>,
+): Promise<AiRunResult<T>> {
+  const supabase = await createClient()
+
+  const { data: promptRow, error: promptError } = await supabase
+    .from('ai_prompts')
+    .select('*')
+    .eq('id', promptId)
+    .maybeSingle()
+
+  if (promptError) throw new Error(promptError.message)
+  if (!promptRow) throw new Error('Prompt não encontrado')
+
+  return executePrompt(promptRow, vars, schema, {})
 }

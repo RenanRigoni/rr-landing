@@ -1,9 +1,10 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { draftFollowupEmail, acknowledgeAiRun, rejectAiRun } from '@/lib/actions/ai'
+import { draftFollowupEmail, acknowledgeAiRun, rejectAiRun, type ErrorCategory } from '@/lib/actions/ai'
 import type { DraftFollowupEmailOutput } from '@/lib/ai/schemas'
 import { AiResultCard } from '@/components/ai/AiResultCard'
+import { RejectFeedbackModal } from '@/components/ai/RejectFeedbackModal'
 
 export function AiDraftEmailButton({ dealId }: { dealId: string }) {
   const [pending, startTransition] = useTransition()
@@ -12,6 +13,7 @@ export function AiDraftEmailButton({ dealId }: { dealId: string }) {
   const [error, setError] = useState<string | null>(null)
   const [resolved, setResolved] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [showRejectModal, setShowRejectModal] = useState(false)
 
   function handleRun() {
     setError(null)
@@ -36,10 +38,11 @@ export function AiDraftEmailButton({ dealId }: { dealId: string }) {
     })
   }
 
-  function handleReject() {
+  function handleRejectConfirm(category: ErrorCategory, notes: string | null) {
     if (!runId) return
     startTransition(async () => {
-      await rejectAiRun(runId, dealId)
+      await rejectAiRun(runId, dealId, category, notes)
+      setShowRejectModal(false)
       setResolved(true)
     })
   }
@@ -52,38 +55,46 @@ export function AiDraftEmailButton({ dealId }: { dealId: string }) {
 
   if (output && !resolved) {
     return (
-      <AiResultCard
-        actions={
-          <>
-            <button
-              type="button"
-              onClick={handleCopy}
-              className="rounded-pill bg-brand-600 px-4 py-1.5 text-xs font-semibold text-white transition-all ease-spring hover:bg-brand-500"
-            >
-              {copied ? 'Copiado!' : 'Copiar'}
-            </button>
-            <button
-              type="button"
-              onClick={handleAccept}
-              disabled={pending}
-              className="rounded-pill border border-white/[0.08] px-4 py-1.5 text-xs font-medium text-content-secondary transition-colors ease-spring hover:text-content-primary disabled:opacity-60"
-            >
-              Útil
-            </button>
-            <button
-              type="button"
-              onClick={handleReject}
-              disabled={pending}
-              className="rounded-pill px-4 py-1.5 text-xs font-medium text-content-secondary transition-colors ease-spring hover:text-danger disabled:opacity-60"
-            >
-              Não útil
-            </button>
-          </>
-        }
-      >
-        <p className="text-xs font-medium text-content-primary">Assunto: {output.subject}</p>
-        <p className="whitespace-pre-wrap text-sm text-content-secondary">{output.body}</p>
-      </AiResultCard>
+      <>
+        <AiResultCard
+          actions={
+            <>
+              <button
+                type="button"
+                onClick={handleCopy}
+                className="rounded-pill bg-brand-600 px-4 py-1.5 text-xs font-semibold text-white transition-all ease-spring hover:bg-brand-500"
+              >
+                {copied ? 'Copiado!' : 'Copiar'}
+              </button>
+              <button
+                type="button"
+                onClick={handleAccept}
+                disabled={pending}
+                className="rounded-pill border border-white/[0.08] px-4 py-1.5 text-xs font-medium text-content-secondary transition-colors ease-spring hover:text-content-primary disabled:opacity-60"
+              >
+                Útil
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowRejectModal(true)}
+                disabled={pending}
+                className="rounded-pill px-4 py-1.5 text-xs font-medium text-content-secondary transition-colors ease-spring hover:text-danger disabled:opacity-60"
+              >
+                Não útil
+              </button>
+            </>
+          }
+        >
+          <p className="text-xs font-medium text-content-primary">Assunto: {output.subject}</p>
+          <p className="whitespace-pre-wrap text-sm text-content-secondary">{output.body}</p>
+        </AiResultCard>
+        <RejectFeedbackModal
+          open={showRejectModal}
+          onClose={() => setShowRejectModal(false)}
+          onConfirm={handleRejectConfirm}
+          pending={pending}
+        />
+      </>
     )
   }
 

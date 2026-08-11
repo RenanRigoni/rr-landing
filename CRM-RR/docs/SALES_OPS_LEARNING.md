@@ -70,3 +70,13 @@ burocracia: é o mecanismo que torna possível medir depois se a IA estava certa
 (Fase 7) e é o que evita que um erro de IA vire dado "oficial" do pipeline sem
 ninguém perceber.
 ```
+
+```
+FEATURE: Prompt Lab (comparação A/B de versões de prompt)
+CONCEITO DE SALES OPS: Prompt engineering iterativo com avaliação empírica
+POR QUE IMPORTA: "Melhorar o prompt" sem comparar contra a versão anterior no
+mesmo input é só achismo. Prompt Lab roda as duas versões sobre o mesmo caso real
+e obriga uma decisão explícita (A/B/empate) — é o mesmo princípio de um teste A/B
+de copy ou de landing page, aplicado a prompts de IA. Sem isso, não dá pra saber
+se uma mudança de prompt realmente melhorou algo ou só mudou.
+```
