@@ -94,10 +94,20 @@ compila.
       `/processes`, `/processes/[slug]` (com formulário de feedback operacional
       real), `/playbooks`, `/playbooks/[slug]`, `/glossary`.
       Build/lint/typecheck/testes limpos.
-- [ ] **Fase 9 — Polish/Testes/Seed removal**: 6 suítes Vitest, checklist das 10
-      regras de negócio, `purgeDemoData()`, docs finalizados, deploy produção.
-      Pronto quando: fluxo e2e de 26 passos (definition of done) funciona em produção
-      com dados reais.
+- [x] **Fase 9 — Polish/Testes/Seed removal**: 6 suítes Vitest / 37 testes
+      (qualification-score, ai-feedback-aggregation, conversion, stage-duration,
+      lost-reason-rules, next-action). As 10 regras de negócio revisadas e
+      fechadas em `BUSINESS_RULES.md` (Regra 10 completada nesta fase —
+      `logAudit()` agora cobre companies/contacts/deals/activities). Seção
+      "Possíveis gargalos" no dashboard (seção 11 da spec). `/settings` real
+      (pipeline, critérios, motivos de perda, fontes, purga de dados demo).
+      README.md final com setup, deploy, guia de 30 minutos.
+      Build/lint/typecheck/testes limpos em todas as fases.
+      **Pendente** (requer o usuário, fora do que dá pra automatizar): testar o
+      fluxo e2e completo com dados reais no browser (só companies/contacts foi
+      verificado ao vivo até agora), configurar `AI_GATEWAY_API_KEY` pra testar os
+      botões de IA de verdade, criar o projeto Vercel `crm-rr` e fazer o primeiro
+      deploy, e importar o histórico real de prospecção quando estruturado.
 
 ## Log de decisões
 
