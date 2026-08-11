@@ -6,12 +6,14 @@ import { StageMover } from '@/components/deals/StageMover'
 import { DealTimeline } from '@/components/deals/DealTimeline'
 import { ActivityForm } from '@/components/deals/ActivityForm'
 import { ActivityList } from '@/components/deals/ActivityList'
+import { DealQualificationPanel } from '@/components/deals/DealQualificationPanel'
 import { DeleteButton } from '@/components/ui/DeleteButton'
 import { deleteDeal } from '@/lib/actions/deals'
 import { getDeal, listDealStageHistory } from '@/lib/queries/deals'
 import { listDealActivities } from '@/lib/queries/activities'
 import { listPipelineStages } from '@/lib/queries/pipeline'
 import { listLostReasons } from '@/lib/queries/lost-reasons'
+import { listQualificationCriteria, getDealQualification } from '@/lib/queries/qualification'
 
 interface DealDetailPageProps {
   params: Promise<{ dealId: string }>
@@ -29,11 +31,13 @@ export default async function DealDetailPage({ params }: DealDetailPageProps) {
   const deal = await getDeal(dealId)
   if (!deal) notFound()
 
-  const [stages, lostReasons, stageHistory, activities] = await Promise.all([
+  const [stages, lostReasons, stageHistory, activities, criteria, qualification] = await Promise.all([
     listPipelineStages(deal.pipeline_id),
     listLostReasons(),
     listDealStageHistory(dealId),
     listDealActivities(dealId),
+    listQualificationCriteria(),
+    getDealQualification(dealId),
   ])
 
   const boundDelete = deleteDeal.bind(null, deal.id)
@@ -70,6 +74,22 @@ export default async function DealDetailPage({ params }: DealDetailPageProps) {
             </h2>
             <ActivityList dealId={deal.id} activities={activities} />
             <ActivityForm dealId={deal.id} />
+          </section>
+
+          <section className="flex flex-col gap-3">
+            <h2 className="font-mono text-[10px] uppercase tracking-[0.15em] text-content-muted">Qualificação</h2>
+            <DealQualificationPanel
+              dealId={deal.id}
+              criteria={criteria}
+              overallScore={qualification?.qualification.overall_score ?? null}
+              existingScores={
+                qualification?.scores.map((s) => ({
+                  criterion_id: s.criterion_id,
+                  score: s.score,
+                  rationale: s.rationale,
+                })) ?? []
+              }
+            />
           </section>
 
           <section className="flex flex-col gap-3">

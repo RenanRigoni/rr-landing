@@ -38,11 +38,17 @@ compila.
       contagem de registros ao vivo. Build/lint/typecheck limpos.
       **Pendente de verificação manual** junto com a Fase 3 (dados ainda zerados —
       sem deals reais criados até o momento).
-- [ ] **Fase 5 — Qualificação estruturada**: qualification_criteria (seed 6
-      dimensões)/qualifications/qualification_scores/history, domain de score,
-      `DealQualificationPanel`.
-      Pronto quando: qualificar grava nas 3 tabelas, score recalcula, requalificação
-      preserva histórico.
+- [x] **Fase 5 — Qualificação estruturada**: `qualification_criteria` (seed 6
+      dimensões BANT+: fit_icp, need, authority, budget, timing, engagement, pesos
+      diferenciados), `qualifications`, `qualification_scores` (`rationale NOT
+      NULL` — Regra 7), `qualification_history` (snapshot a cada save).
+      `lib/domain/qualification-score.ts` (`computeOverallScore`,
+      `classifyQualificationFactors`) com 11 testes Vitest passando.
+      `DealQualificationPanel` no detail do deal: score 0-100, fatores fortes/riscos
+      explicados, formulário de (re)pontuação por critério. Score também aparece no
+      card do Kanban e alimenta a seção "Alta prioridade" do `/my-day`. Build, lint,
+      typecheck e testes limpos.
+      **Pendente de verificação manual** junto com Fases 3/4.
 - [ ] **Fase 6 — Infra IA**: Vercel AI Gateway, ai_prompts/ai_runs, seed 3 prompts v1,
       `lib/ai/gateway.ts`, `/ai-quality`.
       Pronto quando: IA real gera resposta via Gateway, loga tokens/custo, fica

@@ -27,7 +27,25 @@ deals abertos sem nenhuma atividade pendente, e deals sem interação há mais d
 dias (limiar configurável futuramente).
 
 ## Como a qualificação funciona
-_(preenchido na Fase 5)_
+
+Qualificação nunca é um número solto. Cada deal pode ser pontuado em 6 dimensões
+(`crm.qualification_criteria`, seed inicial: Fit com ICP, Necessidade, Acesso ao
+decisor, Orçamento, Timing, Engajamento), cada uma de 0 a 5, e **cada pontuação
+exige uma justificativa** — o banco rejeita gravar uma nota sem `rationale`.
+
+O score geral (0-100) é a média ponderada das dimensões pontuadas
+(`lib/domain/qualification-score.ts::computeOverallScore`), usando o peso
+configurado em cada critério. Critérios não pontuados nessa rodada simplesmente não
+entram na conta; se nenhum critério foi pontuado ainda, o score é `null` (não
+zero — "não qualificado" é um estado diferente de "qualificado com nota mínima").
+
+O painel do deal também classifica automaticamente cada dimensão pontuada como
+"fator forte" (nota ≥ 80% do máximo) ou "risco" (nota ≤ 40% do máximo) — é assim que
+a interface explica o PORQUÊ do score, não só o número.
+
+Toda vez que a qualificação é salva, um snapshot completo vai para
+`crm.qualification_history` — mesmo requalificando um deal, a avaliação anterior
+não se perde.
 
 ## Como a conversão é calculada
 

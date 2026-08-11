@@ -10,9 +10,14 @@ function formatCurrency(cents: number) {
 }
 
 export default async function MyDayPage() {
-  const { overdue, today, noNextAction, stale } = await getMyDayData()
+  const { overdue, today, noNextAction, stale, highPriority } = await getMyDayData()
 
-  const isEmpty = overdue.length === 0 && today.length === 0 && noNextAction.length === 0 && stale.length === 0
+  const isEmpty =
+    overdue.length === 0 &&
+    today.length === 0 &&
+    noNextAction.length === 0 &&
+    stale.length === 0 &&
+    highPriority.length === 0
 
   return (
     <div className="flex flex-col gap-8">
@@ -112,6 +117,32 @@ export default async function MyDayPage() {
                     ) : null}
                   </div>
                   <span className="font-mono text-xs text-content-secondary">{deal.stage_name}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      {highPriority.length > 0 ? (
+        <section className="flex flex-col gap-3">
+          <h2 className="font-mono text-[10px] uppercase tracking-[0.15em] text-success">
+            Alta prioridade ({highPriority.length})
+          </h2>
+          <ul className="flex flex-col gap-2">
+            {highPriority.map((deal) => (
+              <li key={deal.id}>
+                <Link
+                  href={`/deals/${deal.id}`}
+                  className="flex items-center justify-between rounded-inner border border-success/20 bg-success/5 px-4 py-3 transition-colors ease-spring hover:border-success/40"
+                >
+                  <div>
+                    <span className="text-sm text-content-primary">{deal.title}</span>
+                    {deal.company_name ? (
+                      <span className="ml-2 text-xs text-content-secondary">{deal.company_name}</span>
+                    ) : null}
+                  </div>
+                  <span className="font-mono text-xs text-success">{deal.qualification_score}/100</span>
                 </Link>
               </li>
             ))}

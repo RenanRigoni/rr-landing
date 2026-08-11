@@ -17,6 +17,7 @@ export interface MyDayDeal {
   company_name: string | null
   stage_name: string | null
   last_activity_at: string | null
+  qualification_score: number | null
 }
 
 export interface MyDayData {
@@ -24,9 +25,11 @@ export interface MyDayData {
   today: MyDayActivity[]
   noNextAction: MyDayDeal[]
   stale: MyDayDeal[]
+  highPriority: MyDayDeal[]
 }
 
 const STALE_THRESHOLD_DAYS = 14
+const HIGH_PRIORITY_SCORE_THRESHOLD = 70
 
 export async function getMyDayData(): Promise<MyDayData> {
   const supabase = await createClient()
@@ -66,7 +69,7 @@ export async function getMyDayData(): Promise<MyDayData> {
 
   const { data: openDeals, error: dealsError } = await supabase
     .from('deals')
-    .select('id, title, value_cents, created_at, companies(company_name), pipeline_stages(name)')
+    .select('id, title, value_cents, created_at, qualification_score, companies(company_name), pipeline_stages(name)')
     .eq('status', 'open')
 
   if (dealsError) throw new Error(dealsError.message)
@@ -92,6 +95,7 @@ export async function getMyDayData(): Promise<MyDayData> {
 
   const noNextAction: MyDayDeal[] = []
   const stale: MyDayDeal[] = []
+  const highPriority: MyDayDeal[] = []
   const staleThresholdMs = STALE_THRESHOLD_DAYS * 24 * 60 * 60 * 1000
 
   for (const deal of openDeals ?? []) {
@@ -102,6 +106,7 @@ export async function getMyDayData(): Promise<MyDayData> {
       company_name: deal.companies?.company_name ?? null,
       stage_name: deal.pipeline_stages?.name ?? null,
       last_activity_at: lastActivityByDeal.get(deal.id) ?? null,
+      qualification_score: deal.qualification_score,
     }
 
     if (!pendingByDeal.has(deal.id)) noNextAction.push(mapped)
@@ -110,7 +115,13 @@ export async function getMyDayData(): Promise<MyDayData> {
     if (now.getTime() - new Date(referenceDate).getTime() > staleThresholdMs) {
       stale.push(mapped)
     }
+
+    if (deal.qualification_score !== null && deal.qualification_score >= HIGH_PRIORITY_SCORE_THRESHOLD) {
+      highPriority.push(mapped)
+    }
   }
 
-  return { overdue, today, noNextAction, stale }
+  highPriority.sort((a, b) => (b.qualification_score ?? 0) - (a.qualification_score ?? 0))
+
+  return { overdue, today, noNextAction, stale, highPriority }
 }

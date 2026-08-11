@@ -48,3 +48,14 @@ POR QUE IMPORTA: Motivo de perda agregado revela se o problema é de processo
 = possível desalinhamento de posicionamento) ou de qualificação (ex: "ICP incorreto"
 alto = triagem de entrada fraca). Cada categoria aponta para uma ação diferente.
 ```
+
+```
+FEATURE: qualificação estruturada multi-dimensional (BANT+)
+CONCEITO DE SALES OPS: Lead scoring / lead qualification framework
+POR QUE IMPORTA: Um score único e opaco ("esse lead é 78") não ajuda a decidir o
+que fazer a seguir. Score por dimensão (ICP, necessidade, acesso ao decisor,
+orçamento, timing, engajamento) diz exatamente ONDE a oportunidade é fraca —
+"score baixo porque não confirmamos orçamento" pede uma ação diferente de "score
+baixo porque não temos acesso ao decisor". Isso é a diferença entre pontuar um
+lead e efetivamente qualificá-lo.
+```

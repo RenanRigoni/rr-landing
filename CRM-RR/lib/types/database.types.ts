@@ -382,6 +382,115 @@ export interface Database {
         Update: Partial<Database['crm']['Tables']['audit_log']['Insert']>
         Relationships: []
       }
+      qualification_criteria: {
+        Row: {
+          id: string
+          key: string
+          label: string
+          description: string | null
+          weight: number
+          max_score: number
+          is_active: boolean
+          position: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          key: string
+          label: string
+          description?: string | null
+          weight?: number
+          max_score?: number
+          is_active?: boolean
+          position: number
+          created_at?: string
+        }
+        Update: Partial<Database['crm']['Tables']['qualification_criteria']['Insert']>
+        Relationships: []
+      }
+      qualifications: {
+        Row: {
+          id: string
+          deal_id: string
+          overall_score: number | null
+          summary: string | null
+          qualified_by: 'human' | 'ai'
+          owner_id: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          deal_id: string
+          overall_score?: number | null
+          summary?: string | null
+          qualified_by?: 'human' | 'ai'
+          owner_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: Partial<Database['crm']['Tables']['qualifications']['Insert']>
+        Relationships: [
+          {
+            foreignKeyName: 'qualifications_deal_id_fkey'
+            columns: ['deal_id']
+            isOneToOne: true
+            referencedRelation: 'deals'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      qualification_scores: {
+        Row: {
+          id: string
+          qualification_id: string
+          criterion_id: string
+          score: number
+          rationale: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          qualification_id: string
+          criterion_id: string
+          score: number
+          rationale: string
+          created_at?: string
+        }
+        Update: Partial<Database['crm']['Tables']['qualification_scores']['Insert']>
+        Relationships: [
+          {
+            foreignKeyName: 'qualification_scores_qualification_id_fkey'
+            columns: ['qualification_id']
+            isOneToOne: false
+            referencedRelation: 'qualifications'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'qualification_scores_criterion_id_fkey'
+            columns: ['criterion_id']
+            isOneToOne: false
+            referencedRelation: 'qualification_criteria'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      qualification_history: {
+        Row: {
+          id: string
+          deal_id: string
+          snapshot: Json
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          deal_id: string
+          snapshot: Json
+          created_at?: string
+        }
+        Update: Partial<Database['crm']['Tables']['qualification_history']['Insert']>
+        Relationships: []
+      }
     }
     Views: {
       v_funnel_conversion: {

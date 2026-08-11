@@ -14,6 +14,7 @@ export interface BoardDeal {
   next_activity_due_at: string | null
   next_activity_subject: string | null
   is_overdue: boolean
+  qualification_score: number | null
 }
 
 export interface BoardStage {
@@ -52,7 +53,7 @@ export async function getPipelineBoard(pipelineId?: string): Promise<PipelineBoa
   const { data: deals, error: dealsError } = await supabase
     .from('deals')
     .select(
-      'id, title, stage_id, value_cents, currency, created_at, companies(company_name), contacts(full_name), lead_sources(name)',
+      'id, title, stage_id, value_cents, currency, created_at, qualification_score, companies(company_name), contacts(full_name), lead_sources(name)',
     )
     .eq('pipeline_id', pipeline.id)
     .eq('status', 'open')
@@ -112,6 +113,7 @@ export async function getPipelineBoard(pipelineId?: string): Promise<PipelineBoa
           next_activity_due_at: activity?.due_at ?? null,
           next_activity_subject: activity?.subject ?? null,
           is_overdue: activity?.due_at ? new Date(activity.due_at).getTime() < now : false,
+          qualification_score: deal.qualification_score,
         }
       }),
   }))

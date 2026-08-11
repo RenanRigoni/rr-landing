@@ -77,7 +77,7 @@ progressivamente a partir da Fase 3.
 | 4 | 6/7 | pendente |
 | 5 | 3 | implementado (trigger `fn_log_stage_change`) |
 | 6 | 6 | pendente |
-| 7 | 5 | pendente |
+| 7 | 5 | implementado (`qualification_scores.rationale NOT NULL` no banco + `computeOverallScore`/`classifyQualificationFactors` testados) |
 | 8 | 4,6,7 | implementado para dashboard/analytics (views `crm.v_*` são a única fonte de números em `/dashboard` e `/analytics/sql-learning`; cobertura de IA fica para Fase 6/7) |
 | 9 | 8 | pendente |
 | 10 | 3+ | implementado parcialmente (`audit_log` gravado em mudanças de estágio/won/lost via `moveDealStage`; cobertura de companies/contacts/activities fica para revisão na Fase 9) |

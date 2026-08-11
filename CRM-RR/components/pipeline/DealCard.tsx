@@ -37,7 +37,14 @@ export function DealCard({ deal }: DealCardProps) {
         {deal.title}
       </Link>
 
-      {deal.company_name ? <p className="text-xs text-content-secondary">{deal.company_name}</p> : null}
+      <div className="flex items-center justify-between">
+        {deal.company_name ? <p className="text-xs text-content-secondary">{deal.company_name}</p> : <span />}
+        {deal.qualification_score !== null ? (
+          <span className="rounded-pill bg-brand-600/15 px-2 py-0.5 font-mono text-[10px] text-brand-400">
+            {deal.qualification_score}
+          </span>
+        ) : null}
+      </div>
 
       <div className="flex items-center justify-between">
         <span className="font-mono text-xs text-content-primary">
