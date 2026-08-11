@@ -4,6 +4,8 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { createDealSchema, moveDealStageSchema } from '@/lib/validation/deals'
+import { isLostReasonRequired } from '@/lib/domain/lost-reason-rules'
+import { logAudit } from '@/lib/actions/audit'
 
 export interface DealFormState {
   error: string | null
@@ -35,6 +37,8 @@ export async function createDeal(_prevState: DealFormState, formData: FormData):
     return { error: error.message }
   }
 
+  await logAudit(supabase, 'deal', data.id, 'deal_created')
+
   revalidatePath('/pipeline')
   redirect(`/deals/${data.id}`)
 }
@@ -63,7 +67,7 @@ export async function moveDealStage(dealId: string, input: unknown): Promise<{ e
     return { error: stageError?.message ?? 'Estágio não encontrado' }
   }
 
-  if (stage.is_lost && !parsed.data.lost_reason_id) {
+  if (isLostReasonRequired(stage.is_lost, parsed.data.lost_reason_id)) {
     return { error: 'Motivo de perda é obrigatório' }
   }
 
@@ -85,12 +89,13 @@ export async function moveDealStage(dealId: string, input: unknown): Promise<{ e
     return { error: error.message }
   }
 
-  await supabase.from('audit_log').insert({
-    entity_type: 'deal',
-    entity_id: dealId,
-    action: stage.is_won ? 'marked_won' : stage.is_lost ? 'marked_lost' : 'stage_changed',
-    diff: { stage_id: parsed.data.stage_id, status },
-  })
+  await logAudit(
+    supabase,
+    'deal',
+    dealId,
+    stage.is_won ? 'marked_won' : stage.is_lost ? 'marked_lost' : 'stage_changed',
+    { stage_id: parsed.data.stage_id, status },
+  )
 
   revalidatePath('/pipeline')
   revalidatePath(`/deals/${dealId}`)
@@ -105,6 +110,8 @@ export async function deleteDeal(id: string): Promise<void> {
   if (error) {
     throw new Error(error.message)
   }
+
+  await logAudit(supabase, 'deal', id, 'deal_deleted')
 
   revalidatePath('/pipeline')
   redirect('/pipeline')

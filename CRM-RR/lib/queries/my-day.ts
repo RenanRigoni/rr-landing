@@ -1,4 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
+import { isOlderThanDays } from '@/lib/domain/stage-duration'
+import { detectNextAction } from '@/lib/domain/next-action'
 
 export interface MyDayActivity {
   id: string
@@ -76,18 +78,21 @@ export async function getMyDayData(): Promise<MyDayData> {
 
   const dealIds = (openDeals ?? []).map((d) => d.id)
   const lastActivityByDeal = new Map<string, string>()
-  const pendingByDeal = new Set<string>()
+  const activitiesByDeal = new Map<string, { status: string; due_at: string | null }[]>()
 
   if (dealIds.length > 0) {
     const { data: allActivities } = await supabase
       .from('activities')
-      .select('deal_id, status, created_at, completed_at')
+      .select('deal_id, status, due_at, created_at, completed_at')
       .in('deal_id', dealIds)
       .order('created_at', { ascending: false })
 
     for (const activity of allActivities ?? []) {
       if (!activity.deal_id) continue
-      if (activity.status === 'pending') pendingByDeal.add(activity.deal_id)
+      const list = activitiesByDeal.get(activity.deal_id) ?? []
+      list.push({ status: activity.status, due_at: activity.due_at })
+      activitiesByDeal.set(activity.deal_id, list)
+
       const at = activity.completed_at ?? activity.created_at
       if (!lastActivityByDeal.has(activity.deal_id)) lastActivityByDeal.set(activity.deal_id, at)
     }
@@ -96,7 +101,7 @@ export async function getMyDayData(): Promise<MyDayData> {
   const noNextAction: MyDayDeal[] = []
   const stale: MyDayDeal[] = []
   const highPriority: MyDayDeal[] = []
-  const staleThresholdMs = STALE_THRESHOLD_DAYS * 24 * 60 * 60 * 1000
+  const nowMs = now.getTime()
 
   for (const deal of openDeals ?? []) {
     const mapped: MyDayDeal = {
@@ -109,10 +114,11 @@ export async function getMyDayData(): Promise<MyDayData> {
       qualification_score: deal.qualification_score,
     }
 
-    if (!pendingByDeal.has(deal.id)) noNextAction.push(mapped)
+    const nextAction = detectNextAction(activitiesByDeal.get(deal.id) ?? [], nowMs)
+    if (!nextAction.hasNextAction) noNextAction.push(mapped)
 
     const referenceDate = lastActivityByDeal.get(deal.id) ?? deal.created_at
-    if (now.getTime() - new Date(referenceDate).getTime() > staleThresholdMs) {
+    if (isOlderThanDays(referenceDate, STALE_THRESHOLD_DAYS, nowMs)) {
       stale.push(mapped)
     }
 

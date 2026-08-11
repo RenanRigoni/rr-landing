@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { daysSince } from '@/lib/domain/stage-duration'
 
 export interface BoardDeal {
   id: string
@@ -109,7 +110,7 @@ export async function getPipelineBoard(pipelineId?: string): Promise<PipelineBoa
           contact_name: deal.contacts?.full_name ?? null,
           source_name: deal.lead_sources?.name ?? null,
           stage_entered_at: enteredAt,
-          days_in_stage: Math.floor((now - new Date(enteredAt).getTime()) / (1000 * 60 * 60 * 24)),
+          days_in_stage: daysSince(enteredAt, now),
           next_activity_due_at: activity?.due_at ?? null,
           next_activity_subject: activity?.subject ?? null,
           is_overdue: activity?.due_at ? new Date(activity.due_at).getTime() < now : false,

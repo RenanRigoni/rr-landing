@@ -28,6 +28,16 @@ export function FunnelChart({ data }: { data: FunnelRow[] }) {
           <Bar dataKey="deals_reached" fill="#3B82F6" radius={[0, 4, 4, 0]} />
         </BarChart>
       </ResponsiveContainer>
+
+      <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+        {data
+          .filter((d) => d.conversion_to_next_pct !== null)
+          .map((d) => (
+            <span key={d.stage_name} className="font-mono text-[11px] text-content-muted">
+              {d.stage_name} → próximo: {d.conversion_to_next_pct}%
+            </span>
+          ))}
+      </div>
     </div>
   )
 }

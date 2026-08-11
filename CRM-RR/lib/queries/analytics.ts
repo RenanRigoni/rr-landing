@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { calcStageConversion } from '@/lib/domain/conversion'
 
 export interface DashboardKpis {
   activeDeals: number
@@ -42,7 +43,11 @@ export async function getFunnelConversion(pipelineId: string) {
     .eq('pipeline_id', pipelineId)
     .order('position', { ascending: true })
   if (error) throw new Error(error.message)
-  return data
+
+  return (data ?? []).map((row) => ({
+    ...row,
+    conversion_to_next_pct: calcStageConversion(row.deals_reached, row.next_stage_deals_reached ?? 0),
+  }))
 }
 
 export async function getStageDuration(pipelineId: string) {
@@ -71,6 +76,67 @@ export async function getSourcePerformance() {
     .order('total_deals', { ascending: false })
   if (error) throw new Error(error.message)
   return data
+}
+
+export interface BottleneckInsight {
+  data: string
+  interpretation: string
+}
+
+type StageDurationRow = Awaited<ReturnType<typeof getStageDuration>>[number]
+type LostReasonRow = Awaited<ReturnType<typeof getLostReasonSummary>>[number]
+type FollowupHealthCounts = Awaited<ReturnType<typeof getFollowupHealthSummary>>
+
+/**
+ * Identifica possíveis gargalos a partir de dados já carregados (a página que
+ * chama já buscou essas 3 fontes para outros gráficos — não refaz queries).
+ * Cada insight separa DADO (fato observado) de INTERPRETAÇÃO (hipótese, nunca
+ * afirmação categórica) — seção 11 da spec.
+ */
+export function getBottleneckInsights(
+  stageDuration: StageDurationRow[],
+  followupHealth: FollowupHealthCounts,
+  lostReasons: LostReasonRow[],
+): BottleneckInsight[] {
+  const insights: BottleneckInsight[] = []
+
+  const withAvg = stageDuration.filter((s) => s.avg_days !== null && s.avg_days > 0)
+  if (withAvg.length >= 2) {
+    const avgOfAll = withAvg.reduce((sum, s) => sum + (s.avg_days ?? 0), 0) / withAvg.length
+    const slowest = withAvg.reduce((max, s) => ((s.avg_days ?? 0) > (max.avg_days ?? 0) ? s : max))
+    const ratio = avgOfAll > 0 ? (slowest.avg_days ?? 0) / avgOfAll : 0
+    if (ratio >= 1.5) {
+      insights.push({
+        data: `Tempo médio no estágio "${slowest.stage_name}" é ${slowest.avg_days} dias, contra uma média de ${Math.round(avgOfAll * 10) / 10} dias nos demais estágios com dados.`,
+        interpretation: `Esse estágio pode ser um gargalo do processo — vale investigar o que está travando as oportunidades ali.`,
+      })
+    }
+  }
+
+  const totalOpen = followupHealth.overdue + followupHealth.due_soon + followupHealth.no_next_action + followupHealth.healthy
+  if (totalOpen > 0) {
+    const noActionPct = Math.round((followupHealth.no_next_action / totalOpen) * 1000) / 10
+    if (noActionPct >= 20) {
+      insights.push({
+        data: `${noActionPct}% das oportunidades abertas (${followupHealth.no_next_action} de ${totalOpen}) não têm nenhuma atividade pendente.`,
+        interpretation: `Follow-up pode estar sendo esquecido com frequência — considere revisar "Meu Dia" diariamente.`,
+      })
+    }
+  }
+
+  const totalLost = lostReasons.reduce((sum, r) => sum + r.deals_lost, 0)
+  if (totalLost >= 3) {
+    const top = lostReasons.reduce((max, r) => (r.deals_lost > max.deals_lost ? r : max))
+    const pct = Math.round((top.deals_lost / totalLost) * 1000) / 10
+    if (pct >= 30) {
+      insights.push({
+        data: `${pct}% das oportunidades perdidas (${top.deals_lost} de ${totalLost}) tiveram o motivo "${top.label}".`,
+        interpretation: `Pode valer a pena investigar esse motivo especificamente — mas confirme com os casos reais antes de mudar processo ou preço.`,
+      })
+    }
+  }
+
+  return insights
 }
 
 export async function getFollowupHealthSummary() {

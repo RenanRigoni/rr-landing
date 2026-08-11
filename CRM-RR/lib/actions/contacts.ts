@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { contactSchema } from '@/lib/validation/contacts'
+import { logAudit } from '@/lib/actions/audit'
 
 export interface ContactFormState {
   error: string | null
@@ -37,6 +38,8 @@ export async function createContact(
     return { error: error.message }
   }
 
+  await logAudit(supabase, 'contact', data.id, 'contact_created')
+
   revalidatePath('/contacts')
   redirect(`/contacts/${data.id}`)
 }
@@ -58,6 +61,8 @@ export async function updateContact(
     return { error: error.message }
   }
 
+  await logAudit(supabase, 'contact', id, 'contact_updated')
+
   revalidatePath('/contacts')
   revalidatePath(`/contacts/${id}`)
   redirect('/contacts')
@@ -70,6 +75,8 @@ export async function deleteContact(id: string): Promise<void> {
   if (error) {
     throw new Error(error.message)
   }
+
+  await logAudit(supabase, 'contact', id, 'contact_deleted')
 
   revalidatePath('/contacts')
   redirect('/contacts')

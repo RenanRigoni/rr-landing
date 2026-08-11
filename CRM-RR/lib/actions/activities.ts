@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createActivitySchema } from '@/lib/validation/activities'
+import { logAudit } from '@/lib/actions/audit'
 
 export interface ActivityFormState {
   error: string | null
@@ -26,11 +27,13 @@ export async function createActivity(
   }
 
   const supabase = await createClient()
-  const { error } = await supabase.from('activities').insert(parsed.data)
+  const { data, error } = await supabase.from('activities').insert(parsed.data).select('id').single()
 
   if (error) {
     return { error: error.message }
   }
+
+  await logAudit(supabase, 'activity', data.id, 'activity_created', { deal_id: parsed.data.deal_id })
 
   revalidatePath(`/deals/${parsed.data.deal_id}`)
   revalidatePath('/my-day')
@@ -46,6 +49,8 @@ export async function completeActivity(activityId: string, dealId: string, outco
 
   if (error) throw new Error(error.message)
 
+  await logAudit(supabase, 'activity', activityId, 'activity_completed', { deal_id: dealId })
+
   revalidatePath(`/deals/${dealId}`)
   revalidatePath('/my-day')
 }
@@ -55,6 +60,8 @@ export async function deleteActivity(activityId: string, dealId: string) {
   const { error } = await supabase.from('activities').delete().eq('id', activityId)
 
   if (error) throw new Error(error.message)
+
+  await logAudit(supabase, 'activity', activityId, 'activity_deleted', { deal_id: dealId })
 
   revalidatePath(`/deals/${dealId}`)
   revalidatePath('/my-day')

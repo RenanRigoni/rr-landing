@@ -102,7 +102,23 @@ terminam em "Aplicar"/"Rejeitar" — a aplicação real (ex: gravar
 `qualification_scores`) só acontece depois desse clique humano.
 
 ## Como bottlenecks são detectados
-_(preenchido na Fase 4)_
+
+`/dashboard` calcula até 3 insights automáticos a partir de dados reais já
+carregados para os outros gráficos (`lib/queries/analytics.ts::getBottleneckInsights`
+— função pura, sem query própria):
+
+1. **Estágio mais lento**: se o estágio com maior tempo médio for pelo menos 1.5x
+   mais lento que a média dos demais, aparece como possível gargalo.
+2. **Follow-up esquecido**: se 20%+ das oportunidades abertas não tiverem nenhuma
+   atividade pendente, aparece como possível falha de cadência.
+3. **Motivo de perda concentrado**: se um único motivo responder por 30%+ das
+   perdas (com pelo menos 3 perdas no total), aparece como possível padrão.
+
+Cada insight separa explicitamente **DADO** (o número observado) de
+**INTERPRETAÇÃO** (uma hipótese, nunca uma afirmação categórica como "seu preço
+está errado") — é assim que a spec original pede que bottlenecks sejam
+apresentados. Sem dado suficiente, a seção simplesmente não aparece — nunca mostra
+um insight inventado.
 
 ## Como a rastreabilidade de processo funciona
 

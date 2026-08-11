@@ -11,6 +11,7 @@ import {
   getLostReasonSummary,
   getSourcePerformance,
   getFollowupHealthSummary,
+  getBottleneckInsights,
 } from '@/lib/queries/analytics'
 
 export default async function DashboardPage() {
@@ -24,6 +25,8 @@ export default async function DashboardPage() {
     getFollowupHealthSummary(),
   ])
 
+  const bottlenecks = getBottleneckInsights(stageDuration, followupHealth, lostReasons)
+
   return (
     <div className="flex flex-col gap-8">
       <div>
@@ -35,6 +38,23 @@ export default async function DashboardPage() {
       </div>
 
       <KpiRow kpis={kpis} />
+
+      {bottlenecks.length > 0 ? (
+        <section className="flex flex-col gap-3">
+          <h2 className="font-mono text-[10px] uppercase tracking-[0.15em] text-warning">Possíveis gargalos</h2>
+          <div className="flex flex-col gap-3">
+            {bottlenecks.map((b, i) => (
+              <div key={i} className="rounded-inner border border-warning/20 bg-warning/5 p-4">
+                <p className="text-sm text-content-primary">{b.data}</p>
+                <p className="mt-1 text-xs text-content-secondary">
+                  <span className="font-mono uppercase tracking-wide text-content-muted">Interpretação possível: </span>
+                  {b.interpretation}
+                </p>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       <section className="flex flex-col gap-3">
         <h2 className="font-mono text-[10px] uppercase tracking-[0.15em] text-content-muted">

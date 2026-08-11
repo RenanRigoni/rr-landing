@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { companySchema } from '@/lib/validation/companies'
+import { logAudit } from '@/lib/actions/audit'
 
 export interface CompanyFormState {
   error: string | null
@@ -41,6 +42,8 @@ export async function createCompany(
     return { error: error.message }
   }
 
+  await logAudit(supabase, 'company', data.id, 'company_created')
+
   revalidatePath('/companies')
   redirect(`/companies/${data.id}`)
 }
@@ -62,6 +65,8 @@ export async function updateCompany(
     return { error: error.message }
   }
 
+  await logAudit(supabase, 'company', id, 'company_updated')
+
   revalidatePath('/companies')
   revalidatePath(`/companies/${id}`)
   redirect('/companies')
@@ -74,6 +79,8 @@ export async function deleteCompany(id: string): Promise<void> {
   if (error) {
     throw new Error(error.message)
   }
+
+  await logAudit(supabase, 'company', id, 'company_deleted')
 
   revalidatePath('/companies')
   redirect('/companies')

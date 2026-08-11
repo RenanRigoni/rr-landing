@@ -60,12 +60,13 @@ inventado). Implementado nas Fases 4, 6, 7.
 Fase 8.
 
 ## Regra 10 — Registros comerciais devem ser rastreáveis
-**Enforcement**: `crm.audit_log` grava mudanças relevantes (mudança de estágio, deal
-marcado lost, lost_reason alterado, qualificação alterada, sugestão de IA
-aceita/rejeitada, versão de prompt alterada, documentação de processo atualizada) com
-`actor`, `diff` (old/new) e `created_at`. Toda `lib/actions/*.ts` que muta estado
-grava uma linha em `audit_log` como parte da mesma operação. Implementado
-progressivamente a partir da Fase 3.
+**Enforcement**: `lib/actions/audit.ts::logAudit()` é chamado por toda Server Action
+que cria, atualiza ou remove uma entidade comercial — companies, contacts, deals
+(criação, mudança de estágio, ganho/perda, exclusão), activities (criação,
+conclusão, exclusão), qualificações e sugestões de IA aceitas/rejeitadas. Grava
+`entity_type`, `entity_id`, `action`, `diff` (contexto relevante da mudança),
+`actor` (via `auth.uid()` default) e `created_at`. Implementado de ponta a ponta na
+Fase 9 (cobertura de companies/contacts/activities fechada nessa fase).
 
 ## Status de implementação
 
@@ -80,6 +81,6 @@ progressivamente a partir da Fase 3.
 | 7 | 5 | implementado (`qualification_scores.rationale NOT NULL` no banco + `computeOverallScore`/`classifyQualificationFactors` testados) |
 | 8 | 4,6,7 | implementado (views `crm.v_*` são a única fonte de números em `/dashboard`, `/analytics/sql-learning` e `/ai-quality`, incluindo `v_ai_quality_summary`) |
 | 9 | 8 | implementado (`process_docs.last_reviewed_at` + `updated_at` via trigger; `playbooks.version`) |
-| 10 | 3+ | implementado parcialmente (`audit_log` gravado em mudanças de estágio/won/lost via `moveDealStage`; cobertura de companies/contacts/activities fica para revisão na Fase 9) |
+| 10 | 3-9 | implementado (`logAudit()` chamado por toda Server Action que muta companies/contacts/deals/activities/qualificações/IA) |
 
 Atualizado ao fim de cada fase (`docs/IMPLEMENTATION_PLAN.md` referencia esta tabela).

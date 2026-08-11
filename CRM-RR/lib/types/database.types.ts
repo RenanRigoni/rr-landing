@@ -793,7 +793,6 @@ export interface Database {
           position: number
           deals_reached: number
           next_stage_deals_reached: number | null
-          conversion_to_next_pct: number | null
         }
         Relationships: []
       }
