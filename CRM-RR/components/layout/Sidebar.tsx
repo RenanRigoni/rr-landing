@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { NAV_GROUPS } from '@/lib/navigation'
+import { signOut } from '@/lib/actions/auth'
 
 export function Sidebar() {
   return (
@@ -31,6 +32,15 @@ export function Sidebar() {
           </div>
         ))}
       </nav>
+
+      <form action={signOut} className="border-t border-white/[0.08] pt-4">
+        <button
+          type="submit"
+          className="w-full rounded-inner px-2 py-1.5 text-left text-sm text-content-secondary transition-colors ease-spring hover:bg-white/[0.06] hover:text-content-primary"
+        >
+          Sair
+        </button>
+      </form>
     </aside>
   )
 }

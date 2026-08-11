@@ -10,10 +10,14 @@ compila.
       `tsc --noEmit` limpos, `npm run dev` confirmado servindo tema dark nas 16
       rotas reais (200 OK). Falta apenas criar o projeto Vercel `crm-rr` (root
       directory `CRM-RR/`) quando o usuário autorizar.
-- [ ] **Fase 2 — DB + Auth + CRUD básico**: schema `crm`, enums, companies/contacts/
-      pipelines/pipeline_stages/lost_reasons/lead_sources, RLS, Supabase Auth,
-      middleware, CRUD companies/contacts.
-      Pronto quando: login funciona, CRUD real persiste, RLS bloqueia acesso anônimo.
+- [x] **Fase 2 — DB + Auth + CRUD básico**: schema `crm` criado no projeto Supabase
+      existente (`fvgbbixxcapltudonxqx`, isolado do schema `public` da clínica —
+      confirmado sem alteração nenhuma nas tabelas/linhas existentes), companies/
+      contacts/pipelines/pipeline_stages/lost_reasons/lead_sources com RLS,
+      Supabase Auth com usuário único, proxy (`proxy.ts`, ex-middleware no Next 16)
+      protegendo o grupo `(app)`. CRUD completo de companies e contacts com Server
+      Actions + Zod, testado ponta a ponta no browser pelo usuário: login real,
+      criação de empresa persistida e listada, criação de contato vinculado.
 - [ ] **Fase 3 — Pipeline/Deals/Activities/Stage History**: migration deals/
       deal_stage_history/activities + triggers, Kanban dnd-kit, LostReasonModal,
       `/deals/[id]`, `/my-day`.
@@ -52,3 +56,9 @@ compila.
 - **2026-08-11** — IA via Vercel AI Gateway (strings `"provider/model"`), não SDK
   direto de provider.
 - **2026-08-11** — Deploy em projeto Vercel novo `crm-rr`, root directory `CRM-RR/`.
+- **2026-08-11** — Confirmado com o usuário: schema `crm` no projeto Supabase
+  `fvgbbixxcapltudonxqx` é seguro porque é um namespace isolado do `public`
+  (onde vive o app da clínica). Nenhum comando tocou tabelas `public.*` — validado
+  comparando contagem de linhas antes/depois da migration (idêntico). Exposição do
+  schema `crm` na Data API e criação do usuário Auth único foram feitas manualmente
+  pelo usuário no dashboard (únicos passos que não têm equivalente via MCP/SQL).
