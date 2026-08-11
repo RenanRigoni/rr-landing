@@ -71,15 +71,15 @@ progressivamente a partir da Fase 3.
 
 | Regra | Fase | Status |
 |---|---|---|
-| 1 | 3/4 | pendente |
-| 2 | 3 | pendente |
+| 1 | 3/4 | implementado (query `/my-day`; visão "dashboard" completa na Fase 4) |
+| 2 | 3 | implementado (UI `LostReasonModal` + trigger `fn_enforce_lost_reason`) |
 | 3 | 6/7 | pendente |
 | 4 | 6/7 | pendente |
-| 5 | 3 | pendente |
+| 5 | 3 | implementado (trigger `fn_log_stage_change`) |
 | 6 | 6 | pendente |
 | 7 | 5 | pendente |
 | 8 | 4,6,7 | pendente |
 | 9 | 8 | pendente |
-| 10 | 3+ | pendente |
+| 10 | 3+ | implementado parcialmente (`audit_log` gravado em mudanças de estágio/won/lost via `moveDealStage`; cobertura de companies/contacts/activities fica para revisão na Fase 9) |
 
 Atualizado ao fim de cada fase (`docs/IMPLEMENTATION_PLAN.md` referencia esta tabela).

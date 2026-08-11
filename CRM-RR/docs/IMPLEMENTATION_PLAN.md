@@ -18,11 +18,16 @@ compila.
       protegendo o grupo `(app)`. CRUD completo de companies e contacts com Server
       Actions + Zod, testado ponta a ponta no browser pelo usuário: login real,
       criação de empresa persistida e listada, criação de contato vinculado.
-- [ ] **Fase 3 — Pipeline/Deals/Activities/Stage History**: migration deals/
-      deal_stage_history/activities + triggers, Kanban dnd-kit, LostReasonModal,
-      `/deals/[id]`, `/my-day`.
-      Pronto quando: criar deal → mover 3+ estágios → registrar atividades → perder
-      com lost_reason obrigatório funciona ponta a ponta com histórico correto.
+- [x] **Fase 3 — Pipeline/Deals/Activities/Stage History**: migration deals/
+      deal_stage_history/activities/audit_log + triggers `fn_enforce_lost_reason`
+      (Regra 2) e `fn_log_stage_change` (Regra 5), Kanban drag-and-drop (`@dnd-kit`),
+      `LostReasonModal` reaproveitado no Kanban e no `StageMover` da página de deal,
+      `/deals/new`, `/deals/[id]` (timeline unificada de estágio+atividades,
+      atividades pendentes com concluir/excluir), `/my-day` (atrasado, hoje, sem
+      próxima ação, sem interação há 14+ dias). Build/lint/typecheck limpos.
+      **Pendente de verificação manual pelo usuário** (sessão em pausa): criar deal
+      real, arrastar entre estágios, mover para "Perdido" exigindo motivo, adicionar
+      e concluir atividade, conferir `/my-day`.
 - [ ] **Fase 4 — Dashboard/Analytics**: views (exceto ai_quality), `/dashboard` com
       Recharts, `/analytics/sql-learning`.
       Pronto quando: gráficos refletem dados reais do pipeline, não mock.

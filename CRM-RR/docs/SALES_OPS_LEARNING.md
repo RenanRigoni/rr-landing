@@ -11,5 +11,22 @@ CONCEITO DE SALES OPS: <nome do conceito>
 POR QUE IMPORTA: <explicação prática, sem jargão gratuito>
 ```
 
-_(sem entradas ainda — primeira entrada prevista ao final da Fase 4, com
-`deal_stage_history` / velocidade de pipeline)_
+```
+FEATURE: deal_stage_history (registro automático de transição de estágio)
+CONCEITO DE SALES OPS: Pipeline velocity / stage duration analysis
+POR QUE IMPORTA: Sem histórico de quando cada deal entrou e saiu de cada estágio,
+é impossível saber ONDE o processo comercial está travando. Um deal "parado" em
+Proposta por 40 dias é invisível se você só olha o estágio atual — só aparece
+quando você mede a duração de cada passagem. Essa é a base de qualquer análise de
+bottleneck (Fase 4) e é por isso que a gravação acontece via trigger de banco, não
+como uma responsabilidade opcional da UI.
+```
+
+```
+FEATURE: my-day (visão "sem próxima ação" / "sem interação há 14+ dias")
+CONCEITO DE SALES OPS: Follow-up management / pipeline hygiene
+POR QUE IMPORTA: A causa mais comum de deals perdidos por "sem resposta" não é o
+cliente ter sumido — é o vendedor não ter agendado o próximo contato. Tornar
+visível quais oportunidades estão sem uma próxima ação agendada transforma uma
+falha invisível de processo em um item acionável todo dia.
+```
