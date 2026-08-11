@@ -28,9 +28,16 @@ compila.
       **Pendente de verificação manual pelo usuário** (sessão em pausa): criar deal
       real, arrastar entre estágios, mover para "Perdido" exigindo motivo, adicionar
       e concluir atividade, conferir `/my-day`.
-- [ ] **Fase 4 — Dashboard/Analytics**: views (exceto ai_quality), `/dashboard` com
-      Recharts, `/analytics/sql-learning`.
-      Pronto quando: gráficos refletem dados reais do pipeline, não mock.
+- [x] **Fase 4 — Dashboard/Analytics**: 5 views (`v_funnel_conversion`,
+      `v_deal_stage_duration`, `v_lost_reason_summary`, `v_source_performance`,
+      `v_followup_health`) criadas com `security_invoker = true` (achado de
+      segurança corrigido na hora: views por padrão rodam com permissão do dono e
+      bypassam RLS — corrigido antes de qualquer teste). `/dashboard` com KPIs +
+      Recharts (funil, duração por estágio, motivos de perda, performance por
+      fonte). `/analytics/sql-learning` com 5 perguntas de negócio + SQL real +
+      contagem de registros ao vivo. Build/lint/typecheck limpos.
+      **Pendente de verificação manual** junto com a Fase 3 (dados ainda zerados —
+      sem deals reais criados até o momento).
 - [ ] **Fase 5 — Qualificação estruturada**: qualification_criteria (seed 6
       dimensões)/qualifications/qualification_scores/history, domain de score,
       `DealQualificationPanel`.

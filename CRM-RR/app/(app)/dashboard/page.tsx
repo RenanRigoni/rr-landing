@@ -1,11 +1,66 @@
-import { PhasePlaceholder } from '@/components/ui/PhasePlaceholder'
+import { KpiRow } from '@/components/dashboard/KpiRow'
+import { FunnelChart } from '@/components/dashboard/FunnelChart'
+import { StageDurationChart } from '@/components/dashboard/StageDurationChart'
+import { LostReasonChart } from '@/components/dashboard/LostReasonChart'
+import { SourcePerformanceTable } from '@/components/dashboard/SourcePerformanceTable'
+import { getDefaultPipeline } from '@/lib/queries/pipeline'
+import {
+  getDashboardKpis,
+  getFunnelConversion,
+  getStageDuration,
+  getLostReasonSummary,
+  getSourcePerformance,
+  getFollowupHealthSummary,
+} from '@/lib/queries/analytics'
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+  const pipeline = await getDefaultPipeline()
+  const [kpis, funnel, stageDuration, lostReasons, sourcePerformance, followupHealth] = await Promise.all([
+    getDashboardKpis(),
+    getFunnelConversion(pipeline.id),
+    getStageDuration(pipeline.id),
+    getLostReasonSummary(),
+    getSourcePerformance(),
+    getFollowupHealthSummary(),
+  ])
+
   return (
-    <PhasePlaceholder
-      title="Dashboard"
-      phase="Fase 4"
-      description="KPIs, funil de conversão, duração por estágio e lost reasons a partir das views crm.v_* — implementado na Fase 4 (Dashboard/Analytics)."
-    />
+    <div className="flex flex-col gap-8">
+      <div>
+        <h1 className="font-sans text-2xl font-semibold text-content-primary">Dashboard</h1>
+        <p className="text-sm text-content-secondary">
+          {followupHealth.overdue} atrasado{followupHealth.overdue !== 1 ? 's' : ''} ·{' '}
+          {followupHealth.no_next_action} sem próxima ação
+        </p>
+      </div>
+
+      <KpiRow kpis={kpis} />
+
+      <section className="flex flex-col gap-3">
+        <h2 className="font-mono text-[10px] uppercase tracking-[0.15em] text-content-muted">
+          Funil — deals que alcançaram cada estágio
+        </h2>
+        <FunnelChart data={funnel} />
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <h2 className="font-mono text-[10px] uppercase tracking-[0.15em] text-content-muted">
+          Tempo médio por estágio
+        </h2>
+        <StageDurationChart data={stageDuration} />
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <h2 className="font-mono text-[10px] uppercase tracking-[0.15em] text-content-muted">Motivos de perda</h2>
+        <LostReasonChart data={lostReasons} />
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <h2 className="font-mono text-[10px] uppercase tracking-[0.15em] text-content-muted">
+          Performance por fonte de aquisição
+        </h2>
+        <SourcePerformanceTable data={sourcePerformance} />
+      </section>
+    </div>
   )
 }

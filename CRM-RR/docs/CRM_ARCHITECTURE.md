@@ -93,6 +93,12 @@ Pipedrive/Linear). Diferenças deliberadas:
 - Browser nunca recebe a service role key. `lib/supabase/admin.ts` (service role) só é
   importado em código server-only (Server Actions, Route Handlers, scripts de seed).
 - Toda entrada de usuário passa por Zod antes de tocar o banco.
+- **Toda view criada em `crm.*` precisa de `ALTER VIEW ... SET (security_invoker = true)`.**
+  Sem isso, a view roda com a permissão do dono (o role usado pela migration, tipicamente
+  superuser) e ignora RLS — um usuário anônimo conseguiria ler os dados através da view
+  mesmo que a tabela base esteja protegida. Achado real na Fase 4 (views de analytics),
+  corrigido antes de qualquer verificação com dados reais. Checklist para toda view nova:
+  criar → `security_invoker = true` → `get_advisors(type: 'security')` sem novo alerta.
 
 ## Decisões em aberto / revisar depois
 

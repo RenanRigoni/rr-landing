@@ -383,8 +383,68 @@ export interface Database {
         Relationships: []
       }
     }
-    Views: Record<string, never>
-
+    Views: {
+      v_funnel_conversion: {
+        Row: {
+          pipeline_id: string
+          stage_id: string
+          stage_name: string
+          position: number
+          deals_reached: number
+          next_stage_deals_reached: number | null
+          conversion_to_next_pct: number | null
+        }
+        Relationships: []
+      }
+      v_deal_stage_duration: {
+        Row: {
+          stage_id: string
+          stage_name: string
+          pipeline_id: string
+          position: number
+          transitions_out: number
+          avg_days: number | null
+          median_days: number | null
+          max_days: number | null
+        }
+        Relationships: []
+      }
+      v_lost_reason_summary: {
+        Row: {
+          lost_reason_id: string
+          label: string
+          category: string
+          deals_lost: number
+          value_lost_cents: number
+          pct_of_all_lost: number | null
+        }
+        Relationships: []
+      }
+      v_source_performance: {
+        Row: {
+          source_id: string
+          source_name: string
+          total_deals: number
+          won_deals: number
+          lost_deals: number
+          win_rate_pct: number | null
+          avg_won_value_cents: number | null
+          total_won_value_cents: number
+          avg_qualification_score: number | null
+        }
+        Relationships: []
+      }
+      v_followup_health: {
+        Row: {
+          deal_id: string
+          title: string
+          company_id: string | null
+          value_cents: number
+          health_status: 'overdue' | 'due_soon' | 'no_next_action' | 'healthy'
+        }
+        Relationships: []
+      }
+    }
     Functions: Record<string, never>
     Enums: Record<string, never>
     CompositeTypes: Record<string, never>

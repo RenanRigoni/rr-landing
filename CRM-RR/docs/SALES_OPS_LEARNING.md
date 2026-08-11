@@ -30,3 +30,21 @@ cliente ter sumido — é o vendedor não ter agendado o próximo contato. Torna
 visível quais oportunidades estão sem uma próxima ação agendada transforma uma
 falha invisível de processo em um item acionável todo dia.
 ```
+
+```
+FEATURE: v_source_performance (win rate e ticket médio por fonte de aquisição)
+CONCEITO DE SALES OPS: Channel attribution / CAC-adjacent analysis
+POR QUE IMPORTA: Nem todo lead vale o mesmo. Uma fonte que gera muito volume mas
+converte pouco pode estar consumindo mais tempo de qualificação do que retorna em
+receita. Sem medir win rate POR FONTE (não só win rate geral), a decisão de "onde
+investir esforço de prospecção" é um chute.
+```
+
+```
+FEATURE: v_lost_reason_summary
+CONCEITO DE SALES OPS: Loss analysis / win-loss review
+POR QUE IMPORTA: Motivo de perda agregado revela se o problema é de processo
+(ex: "sem resposta" alto = falha de follow-up), de produto/oferta (ex: "preço" alto
+= possível desalinhamento de posicionamento) ou de qualificação (ex: "ICP incorreto"
+alto = triagem de entrada fraca). Cada categoria aponta para uma ação diferente.
+```

@@ -30,13 +30,27 @@ dias (limiar configurável futuramente).
 _(preenchido na Fase 5)_
 
 ## Como a conversão é calculada
-_(preenchido na Fase 4)_
+
+`crm.v_funnel_conversion` conta, por estágio, quantos deals já ENTRARAM nele (via
+`deal_stage_history.to_stage_id`, não o status atual do deal — um deal que já
+avançou continua contando no estágio anterior). A conversão para o próximo estágio
+é `next_stage_deals_reached / deals_reached`, calculada com a função de janela
+`lead()`. Isso é diferente de "quantos deals estão HOJE em cada estágio" (isso é só
+o board do Kanban) — conversão é sobre o histórico completo de passagens.
 
 ## Como a análise de lost reason funciona
-_(preenchido na Fase 4)_
+
+`crm.v_lost_reason_summary` agrupa deals com `status='lost'` pelo `lost_reason_id`.
+Isso só é confiável porque a Regra 2 torna `lost_reason_id` obrigatório no banco —
+não existe deal perdido sem motivo, então a análise nunca fica incompleta por
+preguiça de preenchimento.
 
 ## Como a saúde de follow-up funciona
-_(preenchido na Fase 4)_
+
+`crm.v_followup_health` classifica cada deal aberto em 4 estados: `overdue` (tem
+atividade pendente com `due_at` no passado), `due_soon` (vence nos próximos 3 dias),
+`no_next_action` (nenhuma atividade pendente) ou `healthy`. É a mesma lógica usada
+em `/my-day` e nos indicadores do topo do `/dashboard`.
 
 ## Como o feedback de IA funciona
 _(preenchido na Fase 7)_
