@@ -73,10 +73,10 @@ progressivamente a partir da Fase 3.
 |---|---|---|
 | 1 | 3/4 | implementado (query `/my-day`; visão "dashboard" completa na Fase 4) |
 | 2 | 3 | implementado (UI `LostReasonModal` + trigger `fn_enforce_lost_reason`) |
-| 3 | 6/7 | pendente |
-| 4 | 6/7 | pendente |
+| 3 | 6/7 | implementado (`ai_runs.applied=false` por padrão; `applyQualificationSuggestion`/`acknowledgeAiRun` só rodam em clique humano) |
+| 4 | 6/7 | implementado (`ai_prompts` só recebe INSERT de nova versão; índice único parcial garante 1 ativo por slug) |
 | 5 | 3 | implementado (trigger `fn_log_stage_change`) |
-| 6 | 6 | pendente |
+| 6 | 6 | implementado (`runAiPrompt` é o único ponto de chamada à IA; loga sucesso e erro em `ai_runs`) |
 | 7 | 5 | implementado (`qualification_scores.rationale NOT NULL` no banco + `computeOverallScore`/`classifyQualificationFactors` testados) |
 | 8 | 4,6,7 | implementado para dashboard/analytics (views `crm.v_*` são a única fonte de números em `/dashboard` e `/analytics/sql-learning`; cobertura de IA fica para Fase 6/7) |
 | 9 | 8 | pendente |

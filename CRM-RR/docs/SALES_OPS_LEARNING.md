@@ -59,3 +59,14 @@ orçamento, timing, engajamento) diz exatamente ONDE a oportunidade é fraca —
 baixo porque não temos acesso ao decisor". Isso é a diferença entre pontuar um
 lead e efetivamente qualificá-lo.
 ```
+
+```
+FEATURE: assistente de IA com Aplicar/Rejeitar (ai_runs.applied, human-in-the-loop)
+CONCEITO DE SALES OPS: Human-in-the-loop AI / AI-assisted qualification
+POR QUE IMPORTA: IA em processo comercial erra de forma diferente de um humano —
+alucina contexto que não foi dado, é overconfident quando falta informação. Nunca
+aplicar output de IA direto no CRM (sempre exigir Aplicar/Rejeitar) não é
+burocracia: é o mecanismo que torna possível medir depois se a IA estava certa
+(Fase 7) e é o que evita que um erro de IA vire dado "oficial" do pipeline sem
+ninguém perceber.
+```

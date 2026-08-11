@@ -7,6 +7,9 @@ import { DealTimeline } from '@/components/deals/DealTimeline'
 import { ActivityForm } from '@/components/deals/ActivityForm'
 import { ActivityList } from '@/components/deals/ActivityList'
 import { DealQualificationPanel } from '@/components/deals/DealQualificationPanel'
+import { AiQualifyButton } from '@/components/ai/AiQualifyButton'
+import { AiSummarizeButton } from '@/components/ai/AiSummarizeButton'
+import { AiDraftEmailButton } from '@/components/ai/AiDraftEmailButton'
 import { DeleteButton } from '@/components/ui/DeleteButton'
 import { deleteDeal } from '@/lib/actions/deals'
 import { getDeal, listDealStageHistory } from '@/lib/queries/deals'
@@ -74,6 +77,15 @@ export default async function DealDetailPage({ params }: DealDetailPageProps) {
             </h2>
             <ActivityList dealId={deal.id} activities={activities} />
             <ActivityForm dealId={deal.id} />
+          </section>
+
+          <section className="flex flex-col gap-3">
+            <h2 className="font-mono text-[10px] uppercase tracking-[0.15em] text-content-muted">Assistente de IA</h2>
+            <div className="flex flex-wrap gap-3">
+              <AiQualifyButton dealId={deal.id} />
+              <AiSummarizeButton dealId={deal.id} />
+              <AiDraftEmailButton dealId={deal.id} />
+            </div>
           </section>
 
           <section className="flex flex-col gap-3">

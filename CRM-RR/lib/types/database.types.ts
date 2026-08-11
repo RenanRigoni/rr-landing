@@ -491,6 +491,99 @@ export interface Database {
         Update: Partial<Database['crm']['Tables']['qualification_history']['Insert']>
         Relationships: []
       }
+      ai_prompts: {
+        Row: {
+          id: string
+          slug: string
+          version: number
+          title: string
+          system_prompt: string
+          user_prompt_template: string
+          model: string
+          temperature: number
+          is_active: boolean
+          notes: string | null
+          created_at: string
+          created_by: string | null
+        }
+        Insert: {
+          id?: string
+          slug: string
+          version: number
+          title: string
+          system_prompt: string
+          user_prompt_template: string
+          model?: string
+          temperature?: number
+          is_active?: boolean
+          notes?: string | null
+          created_at?: string
+          created_by?: string | null
+        }
+        Update: Partial<Database['crm']['Tables']['ai_prompts']['Insert']>
+        Relationships: []
+      }
+      ai_runs: {
+        Row: {
+          id: string
+          prompt_id: string
+          deal_id: string | null
+          company_id: string | null
+          contact_id: string | null
+          input_payload: Json
+          raw_response: string | null
+          parsed_output: Json | null
+          status: 'pending_review' | 'reviewed' | 'error'
+          model: string | null
+          input_tokens: number | null
+          output_tokens: number | null
+          latency_ms: number | null
+          cost_usd: number | null
+          error_message: string | null
+          applied: boolean
+          created_at: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+        }
+        Insert: {
+          id?: string
+          prompt_id: string
+          deal_id?: string | null
+          company_id?: string | null
+          contact_id?: string | null
+          input_payload: Json
+          raw_response?: string | null
+          parsed_output?: Json | null
+          status?: 'pending_review' | 'reviewed' | 'error'
+          model?: string | null
+          input_tokens?: number | null
+          output_tokens?: number | null
+          latency_ms?: number | null
+          cost_usd?: number | null
+          error_message?: string | null
+          applied?: boolean
+          created_at?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+        }
+        Update: Partial<Database['crm']['Tables']['ai_runs']['Insert']>
+        Relationships: [
+          {
+            foreignKeyName: 'ai_runs_prompt_id_fkey'
+            columns: ['prompt_id']
+            isOneToOne: false
+            referencedRelation: 'ai_prompts'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'ai_runs_deal_id_fkey'
+            columns: ['deal_id']
+            isOneToOne: false
+            referencedRelation: 'deals'
+            referencedColumns: ['id']
+          },
+        ]
+      }
     }
     Views: {
       v_funnel_conversion: {

@@ -49,10 +49,25 @@ compila.
       card do Kanban e alimenta a seção "Alta prioridade" do `/my-day`. Build, lint,
       typecheck e testes limpos.
       **Pendente de verificação manual** junto com Fases 3/4.
-- [ ] **Fase 6 — Infra IA**: Vercel AI Gateway, ai_prompts/ai_runs, seed 3 prompts v1,
-      `lib/ai/gateway.ts`, `/ai-quality`.
-      Pronto quando: IA real gera resposta via Gateway, loga tokens/custo, fica
-      pendente de revisão.
+- [x] **Fase 6 — Infra IA**: `ai_prompts` (versionado, unique parcial 1 ativo por
+      slug) + `ai_runs`, seed real de 3 prompts v1 (`qualify-deal`,
+      `summarize-deal`, `draft-followup-email`, modelo `anthropic/claude-sonnet-5`
+      via AI Gateway — slug confirmado contra `GET ai-gateway.vercel.sh/v1/models`,
+      não veio de memória). `lib/ai/gateway.ts` (`runAiPrompt`, único ponto de
+      chamada, loga toda execução inclusive erro) usando `generateText` +
+      `Output.object()` do `ai@7` (API nova — `generateObject` está deprecated).
+      3 botões reais na página do deal (Analisar qualificação / Resumir / Rascunhar
+      e-mail), cada um com Aplicar/Rejeitar — `applyQualificationSuggestion` só
+      grava em `qualification_scores` após clique humano explícito (Regra 3).
+      `/ai-quality` com execuções recentes e taxa de aceitação básica (view
+      `v_ai_quality_summary` completa vem na Fase 7 com feedback estruturado).
+      Build/lint/typecheck/testes limpos.
+      **Bloqueado para teste real**: falta `AI_GATEWAY_API_KEY` no `.env.local`
+      (Vercel Dashboard → Team Settings → AI Gateway → API Keys — projeto ainda
+      não está linkado a um projeto Vercel, então OIDC automático não se aplica
+      ainda). Sem a chave, os 3 botões de IA retornam erro de autenticação — todo
+      o resto (schema, UI, fluxo de aceitar/rejeitar) está pronto e será testado
+      assim que a chave for adicionada.
 - [ ] **Fase 7 — Feedback IA + Prompt Lab**: ai_feedback/prompt_lab_comparisons +
       view ai_quality, `/prompt-lab`.
       Pronto quando: v2 comparada com v1 no mesmo input real, vencedor registrado,

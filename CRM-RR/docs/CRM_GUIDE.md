@@ -71,10 +71,24 @@ atividade pendente com `due_at` no passado), `due_soon` (vence nos próximos 3 d
 em `/my-day` e nos indicadores do topo do `/dashboard`.
 
 ## Como o feedback de IA funciona
-_(preenchido na Fase 7)_
+_(preenchido na Fase 7 — avaliação estruturada com categoria de erro)_
 
 ## Como o versionamento de prompt funciona
-_(preenchido na Fase 6/7)_
+
+`crm.ai_prompts` nunca é atualizado no conteúdo — cada mudança de prompt é uma nova
+linha (`slug` + `version` incrementado). Um índice único parcial garante que só
+existe 1 versão `is_active=true` por slug, e é essa versão ativa que
+`lib/ai/gateway.ts::runAiPrompt` busca em toda chamada — o código nunca referencia
+um prompt hardcoded, só a slug (`qualify-deal`, `summarize-deal`,
+`draft-followup-email`). O template usa `{{placeholders}}` renderizados por
+`lib/ai/render-template.ts`. Comparar versões lado a lado é o Prompt Lab (Fase 7).
+
+Toda chamada de IA passa por esse único ponto (`runAiPrompt`), que grava em
+`crm.ai_runs` mesmo quando a chamada falha (`status='error'`) — não existe execução
+de IA "invisível". Nenhum resultado é aplicado ao CRM automaticamente: os botões de
+IA na página do deal (Analisar qualificação / Resumir / Rascunhar e-mail) sempre
+terminam em "Aplicar"/"Rejeitar" — a aplicação real (ex: gravar
+`qualification_scores`) só acontece depois desse clique humano.
 
 ## Como bottlenecks são detectados
 _(preenchido na Fase 4)_
