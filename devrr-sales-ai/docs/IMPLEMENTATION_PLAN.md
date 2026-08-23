@@ -94,14 +94,40 @@ página inicial renderiza com as fontes e cores da marca corretas.
 **Pronto quando:** typecheck passa; `admin.ts` tem `import 'server-only'`; nenhum
 arquivo de `components/` importa `@/lib/supabase`.
 
-### [ ] 1.3 Env validado no boot
+### [x] 1.3 Env validado no boot
 
-- `.env.example` com as 5 variáveis de `ARCHITECTURE.md` → Ambiente.
-- `lib/env.ts`: schema Zod validando as variáveis, exportando objeto tipado.
-  Server-side falha no import se faltar. `NEXT_PUBLIC_*` valida separado.
-- Todo acesso a `process.env` no código passa a ser via `lib/env.ts`.
-- `.env.local` real preenchido com as credenciais do projeto `fvgbbixxcapltudonxqx`
-  (copiar de `../CRM-RR/.env.local`, gerar `CRON_SECRET` novo). **Não commitar.**
+> feito: `.env.example` com as 5 variáveis. `.env.local` copiado de
+> `../CRM-RR/.env.local` (mesmo projeto Supabase `fvgbbixxcapltudonxqx`) com
+> `CRON_SECRET` novo gerado por `crypto.randomBytes(32)` — confirmado diferente
+> do do CRM-RR por hash, sem imprimir nenhum segredo no terminal em nenhum
+> momento da tarefa. `lib/supabase/{client,server,admin,middleware}.ts`
+> atualizados para usar `publicEnv`/`serverEnv` em vez de `process.env` direto.
+>
+> **Desvio registrado:** `lib/env.ts` foi dividido em **dois arquivos** —
+> `lib/env.ts` (público, sem `server-only`) e `lib/env.server.ts` (server-only,
+> com `import 'server-only'`) — em vez de um único arquivo. Necessário: se as
+> duas validações vivessem no mesmo módulo com `import 'server-only'` no topo,
+> `lib/supabase/client.ts` (bundle do browser) quebraria ao importar a parte
+> pública. A frase do plano "`NEXT_PUBLIC_*` valida separado" já apontava nessa
+> direção; a divisão em arquivo só torna a separação inevitável pela regra de
+> `ARCHITECTURE.md` → Segurança ("service role key só em server-only"). Não é
+> mudança de arquitetura, é a forma correta de cumprir a arquitetura já escrita.
+>
+> **Verificação do critério "pronto quando":** testado com script `tsx`
+> descartável (criado e removido na própria tarefa, nunca commitado) que
+> importa `lib/env.ts` diretamente com variável ausente — confirma erro claro
+> isolando exatamente a variável faltante, em 3 cenários (ambas ausentes, ambas
+> presentes, só uma ausente). `npm run build` **não** serve para provar isso:
+> Next.js compila o proxy/middleware sem executar o corpo do módulo — a
+> validação só dispara quando o código roda de fato numa request. Para
+> `lib/env.server.ts`, confirmei que a guarda `server-only` está ativa (bloqueia
+> import fora de contexto real de servidor Next); a validação Zod em si usa
+> padrão idêntico ao público mas só será exercitada quando algo importar
+> `admin.ts` (Fase 2+), o AI Gateway (Fase 5) ou o cron (Fase 6) — nenhum existe
+> ainda, e criar um agora seria antecipar tarefa futura, fora do escopo da 1.3.
+>
+> Validação: `typecheck`/`lint`/`build` limpos com `.env.local` completo.
+> `test` sem arquivos — fora de escopo, mesma situação da 1.1/1.2.
 
 **Pronto quando:** remover uma variável do `.env.local` derruba o boot com mensagem
 clara dizendo qual variável falta.
