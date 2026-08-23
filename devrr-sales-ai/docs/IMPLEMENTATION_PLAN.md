@@ -68,14 +68,28 @@ Scaffold em `devrr-sales-ai/` (a pasta já existe com `docs/` e `CLAUDE.md` — 
 **Pronto quando:** `npm run dev` sobe, `npm run build` passa, `npm run typecheck` limpo,
 página inicial renderiza com as fontes e cores da marca corretas.
 
-### [ ] 1.2 Configurar clientes Supabase
+### [x] 1.2 Configurar clientes Supabase
 
-Portar de `../CRM-RR/lib/supabase/` — cópia direta, trocando `'crm'` por `'sales'`:
-
-- `client.ts` (browser), `server.ts` (RSC/Server Action), `admin.ts` (service role,
-  com `import 'server-only'`), `middleware.ts` (refresh de sessão).
-- `proxy.ts` / `middleware.ts` na raiz do projeto, mesmo padrão do CRM-RR.
-- `lib/types/database.types.ts` — placeholder por enquanto; será gerado na 2.1.
+> feito: portado `lib/supabase/{client,server,admin,middleware}.ts` do CRM-RR,
+> trocando `'crm'` por `'sales'`. `proxy.ts` criado na raiz (CRM-RR não tem
+> `middleware.ts` — Next 16 usa a convenção `proxy.ts`, confirmado lendo o
+> projeto de origem). `lib/types/database.types.ts` como placeholder:
+> `Database.sales` com todas as seções `Record<string, never>` (typechecka
+> contra `createServerClient<Database, 'sales'>` por compatibilidade
+> estrutural de índice — `never` satisfaz qualquer tipo de valor). Será
+> substituído pelos types gerados na tarefa 2.1.
+>
+> **Desvio registrado:** `lib/supabase/middleware.ts` do CRM-RR redireciona
+> usuário autenticado em `/login` para `/my-day` (rota daquele projeto). Aqui
+> a home autenticada é `/today` (`docs/ARCHITECTURE.md` → Rotas), então o
+> redirect foi ajustado para `/today` em vez de copiado literalmente — copiar
+> `/my-day` criaria um redirect para rota inexistente neste projeto. Não é
+> mudança de arquitetura, é correção do artefato de cópia.
+>
+> Validação: `typecheck`/`lint`/`build` limpos (build reconhece `ƒ Proxy
+> (Middleware)`); `admin.ts` com `import 'server-only'` na linha 1 confirmado;
+> `grep` em `components/` por `@/lib/supabase` sem match. `test` sem arquivos
+> — fora de escopo da 1.2, mesma situação da 1.1.
 
 **Pronto quando:** typecheck passa; `admin.ts` tem `import 'server-only'`; nenhum
 arquivo de `components/` importa `@/lib/supabase`.
