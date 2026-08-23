@@ -1,0 +1,82 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Tokens da marca DevRR (ver ../DESIGN.md e docs/DESIGN_SYSTEM.md), definidos
+ * como CSS custom properties em vez de hex direto no Tailwind config — troca
+ * de tema por organização (white-label) vira injetar um <style> com estas
+ * variáveis, sem tocar em nenhum componente (docs/DECISIONS.md D-009).
+ * Formato "R G B" (sem função rgb()) para compor com <alpha-value> do Tailwind.
+ */
+:root {
+  color-scheme: dark;
+
+  --color-brand-50: 13 24 41;
+  --color-brand-100: 21 34 64;
+  --color-brand-200: 30 53 102;
+  --color-brand-400: 96 165 250;
+  --color-brand-500: 59 130 246;
+  --color-brand-600: 37 99 235;
+  --color-brand-700: 29 78 216;
+  --color-brand-900: 30 58 95;
+
+  --color-surface: 7 7 15;
+  --color-surface-muted: 11 11 22;
+  --color-surface-elevated: 16 16 30;
+  --color-surface-card: 14 20 40;
+  --color-surface-footer: 8 14 26;
+
+  --color-content-primary: 241 245 249;
+  --color-content-secondary: 148 163 184;
+  --color-content-muted: 100 116 139;
+
+  --color-success: 16 185 129;
+  --color-danger: 248 113 113;
+  --color-warning: 251 191 36;
+  --color-accent: 139 92 246;
+}
+
+@layer base {
+  * {
+    @apply border-white/[0.08];
+  }
+
+  html {
+    @apply bg-surface;
+  }
+
+  body {
+    @apply bg-surface font-sans text-content-primary antialiased;
+  }
+
+  ::selection {
+    @apply bg-brand-600/40 text-content-primary;
+  }
+
+  :focus-visible {
+    @apply outline-none ring-2 ring-brand-400 ring-offset-2 ring-offset-surface;
+  }
+}
+
+@layer utilities {
+  .font-tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

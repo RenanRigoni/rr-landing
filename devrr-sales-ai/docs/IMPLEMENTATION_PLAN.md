@@ -32,7 +32,20 @@ Se a tarefa estiver ambígua ou exigir decisão de arquitetura que não está no
 Objetivo: aplicação Next.js rodando local, autenticada, com env validado. Nenhuma
 regra de negócio ainda.
 
-### [ ] 1.1 Criar estrutura Next.js
+### [x] 1.1 Criar estrutura Next.js
+
+> feito: scaffold manual (não via CLI — pasta não vazia) em `package.json`,
+> `tsconfig.json`, `next.config.ts`, `tailwind.config.ts`, `postcss.config.mjs`,
+> `eslint.config.mjs`, `vitest.config.ts`, `.gitignore`, `app/layout.tsx`,
+> `app/page.tsx`, `app/globals.css`. Versões pinadas iguais ao CRM-RR (sem
+> `@dnd-kit`/`recharts` — não usados até Fase 9/11, YAGNI). Cores em CSS custom
+> properties (`:root` em `globals.css`, consumidas via `rgb(var(...) /
+> <alpha-value>)` no tailwind config) conforme D-009; `shadow-glow-sm` omitido
+> de propósito (DESIGN_SYSTEM.md: zero glow no produto). Diretórios vazios de
+> `lib/*`, `components/`, `supabase/{migrations,seed}` criados com `.gitkeep`.
+> `npm install` (455 pacotes), `typecheck`/`lint`/`build` limpos, `dev` testado
+> manualmente (HTML confere fontes e classes de cor). `npm run test` sem
+> arquivos ainda — esperado, domínio só entra na Fase 3.3+.
 
 Scaffold em `devrr-sales-ai/` (a pasta já existe com `docs/` e `CLAUDE.md` — não apagar).
 
