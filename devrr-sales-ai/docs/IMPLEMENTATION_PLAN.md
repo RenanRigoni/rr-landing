@@ -183,6 +183,60 @@ sessão, sidebar mostra o logo certo conforme `DESIGN_SYSTEM.md`.
 
 ---
 
+## ✅ Checkpoint Opus — fim da Fase 1 (2026-08-23) — **APROVADO**
+
+Revisado: `CLAUDE.md`, os seis docs, todo o código das tarefas 1.1–1.4 e os commits
+`b8e6712`, `3d3d9c5`, `ceb57d5`, `c510f4b`.
+
+**Aderente.** Nenhuma antecipação de funcionalidade: `lib/domain/`, `lib/queries/` e
+`lib/ai/` continuam vazios; `recharts`/`@dnd-kit` corretamente fora; menu só com
+`/today`. Os três desvios registrados pelo Sonnet (redirect `/my-day`→`/today`,
+`proxy.ts` em vez de `middleware.ts`, env em dois arquivos) eram corretos — os dois
+últimos viraram `DECISIONS.md` D-011 e D-012.
+
+**Verificado por execução, não por leitura:**
+
+- `grep` em `app/` e `components/`: zero import de `@/lib/supabase` — a regra de camada
+  de `ARCHITECTURE.md` se sustenta.
+- `@/lib/env.server` é importado por exatamente um arquivo, `lib/supabase/admin.ts`,
+  que tem `import 'server-only'` na linha 1. Único `'use client'` do projeto é
+  `LoginForm.tsx`, que não toca em nenhum dos dois.
+- `git grep` por padrão de JWT/service-role em arquivo versionado: nada. `.env.local`
+  não rastreado.
+- Schema `sales` **ainda não existe** no Supabase (`pg_namespace` só tem `crm` e
+  `public`) — estado correto para começar a 2.1.
+
+**Achados corrigidos aqui, nos docs (motivo do commit deste checkpoint):**
+
+1. `DATABASE.md` mandava `grant ... on all tables in schema sales` na migration 0001,
+   quando ainda não existe tabela nenhuma. As tabelas da 0002 em diante nasceriam sem
+   privilégio e o PostgREST devolveria `permission denied for table organizations`
+   **antes** de a RLS ser consultada — a 2.2 quebraria e pareceria erro de policy.
+   Confirmado no próprio projeto Supabase: o schema `crm`, que funciona, tem
+   `alter default privileges` configurado. `DATABASE.md` → Grants reescrito.
+2. `0009_views.sql` (fase 4.3) vinha depois de `0008_audit.sql` (fase 5.4) — numeração
+   contra a ordem de aplicação. Trocados: views = `0008`, audit = `0009`.
+3. `ARCHITECTURE.md` → Ambiente ainda descrevia um único `lib/env.ts`. Atualizado para
+   os dois arquivos que existem de fato.
+
+**Achados registrados, a resolver na tarefa indicada (nenhum bloqueia a 2.1):**
+
+| # | Achado | Gravidade | Onde resolver |
+|---|---|---|---|
+| A | `npm run test` sai com código **1** ("No test files found"), então a cadeia `typecheck && lint && test` do `CLAUDE.md` aborta antes do commit em toda tarefa sem teste (2.1, 2.2, 2.3). | importante | primeiro passo da 2.1 |
+| B | O matcher do `proxy.ts` engole `/api/cron/*`: sem cookie, a request do Cron leva `307` para `/login` e a rota nunca roda, **sem erro visível**. Defeito herdado do CRM-RR, que já tem `app/api/cron/` com o mesmo matcher. | importante | 6.3, antes da primeira rota de cron |
+| C | `app/page.tsx` ainda é o placeholder da 1.1. Usuário autenticado que abre `/` cai numa página que diz "Fundação do projeto" em vez do app. | melhoria | 2.3, junto do onboarding |
+| D | `lib/env.server.ts` valida `AI_GATEWAY_API_KEY` junto com o resto, e `admin.ts` importa `serverEnv` — então o seed da 6.1 vai exigir a chave de IA sem usá-la. | melhoria | 6.1, se incomodar |
+| E | Favicon não existe (`logo-icon-color.svg` / `logo-monogram-color.svg` do `DESIGN_SYSTEM.md`); o console do browser acusa 404. | melhoria | qualquer tarefa de UI |
+
+**Fora do escopo deste projeto, reportado:** `tsconfig.json` da raiz do repo compila os
+projetos irmãos (281 erros de tipo hoje, pré-existentes). Registrado como `Q-004` em
+`DECISIONS.md`.
+
+**Veredito: LIBERADO para a tarefa 2.1.**
+
+---
+
 # FASE 2 — Multiempresa
 
 Objetivo: isolamento por organização funcionando de verdade, provado por teste.
@@ -190,9 +244,19 @@ Esta é a fase que não pode ser feita depois. Checkpoint Opus ao final.
 
 ### [ ] 2.1 Migration de fundação + enums
 
+**Passo 0 (achado A do checkpoint da Fase 1):** trocar o script `test` do
+`package.json` para `vitest run --passWithNoTests`. Sem isso, `npm run test` sai com
+código 1 enquanto não houver arquivo de teste e a cadeia
+`typecheck && lint && test` do `CLAUDE.md` aborta antes do commit desta tarefa e das
+duas seguintes. Some sozinho na 2.4, mas atrapalha até lá.
+
 `supabase/migrations/0001_schema_and_helpers.sql` conforme `DATABASE.md`:
 schema `sales`, grants, `fn_set_updated_at()`, `current_org_ids()` (`security definer`
 + `set search_path`), todos os enums.
+
+Os grants incluem `alter default privileges` — copiar o bloco de `DATABASE.md` →
+Grants **inteiro**. Só `grant on all tables` não cobre as tabelas da 0002 em diante, e
+o sintoma é `permission denied` parecendo erro de RLS.
 
 Depois: expor `sales` em Settings → API → Exposed schemas; gerar
 `lib/types/database.types.ts`; rodar `get_advisors(type:'security')`.
@@ -370,7 +434,7 @@ supabase/next no arquivo.
 - `lib/actions/leads.ts` → `markResponded(leadId)`: grava `responded_at`, cancela
   **todos** os automáticos pendentes, grava `audit_log`, cria atividade de histórico.
 - Follow-up manual (`is_auto = false`) **nunca** é cancelado automaticamente.
-- `0009_views.sql`: `v_today_actions` e `v_leads_without_action`, ambas com
+- `0008_views.sql`: `v_today_actions` e `v_leads_without_action`, ambas com
   `security_invoker = true`. Advisors limpo.
 
 ### [ ] 4.4 Tela "Ações de hoje"
@@ -450,7 +514,7 @@ escrever bobagem sobre preço. Regra da `PRODUCT_SPEC.md` #1 aplicada na prátic
   como `reviewed`. `Descartar` marca `discarded`.
 - `Copiar` copia para a área de transferência com feedback visual. **Nada é enviado
   automaticamente no MVP.**
-- `0008_audit.sql` + `lib/actions/audit.ts` portado do CRM-RR: registrar
+- `0009_audit.sql` + `lib/actions/audit.ts` portado do CRM-RR: registrar
   `create`/`update`/`stage_change`/`cancel_followups`/`ai_used`.
 
 **Pronto quando:** dá pra gerar mensagem para um lead real, editar, copiar, colar no
@@ -478,6 +542,12 @@ WhatsApp e marcar como enviada — e o `ai_run` fica registrado com tokens e lat
 - Meta de cobertura: **100% em `lib/domain/`**, 80% no resto.
 
 ### [ ] 6.3 Reconciliação de caches
+
+**Antes de escrever a rota (achado B do checkpoint da Fase 1):** excluir `api/cron` do
+matcher do `proxy.ts`. Como está, `updateSession` redireciona qualquer request sem
+cookie de sessão para `/login` — e a request do Cron da Vercel se autentica por header,
+não por cookie. O resultado seria `307` e nenhuma execução, sem erro nenhum no log. O
+CRM-RR tem esse defeito hoje. Ver `DECISIONS.md` D-012.
 
 `app/api/cron/reconcile/route.ts`, protegido por `CRON_SECRET` comparado em tempo
 constante. Recalcula `next_action_at` e `last_contact_at` de todos os leads abertos e

@@ -186,6 +186,53 @@ não salva.
 
 ---
 
+## D-011 — Env em dois arquivos: `env.ts` (público) e `env.server.ts` (servidor)
+
+**Data:** 2026-08-23 · **Status:** decidido no checkpoint da Fase 1 · **Origem:** Sonnet, tarefa 1.3
+
+`lib/env.ts` valida só `NEXT_PUBLIC_*` e **não** importa `server-only`.
+`lib/env.server.ts` valida `SUPABASE_SERVICE_ROLE_KEY`, `AI_GATEWAY_API_KEY` e
+`CRON_SECRET`, e importa `server-only` na primeira linha.
+
+**Por quê:** `lib/supabase/client.ts` roda no browser e precisa das públicas. Se as duas
+validações vivessem no mesmo módulo com `server-only` no topo, o bundle do browser
+quebraria no build. Com um módulo só sem `server-only`, o nome das variáveis de servidor
+entraria em código de cliente — exatamente o que `ARCHITECTURE.md` → Segurança proíbe.
+
+**Regra que isso cria:** nada que possa acabar no bundle do browser importa
+`@/lib/env.server`. Hoje só `lib/supabase/admin.ts` importa (e ele já é `server-only`).
+Vale a mesma verificação por grep que já existe para `@/lib/supabase` em `components/`.
+
+**Custo aceito:** dois arquivos em vez de um; `zod` entra no bundle do browser via
+`lib/env.ts` (alguns KB, aceitável pelo ganho de falhar no boot em vez de em produção).
+
+---
+
+## D-012 — `proxy.ts` é o único ponto de sessão, e o matcher é parte do contrato
+
+**Data:** 2026-08-23 · **Status:** decidido no checkpoint da Fase 1
+
+Next.js 16 usa `proxy.ts` na raiz (não `middleware.ts`). Ele só chama
+`updateSession` de `lib/supabase/middleware.ts`, que renova a sessão e faz dois
+redirects: sem usuário → `/login`; com usuário em `/login` → `/today`.
+
+**O matcher não é detalhe de configuração, é regra de segurança e de funcionamento:**
+
+- tudo que não é asset estático passa por ali — é o que garante que nenhuma rota de
+  aplicação nasce desprotegida por esquecimento;
+- por isso mesmo, **toda rota que se autentica por outro mecanismo tem que ser
+  excluída explicitamente**. O caso concreto é `/api/cron/*`, que se autentica por
+  `CRON_SECRET` e não tem cookie: hoje ela levaria `307` para `/login` e falharia em
+  silêncio. Corrigir na 6.3, antes de existir a primeira rota de cron.
+
+**Descartado:** proteger rota por rota dentro de cada layout — dá o mesmo resultado
+quando você lembra, e deixa buraco quando esquece. O default seguro vale mais que a
+granularidade.
+
+**Custo aceito:** uma chamada a `supabase.auth.getUser()` por request.
+
+---
+
 ## Questões abertas
 
 Sonnet: adicione aqui o que travar. Opus resolve no próximo checkpoint.
@@ -197,3 +244,10 @@ Sonnet: adicione aqui o que travar. Opus resolve no próximo checkpoint.
 - **Q-003** — Multi-usuário por organização: `org_members` já suporta, mas não há
   "dono do lead" (`assigned_to`). Adicionar quando existir a primeira PME com 2+
   vendedores. Não antes.
+- **Q-004** — `tsconfig.json` da **raiz** do repo inclui `**/*.ts` sem excluir os
+  projetos irmãos, então `npx tsc --noEmit` na raiz compila `CRM-RR/` e
+  `devrr-sales-ai/` contra o `node_modules` e o alias `@/*` do `rr-landing`: 281 erros
+  hoje (263 do CRM-RR, 18 daqui). É pré-existente e não afeta os builds de cada
+  projeto isoladamente, mas é dívida do repositório. Correção mínima: adicionar
+  `"CRM-RR"` e `"devrr-sales-ai"` ao `exclude` do tsconfig da raiz. Fora do escopo
+  deste projeto — decisão do dono do `rr-landing`.

@@ -60,9 +60,34 @@ create policy tenant_isolation on sales.<tabela>
   with check (org_id in (select sales.current_org_ids()));
 ```
 
-Exposição do schema à API: `grant usage on schema sales to authenticated;` +
-`grant select, insert, update, delete on all tables in schema sales to authenticated;`
-e adicionar `sales` em **Settings → API → Exposed schemas**.
+### Grants — o detalhe que quebra a migration 0002 se for esquecido
+
+```sql
+grant usage on schema sales to authenticated, service_role;
+
+-- Cobre as tabelas que já existem no momento em que a migration roda.
+grant select, insert, update, delete on all tables in schema sales
+  to authenticated, service_role;
+
+-- Cobre TODA tabela criada daqui em diante (0002, 0003, ...).
+-- Sem isto, a primeira tabela da migration 0002 nasce sem privilégio e o
+-- PostgREST devolve "permission denied for table organizations" — antes mesmo
+-- da RLS ser consultada. Verificado: o schema `crm` deste mesmo projeto
+-- Supabase tem default privileges configurados; é o que faz ele funcionar.
+alter default privileges in schema sales
+  grant select, insert, update, delete on tables to authenticated, service_role;
+alter default privileges in schema sales
+  grant usage, select on sequences to authenticated, service_role;
+alter default privileges in schema sales
+  grant execute on functions to authenticated, service_role;
+```
+
+E adicionar `sales` em **Settings → API → Exposed schemas**.
+
+**Não conceder nada a `anon`.** O `crm` concede (herança de configuração), mas aqui
+todas as policies são `for all to authenticated`: dar privilégio de tabela a `anon`
+não habilita nada e só aumenta a superfície se alguma policy futura for escrita sem
+o `to authenticated`.
 
 ## Enums
 
@@ -462,8 +487,12 @@ alter view sales.v_leads_without_action set (security_invoker = true);
 | `0005_activities.sql` | `activities`, índices, RLS | 4.1 |
 | `0006_followup_rules.sql` | `followup_rules` + seed | 4.1 |
 | `0007_ai.sql` | `ai_prompts`, `ai_runs` + seed de prompts | 5.1 |
-| `0008_audit.sql` | `audit_logs` | 5.4 |
-| `0009_views.sql` | `v_today_actions`, `v_leads_without_action` + `security_invoker` | 4.3 |
+| `0008_views.sql` | `v_today_actions`, `v_leads_without_action` + `security_invoker` | 4.3 |
+| `0009_audit.sql` | `audit_logs` | 5.4 |
+
+A numeração segue a **ordem de aplicação**, não a ordem das fases: as views (4.3)
+entram antes da auditoria (5.4), então são `0008`, não `0009`. Replay do zero precisa
+funcionar lendo os arquivos em ordem alfabética.
 
 Cada migration: arquivo commitado → aplicado → `get_advisors(type:'security')` sem
 alerta novo → esta doc atualizada → `npm run typecheck` com types regerados.

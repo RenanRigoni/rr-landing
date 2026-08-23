@@ -138,6 +138,7 @@ app/(app)/leads/[leadId]            detalhe: dados, histórico, follow-ups, IA
 app/(app)/contacts                  contatos
 app/(app)/settings/*                pipeline, fontes, regras de follow-up, prompts
 app/api/cron/*                      cron Vercel, protegido por CRON_SECRET
+                                    ATENCAO: excluir do matcher do proxy.ts
 
 # depois do MVP
 app/(app)/pipeline                  Kanban (Fase 9)
@@ -149,6 +150,15 @@ app/(app)/dashboard                 KPIs (Fase 11)
 
 Menu inicial mostra só: **Hoje · Leads · Contatos · Configurações.** Item de menu só
 aparece quando o módulo existe de verdade.
+
+**`proxy.ts` e `/api/cron/*`:** o matcher atual pega tudo que não é asset estático, e
+`updateSession` redireciona toda request sem sessão para `/login`. Uma request do Cron
+da Vercel não tem cookie de sessão — ela se autentica por `Authorization: Bearer
+$CRON_SECRET`. Do jeito que está, o cron receberia um `307` para `/login` e a rota
+nunca executaria, **sem erro visível**. O CRM-RR tem exatamente esse defeito (ele já
+tem `app/api/cron/` e o mesmo matcher). Antes de criar a primeira rota de cron
+(tarefa 6.3), `api/cron` precisa entrar no negative lookahead do matcher. Ver
+`DECISIONS.md` D-012.
 
 ## Camada de IA
 
@@ -221,5 +231,16 @@ AI_GATEWAY_API_KEY=
 CRON_SECRET=
 ```
 
-Validar presença no boot (`lib/env.ts` com Zod). Falha de env é erro de startup, não
-erro de runtime na cara do usuário.
+Validado no boot com Zod, em **dois arquivos** (implementado na tarefa 1.3):
+
+| Arquivo | Valida | `server-only` |
+|---|---|---|
+| `lib/env.ts` | `NEXT_PUBLIC_*` | não — precisa ser importável pelo bundle do browser |
+| `lib/env.server.ts` | `SUPABASE_SERVICE_ROLE_KEY`, `AI_GATEWAY_API_KEY`, `CRON_SECRET` | sim |
+
+A separação é obrigatória: com um arquivo só, `import 'server-only'` no topo quebraria
+`lib/supabase/client.ts`, que roda no browser. Ver `DECISIONS.md` D-011.
+
+Falha de env é erro de startup, não erro de runtime na cara do usuário. `npm run build`
+**não** prova isso — o Next compila o módulo sem executar o corpo dele; a validação só
+dispara quando o código roda numa request de verdade.
