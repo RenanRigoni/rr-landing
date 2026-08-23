@@ -132,17 +132,51 @@ arquivo de `components/` importa `@/lib/supabase`.
 **Pronto quando:** remover uma variável do `.env.local` derruba o boot com mensagem
 clara dizendo qual variável falta.
 
-### [ ] 1.4 Autenticação
+### [x] 1.4 Autenticação
 
-Portar de `../CRM-RR/`: `lib/actions/auth.ts`, `lib/validation/auth.ts`,
-`app/(auth)/login/`.
-
-- Login por email/senha via Supabase Auth. Signup público **desabilitado** no painel
-  do Supabase por enquanto (convite manual).
-- Middleware protege o grupo `(app)`: sem sessão → redirect `/login`.
-- `app/(app)/layout.tsx`: shell com sidebar (logo, nav, usuário, sair). Nav conforme
-  `ARCHITECTURE.md` → Rotas, mas só com os itens que já existem.
-- Página `app/(app)/today/page.tsx` provisória: "Você está logado."
+> feito: portado `lib/validation/auth.ts` (idêntico ao CRM-RR) e
+> `lib/actions/auth.ts` (`signIn`/`signOut`, redirects ajustados para
+> `/today`/`/login` deste projeto). `lib/navigation.ts` criado só com o grupo
+> "Operação" → "Hoje" (`/today`) — nenhum outro módulo existe ainda, conforme
+> `ARCHITECTURE.md` → Rotas ("item de menu só aparece quando o módulo existe
+> de verdade"). `components/ui/LoginForm.tsx` e `components/layout/Sidebar.tsx`
+> portados com o botão primário seguindo a receita exata de
+> `DESIGN_SYSTEM.md` → Botão primário (`rounded-lg`, sem `rounded-pill`, sem
+> `hover:scale`) e foco visível em todo elemento interativo (`focus-visible`
+> conforme `DESIGN_SYSTEM.md` → Acessibilidade). `app/(auth)/login/page.tsx`,
+> `app/(app)/layout.tsx`, `app/(app)/today/page.tsx` criados.
+>
+> Logo real trazido para `public/logos/` (`logo-wordmark-color.svg` e
+> `logo-primary-color.svg`, copiados de `../logos/`), dimensões calculadas do
+> `viewBox` de cada arquivo para casar com o tamanho pedido em
+> `DESIGN_SYSTEM.md` → Logo: wordmark a 20px de altura (89×20), primary a
+> 180px de largura (180×39). Usado `<img>` simples em vez de `next/image` —
+> evita mexer em `next.config.ts` para liberar SVG no otimizador de imagem,
+> desnecessário para dois arquivos de marca estáticos.
+>
+> **Nota, não é desvio:** signup público já está desabilitado no projeto
+> Supabase `fvgbbixxcapltudonxqx` — confirmado em
+> `../CRM-RR/docs/CRM_ARCHITECTURE.md` → Segurança ("signup público fica
+> desabilitado no Supabase Auth"). É configuração de projeto (não de schema),
+> logo já vale para este produto também; nada para mexer no painel do
+> Supabase nesta tarefa.
+>
+> Validação funcional real, não só tipo/lint: subi `next dev`, confirmei via
+> `curl` que `/today` sem cookie devolve `307` para `/login` (e `/` também,
+> comportamento herdado da 1.2) e que `/login` responde `200`. No navegador
+> (Playwright), a página de login renderiza o logo certo, e submeter o
+> formulário com credenciais inválidas retorna `"E-mail ou senha
+> incorretos"` — prova que o Server Action faz round-trip real com o
+> Supabase Auth do projeto, não é mock. Login bem-sucedido e logout **não**
+> foram testados ponta a ponta: exigem uma conta real, e criação de conta é
+> processo manual fora do código (mesma nota acima) — criar uma agora seria
+> ação sobre infraestrutura compartilhada com o CRM-RR fora do pedido desta
+> tarefa. O código de `signOut` é o mesmo padrão já comprovado em produção
+> pelo CRM-RR (`supabase.auth.signOut()` + `redirect('/login')`).
+>
+> Console do browser: só erro de `favicon.ico` 404 (esperado, nenhuma tarefa
+> até aqui criou favicon — fora do escopo da 1.4). Artefatos do Playwright
+> (screenshots/logs) removidos após o teste, nunca commitados.
 
 **Pronto quando:** login funciona, `/today` sem sessão redireciona, logout limpa a
 sessão, sidebar mostra o logo certo conforme `DESIGN_SYSTEM.md`.
