@@ -25,7 +25,10 @@ correspondente aqui, no mesmo commit. Fonte de verdade definitiva é sempre
 create schema if not exists sales;
 
 create or replace function sales.fn_set_updated_at()
-returns trigger language plpgsql as $fn$
+returns trigger
+language plpgsql
+set search_path = sales, public
+as $fn$
 begin
   new.updated_at = now();
   return new;
@@ -35,6 +38,15 @@ $fn$;
 -- Resolve as organizações do usuário logado.
 -- security definer é OBRIGATÓRIO: sem ele a policy de org_members consultaria
 -- org_members, disparando a própria policy → recursão infinita.
+--
+-- `org_members` só é criada na migration 0002 — esta função é criada primeiro
+-- de propósito, para já existir quando as policies de tenant_isolation forem
+-- escritas. Função `language sql` é validada contra o catálogo na CREATE
+-- (pode ser inlined pelo planner), então referenciar uma tabela que ainda não
+-- existe falha sem o toggle abaixo. `set local` restringe o efeito a esta
+-- transação — mecanismo documentado do Postgres para essa exata situação.
+set local check_function_bodies = off;
+
 create or replace function sales.current_org_ids()
 returns setof uuid
 language sql
@@ -45,9 +57,16 @@ as $fn$
   select org_id from sales.org_members where user_id = auth.uid()
 $fn$;
 
+set local check_function_bodies = on;
+
 revoke all on function sales.current_org_ids() from public;
 grant execute on function sales.current_org_ids() to authenticated;
 ```
+
+Toda função nova neste schema fixa `search_path` — inclusive as que não são
+`security definer`, como `fn_set_updated_at()`. `get_advisors(type:'security')`
+acusa `function_search_path_mutable` como alerta novo em qualquer função sem
+isso, achado real na aplicação desta migration.
 
 Policy padrão, replicada em toda tabela transacional:
 

@@ -5,7 +5,10 @@
 create schema if not exists sales;
 
 create or replace function sales.fn_set_updated_at()
-returns trigger language plpgsql as $fn$
+returns trigger
+language plpgsql
+set search_path = sales, public
+as $fn$
 begin
   new.updated_at = now();
   return new;
@@ -15,6 +18,14 @@ $fn$;
 -- Resolve as organizações do usuário logado.
 -- security definer é OBRIGATÓRIO: sem ele a policy de org_members consultaria
 -- org_members, disparando a própria policy → recursão infinita.
+--
+-- `org_members` só é criada na migration 0002. Função `language sql` é
+-- validada contra o catálogo na criação (pode ser inlined pelo planner), então
+-- sem o toggle abaixo esta migration falharia com "relation does not exist".
+-- `set local` restringe o toggle a esta transação — mecanismo documentado do
+-- Postgres para referência antecipada de função a objeto ainda não criado.
+set local check_function_bodies = off;
+
 create or replace function sales.current_org_ids()
 returns setof uuid
 language sql
@@ -24,6 +35,8 @@ set search_path = sales, public
 as $fn$
   select org_id from sales.org_members where user_id = auth.uid()
 $fn$;
+
+set local check_function_bodies = on;
 
 revoke all on function sales.current_org_ids() from public;
 grant execute on function sales.current_org_ids() to authenticated;

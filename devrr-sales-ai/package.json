@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run",
+    "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
     "seed:demo": "tsx supabase/seed/run.ts",
     "seed:purge": "tsx supabase/seed/purge.ts"

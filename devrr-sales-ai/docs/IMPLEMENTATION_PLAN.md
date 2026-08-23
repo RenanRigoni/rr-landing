@@ -242,7 +242,78 @@ projetos irmãos (281 erros de tipo hoje, pré-existentes). Registrado como `Q-0
 Objetivo: isolamento por organização funcionando de verdade, provado por teste.
 Esta é a fase que não pode ser feita depois. Checkpoint Opus ao final.
 
-### [ ] 2.1 Migration de fundação + enums
+### [x] 2.1 Migration de fundação + enums
+
+> feito: `supabase/migrations/0001_schema_and_helpers.sql` aplicada no
+> Supabase remoto (`fvgbbixxcapltudonxqx`): schema `sales`, `fn_set_updated_at()`,
+> `current_org_ids()` (`security definer`, `search_path` fixo), grants +
+> `alter default privileges` do checkpoint (sem `anon`), os 6 enums. Passo 0
+> feito primeiro: `package.json` → `test` agora é
+> `vitest run --passWithNoTests` (achado A do checkpoint), `npm run test` sai
+> com código 0 mesmo sem arquivo de teste.
+>
+> **Desvios técnicos, forçados pelo Postgres, não por decisão de arquitetura:**
+>
+> 1. **Referência antecipada de `current_org_ids()` a `org_members`.** A
+>    função é `language sql` e o Postgres valida o corpo contra o catálogo na
+>    criação (pode ser inlined pelo planner) — `org_members` só existe na
+>    migration 0002, então a primeira tentativa de aplicar falhou com
+>    `relation "sales.org_members" does not exist`. Corrigido com
+>    `set local check_function_bodies = off` só ao redor dessa `create
+>    function`, escopado à transação da migration — mecanismo documentado do
+>    Postgres para exatamente este caso. Não mudei a ordem das migrations nem
+>    a linguagem da função: o desenho de `DATABASE.md` (helper criado antes
+>    da tabela, para já existir quando as policies forem escritas) continua
+>    válido, só precisava desse toggle para compilar.
+> 2. **`fn_set_updated_at()` sem `search_path` fixo gerava alerta NOVO no
+>    `get_advisors(type:'security')`** (`function_search_path_mutable`,
+>    WARN) — o único alerta novo introduzido pela migration; todo o resto da
+>    lista já existia (schemas `public`/clínica compartilhados no mesmo
+>    projeto Supabase, nada deste produto). Corrigido acrescentando
+>    `set search_path = sales, public` também nela, mesmo não sendo
+>    `security definer` — reaplicado do zero (ver replay abaixo), não só
+>    corrigido por cima. `DATABASE.md` → Fundação de multi-tenancy
+>    atualizado para refletir os dois pontos acima; SQL do doc agora é
+>    idêntico ao da migration.
+>
+> **Validado, não só assumido:**
+> - Replay do zero: `drop schema sales cascade` seguido de reaplicar
+>   `supabase/migrations/0001_schema_and_helpers.sql` inteiro, sozinho, do
+>   arquivo final — sucesso. Prova que o arquivo local é autossuficiente e
+>   não depende dos dois comandos avulsos que corrigiram a primeira tentativa.
+> - `get_advisors(type:'security')` após o replay: zero alerta novo do
+>   schema `sales` (comparado à baseline do checkpoint da Fase 1, antes de
+>   qualquer migration). Todos os alertas restantes são de outros schemas.
+> - Grants: `information_schema`/`pg_default_acl` confirmam
+>   `alter default privileges` ativo para `authenticated` e `service_role`
+>   em tables/sequences/functions futuras do schema `sales`. `usage` no
+>   schema só para `postgres` (dono), `authenticated`, `service_role` —
+>   `anon` **sem nenhum privilégio**, confirmado via `aclexplode`.
+> - `current_org_ids()`: `security definer` = true, `search_path` fixo,
+>   confirmados via `pg_proc`.
+> - `typecheck`/`lint`/`test`/`build` limpos (build reconhece as 4 rotas +
+>   `Proxy (Middleware)`).
+>
+> **Não fiz, e por quê:**
+> - **"Expor `sales` em Settings → API → Exposed schemas"** (citado no texto
+>   da tarefa): é ação exclusiva do dashboard do Supabase, sem equivalente em
+>   SQL nem em nenhuma ferramenta MCP disponível — confirmado tentando
+>   `generate_typescript_types`, que só devolveu o schema `public`
+>   (`sales` não introspectado por não estar exposto). **Ação manual
+>   pendente do usuário** antes da 2.2, senão `org_members`/`organizations`
+>   também não aparecerão no gerador.
+> - **Types "gerados"**: como consequência do ponto acima, não veio do
+>   `generate_typescript_types`. Escrevi `lib/types/database.types.ts` à
+>   mão, espelhando exatamente os 6 enums da migration aplicada (`Tables`/
+>   `Views`/`Functions`/`CompositeTypes` continuam `Record<string, never>`
+>   — nenhum existe ainda). Comentário no arquivo explica que é temporário até
+>   a exposição manual acontecer; a partir da 2.2 o gerador real pode
+>   substituir este arquivo por completo.
+> - **Commit único da tarefa**: fiz dois commits, não um. `CLAUDE.md` exige
+>   migration commitada **antes** de aplicada — commitei
+>   `0001_schema_and_helpers.sql` sozinho primeiro (`ab36fcc`), *depois*
+>   apliquei no remoto. O commit final desta tarefa cobre o resto (correções
+>   pós-validação no arquivo de migration, docs, types, `package.json`).
 
 **Passo 0 (achado A do checkpoint da Fase 1):** trocar o script `test` do
 `package.json` para `vitest run --passWithNoTests`. Sem isso, `npm run test` sai com
