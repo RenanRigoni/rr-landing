@@ -651,6 +651,66 @@ cumprir. Corrigido no texto da 3.1 neste commit.
    se alguém rodar com `--sequence.shuffle` ou isolar um `it`. Migrar para `beforeAll`
    quando a suíte crescer na 6.4.
 
+### [x] 2.5 Autorização por papel em `organizations` (correção do checkpoint)
+
+> feito: `supabase/migrations/0003_organizations_role_policies.sql` aplicada no
+> Supabase remoto. Substitui a policy `tenant_isolation` "for all" de
+> `sales.organizations` (Achado A do checkpoint) por três policies por papel:
+> `tenant_isolation_select` (`select`, por associação — inalterada),
+> `owner_admin_update` (`update`, `using` e `with check` por
+> `sales.current_org_role(id) in ('owner','admin')`), `owner_delete` (`delete`,
+> só `sales.current_org_role(id) = 'owner'`). Sem policy de `insert` — a única
+> criação legítima continua sendo a RPC `create_organization`, `security
+> definer`, que não passa por RLS.
+>
+> **Achado B corrigido:** `lib/supabase/middleware.ts` agora captura o `error`
+> da consulta a `org_members` e, se houver, não decide o gate de onboarding às
+> cegas — não força `/onboarding` (evitaria trancar usuário com org numa
+> falha transitória) nem finge saber que ele tem org; deixa a request seguir
+> para a rota pedida (a própria página resolve org nula com segurança via
+> `getCurrentOrg()`), e só decide um destino (`/today`, best-effort) quando o
+> erro acontece saindo de `/login`. Não abre bypass de autenticação nem de
+> RLS — é gate de UX, a policy continua sendo quem decide o dado de verdade.
+>
+> **Suíte estendida** (`tests/rls.test.ts`), describe própria com org e
+> usuários isolados do describe da 2.4 para não acoplar ordem entre os dois
+> blocos: `member` faz `select` (ok) mas `update`/`delete` bloqueados (D-016 —
+> `data === []` com `.select()` encadeado, nome/linha intactos conferidos por
+> `clientA`); owner promove B a `admin`; `admin` consegue `update` mas não
+> `delete`; `owner` consegue `update` e `delete` (delete usa organização
+> descartável própria, não a mesma usada nos casos anteriores); não-membro não
+> altera nem apaga org alheia; `insert` direto negado (sem policy de insert);
+> `anon` não executa `current_org_role()` (caso que faltava na 2.4).
+>
+> `npm run test:rls`: **36/36 passam** (24 preservados da 2.4 + 12 novos),
+> duas vezes seguidas — idempotente, zero organização residual entre
+> execuções (`organizations=0 org_members=0` confirmado por `execute_sql`
+> direto).
+>
+> **Validado, não só assumido:**
+> - Replay do zero: `drop schema sales cascade` + reaplicar 0001, 0002 e 0003
+>   na ordem → 7 policies (3 em `organizations`), 4 funções, 6 enums, 2
+>   tabelas — bate exatamente com o estado vivo pós-migration.
+> - `get_advisors(security)`: nenhum alerta novo em `sales` — só os mesmos 3
+>   WARN já documentados em D-013 (`authenticated` executa `security
+>   definer`); `owner_admin_update`/`owner_delete` não são `security definer`,
+>   não geram alerta novo.
+> - `anon`: `has_schema_privilege('anon','sales','usage') = false`, zero grant
+>   de tabela em `organizations`, confirmado direto no catálogo pós-migration
+>   (além dos testes de anon na suíte).
+> - `typecheck`/`lint`/`test`/`build` limpos.
+>
+> Nenhuma decisão permanente nova — D-017 (já registrada no checkpoint) é a
+> decisão de contrato; a correção do middleware é implementação da própria
+> tarefa, não trade-off novo.
+>
+> Dois commits: migration sozinha antes de aplicar (`e42af16`), resto depois.
+>
+> **Não avançado para a Fase 3** — aguardando novo checkpoint/instrução.
+
+<details>
+<summary>Texto original da tarefa (referência)</summary>
+
 ### [ ] 2.5 Autorização por papel em `organizations` (correção do checkpoint)
 
 `supabase/migrations/0003_organizations_role_policies.sql` — conteúdo exato em
@@ -686,6 +746,8 @@ bloqueado por `USING` se prova por `data === []` com `.select()` encadeado, não
 **Pronto quando:** a suíte estendida passa inteira, incluindo os casos positivos;
 replay do zero (0001 → 0002 → 0003) funciona; `get_advisors(security)` sem alerta novo;
 `DATABASE.md` já atualizado neste checkpoint bate com a migration aplicada.
+
+</details>
 
 ---
 

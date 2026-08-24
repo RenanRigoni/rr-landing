@@ -294,5 +294,195 @@ describe('RLS — sales.organizations e sales.org_members', () => {
       const { error } = await client.rpc('create_organization', { p_name: 'Org de anon, não deveria existir' })
       expect(error).not.toBeNull()
     })
+
+    it('anon não consegue chamar current_org_role()', async () => {
+      const client = anonClient()
+      const { error } = await client.rpc('current_org_role', { p_org_id: orgAId })
+      expect(error).not.toBeNull()
+    })
+  })
+})
+
+/**
+ * Fase 2.5 — Achado A do checkpoint Opus da Fase 2 (D-017): a policy
+ * `tenant_isolation` "for all" original de `organizations` dava a qualquer
+ * membro (inclusive `member`) poder de UPDATE/DELETE sobre a organização.
+ * `supabase/migrations/0003_organizations_role_policies.sql` corrige para
+ * `select` por associação, `update` owner/admin, `delete` só owner.
+ *
+ * Describe própria, com sua própria org (`orgRoleId`) e seus próprios
+ * usuários — não reaproveita `orgAId`/`orgBId` do describe acima para não
+ * acoplar a ordem dos dois blocos: aqui o usuário B começa `member`, é
+ * promovido a `admin` no meio da suíte, e o estado precisa ser previsível
+ * independente do describe anterior já ter mudado o papel de B em outra
+ * organização.
+ */
+describe('RLS — sales.organizations por papel (D-017 / migration 0003)', () => {
+  let userAId: string
+  let userBId: string
+  let clientA: SupabaseClient<Database, 'sales'>
+  let clientB: SupabaseClient<Database, 'sales'>
+  let orgRoleId: string
+
+  beforeAll(async () => {
+    userAId = await ensureTestUser(TEST_USER_A)
+    userBId = await ensureTestUser(TEST_USER_B)
+    await cleanupOrgsForUser(userAId)
+    await cleanupOrgsForUser(userBId)
+
+    clientA = await signInTestClient(TEST_USER_A)
+    clientB = await signInTestClient(TEST_USER_B)
+
+    const { data: newOrgId, error } = await clientA.rpc('create_organization', {
+      p_name: 'RLS Role Test Org',
+    })
+    if (error || !newOrgId) {
+      throw new Error(`Falha ao criar organização de teste: ${error?.message}`)
+    }
+    orgRoleId = newOrgId
+
+    const { error: addMemberError } = await clientA
+      .from('org_members')
+      .insert({ org_id: orgRoleId, user_id: userBId, role: 'member' })
+    if (addMemberError) {
+      throw new Error(`Falha ao adicionar B como member: ${addMemberError.message}`)
+    }
+  }, 30_000)
+
+  afterAll(async () => {
+    await cleanupOrgsForUser(userAId)
+    await cleanupOrgsForUser(userBId)
+  })
+
+  describe('member', () => {
+    it('member consegue SELECT da organização', async () => {
+      const { data, error } = await clientB.from('organizations').select('id').eq('id', orgRoleId)
+      expect(error).toBeNull()
+      expect(data?.map((org) => org.id)).toContain(orgRoleId)
+    })
+
+    it('member NÃO consegue UPDATE (bloqueado por USING — 0 linhas, não erro, D-016)', async () => {
+      const { data, error } = await clientB
+        .from('organizations')
+        .update({ name: 'Renomeado por member' })
+        .eq('id', orgRoleId)
+        .select()
+
+      expect(error).toBeNull()
+      expect(data).toEqual([])
+
+      const { data: afterAttempt } = await clientA.from('organizations').select('name').eq('id', orgRoleId).single()
+      expect(afterAttempt?.name).toBe('RLS Role Test Org')
+    })
+
+    it('member NÃO consegue DELETE (bloqueado por USING — 0 linhas, não erro, D-016)', async () => {
+      const { data, error } = await clientB.from('organizations').delete().eq('id', orgRoleId).select()
+
+      expect(error).toBeNull()
+      expect(data).toEqual([])
+
+      const { data: stillThere } = await clientA.from('organizations').select('id').eq('id', orgRoleId).maybeSingle()
+      expect(stillThere).not.toBeNull()
+    })
+  })
+
+  describe('admin', () => {
+    it('setup: owner promove B de member para admin', async () => {
+      const { data: updated, error } = await clientA
+        .from('org_members')
+        .update({ role: 'admin' })
+        .eq('org_id', orgRoleId)
+        .eq('user_id', userBId)
+        .select()
+
+      expect(error).toBeNull()
+      expect(updated?.[0]?.role).toBe('admin')
+    })
+
+    it('admin consegue UPDATE', async () => {
+      const { data, error } = await clientB
+        .from('organizations')
+        .update({ name: 'Renomeado por admin' })
+        .eq('id', orgRoleId)
+        .select()
+
+      expect(error).toBeNull()
+      expect(data).toHaveLength(1)
+      expect(data?.[0]?.name).toBe('Renomeado por admin')
+    })
+
+    it('admin NÃO consegue DELETE (bloqueado por USING — 0 linhas, não erro, D-016)', async () => {
+      const { data, error } = await clientB.from('organizations').delete().eq('id', orgRoleId).select()
+
+      expect(error).toBeNull()
+      expect(data).toEqual([])
+
+      const { data: stillThere } = await clientA.from('organizations').select('id').eq('id', orgRoleId).maybeSingle()
+      expect(stillThere).not.toBeNull()
+    })
+  })
+
+  describe('owner', () => {
+    it('owner consegue UPDATE', async () => {
+      const { data, error } = await clientA
+        .from('organizations')
+        .update({ name: 'Renomeado por owner' })
+        .eq('id', orgRoleId)
+        .select()
+
+      expect(error).toBeNull()
+      expect(data?.[0]?.name).toBe('Renomeado por owner')
+    })
+
+    it('owner consegue DELETE — usa organização própria e descartável, não orgRoleId', async () => {
+      const { data: newOrgId, error: createError } = await clientA.rpc('create_organization', {
+        p_name: 'RLS Delete Test Org',
+      })
+      expect(createError).toBeNull()
+      const disposableOrgId = newOrgId as string
+
+      const { data: deleted, error } = await clientA.from('organizations').delete().eq('id', disposableOrgId).select()
+
+      expect(error).toBeNull()
+      expect(deleted).toHaveLength(1)
+
+      const { data: goneCheck } = await clientA.from('organizations').select('id').eq('id', disposableOrgId).maybeSingle()
+      expect(goneCheck).toBeNull()
+    })
+  })
+
+  describe('não-membro', () => {
+    it('usuário sem associação não consegue UPDATE org alheia (bloqueado por USING, D-016)', async () => {
+      // B não é membro de nenhuma organização própria de A que não seja
+      // orgRoleId — cria uma org só de A, sem B, para este caso.
+      const { data: newOrgId } = await clientA.rpc('create_organization', { p_name: 'RLS Non-Member Org' })
+      const soloOrgId = newOrgId as string
+
+      const { data, error } = await clientB
+        .from('organizations')
+        .update({ name: 'Renomeado por não-membro' })
+        .eq('id', soloOrgId)
+        .select()
+
+      expect(error).toBeNull()
+      expect(data).toEqual([])
+    })
+
+    it('usuário sem associação não consegue DELETE org alheia (bloqueado por USING, D-016)', async () => {
+      const { data: newOrgId } = await clientA.rpc('create_organization', { p_name: 'RLS Non-Member Org 2' })
+      const soloOrgId = newOrgId as string
+
+      const { data, error } = await clientB.from('organizations').delete().eq('id', soloOrgId).select()
+
+      expect(error).toBeNull()
+      expect(data).toEqual([])
+    })
+  })
+
+  describe('insert direto', () => {
+    it('insert direto em organizations é negado — não existe policy de insert, criação é só pela RPC', async () => {
+      const { error } = await clientA.from('organizations').insert({ name: 'Insert Direto', slug: 'insert-direto-2-5' })
+      expect(error).not.toBeNull()
+    })
   })
 })

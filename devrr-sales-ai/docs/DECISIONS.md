@@ -348,7 +348,7 @@ complexidade extra relevante.
 
 ## D-017 — Dado de governança do tenant tem RLS por papel, não `for all`
 
-**Data:** 2026-08-23 · **Status:** decidido no checkpoint da Fase 2 · **Implementar em:** tarefa 2.5
+**Data:** 2026-08-23 · **Status:** decidido no checkpoint da Fase 2, implementado na tarefa 2.5
 
 `sales.organizations` nasceu (0002) com uma policy `tenant_isolation` `for all`:
 `using (id in (select sales.current_org_ids()))`. Isso é isolamento entre orgs
@@ -390,6 +390,42 @@ apagar).
 **Custo aceito:** três policies onde havia uma; `organizations` deixa de ser
 gravável por `member` — se algum dia um `member` precisar editar algo da empresa,
 vira coluna/tabela separada, não afrouxamento desta policy.
+
+---
+
+## D-018 — Erro do gate de onboarding não decide destino às cegas; deixa a request seguir
+
+**Data:** 2026-08-23 · **Status:** decidido, tarefa 2.5 · **Corrige:** Achado B do checkpoint da Fase 2
+
+`lib/supabase/middleware.ts` descartava o `error` de `select id from org_members
+limit 1`, tratando qualquer falha (rede, timeout, PostgREST fora do ar) como
+`hasOrg = false`. Efeito: usuário autenticado **com** organização, numa falha
+transitória, era jogado em `/onboarding` — onde o único caminho oferecido é criar
+uma **segunda** empresa.
+
+**Decisão:** ao capturar `error`, o middleware não tenta adivinhar `hasOrg`. Fora de
+`/login`, deixa a request seguir para a rota pedida sem aplicar o gate — a própria
+página resolve org ausente com segurança (`getCurrentOrg()` retorna `null`,
+`requireOrgId()` lança). Saindo de `/login` (onde algum destino precisa ser
+escolhido), o fallback é `/today`, que por sua vez redireciona para `/onboarding` se
+`getCurrentOrg()` confirmar ausência real de organização.
+
+**Por quê não é bypass de segurança:** este gate é UX (evitar telas quebradas para
+quem não tem org), não autorização. Nenhuma query de dado deixa de passar por RLS —
+`org_id` nunca é decidido pelo middleware, sempre por `getCurrentOrg()`/
+`requireOrgId()` no servidor, que consultam o banco de novo, com RLS de novo.
+Deixar a request seguir numa falha do gate não abre nenhum dado que a policy não
+abriria de qualquer forma.
+
+**Descartado:** manter `hasOrg = false` no erro (o bug original — falso negativo
+prende usuário existente no onboarding); assumir `hasOrg = true` no erro (falso
+positivo simétrico — deixaria passar direto quem de fato não tem org ainda,
+quebrando em outra tela em vez de no onboarding, sem ganho real).
+
+**Custo aceito:** numa falha transitória bem no meio da navegação, o usuário pode
+bater numa página que ainda não resolveu a org (ela mesma trata isso — ver
+`app/(app)/today/page.tsx`) em vez de ser redirecionado de propósito. Preferível a
+destruir o fluxo de quem já tem organização.
 
 ---
 
