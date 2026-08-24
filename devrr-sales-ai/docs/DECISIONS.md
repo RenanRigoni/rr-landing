@@ -527,6 +527,61 @@ suficiente e testada).
 
 ---
 
+## D-021 — Data relativa via `date-fns` + `ptBR`; join de exibição em queries explícitas, não embedded select
+
+**Data:** 2026-08-24 · **Status:** decidido, tarefa 3.5 · **Aplica a:** toda tela futura que mostrar data relativa ou juntar linhas de tabelas `sales.*` diferentes
+
+**1. `lib/domain/date.ts` usa `date-fns` (`formatDistance`, locale `ptBR`), não
+implementação própria.** `date-fns` já é dependência pinada do projeto
+(`ARCHITECTURE.md`: versões iguais às do `CRM-RR/package.json` de propósito)
+e o CRM-RR já usa exatamente esse par —
+`components/pipeline/DealCard.tsx` de lá chama `formatDistanceToNow` com
+`{ addSuffix: true, locale: ptBR }` pro mesmo propósito ("Próximo: ... há 4
+dias"). `formatDistance` (não `formatDistanceToNow`) foi escolhida de
+propósito: só ela aceita um segundo argumento de data explícito, necessário
+pra passar `now` no teste (determinístico) e no render (data fixa por
+request).
+
+**Achado ao testar, não hipótese:** a locale `ptBR` do `date-fns` usa "cerca
+de" em alguns baldes (`"há cerca de 3 horas"`, `"há cerca de 2 anos"`) e não
+em outros (`"há 4 dias"`, `"há 2 meses"`) — não é adivinhável, teria quebrado
+uma asserção de teste escrita "no chute". Toda string esperada em
+`tests/domain/date.test.ts` foi conferida rodando a função de verdade antes
+de virar `expect(...).toBe(...)`, mesmo cuidado do achado do NBSP em
+`formatBRL` (D-020 documentou o padrão do achado, este é outro caso dele).
+
+**Descartado:** reimplementar o cálculo de distância relativa à mão (o que
+`lib/domain/phone.ts`/`money.ts` fazem para BR-específico não tem
+equivalente pronto: normalização de telefone BR e symbol `R$` via `Intl`
+são triviais o bastante pra não precisar de lib; texto relativo em
+português com plural/aproximação correta não é — reinventar é retrabalho e
+mais superfície de bug que usar a lib que o CRM-RR já valida em produção).
+
+**2. `lib/queries/leads.ts` junta lead + contato + estágio + fonte com três
+`select` explícitos filtrados por `org_id` e `.in(ids)`, não com embedded
+select do postgrest-js (`.select('*, contacts(...), pipeline_stages(...)')`).**
+Com os types de `sales` mantidos à mão (limitação já documentada:
+`generate_typescript_types` não introspecta esse schema), não há garantia de
+que o formato de `Relationships` em `database.types.ts` produz o alias que o
+embed do postgrest-js espera pra tipar certo — e esta mesma tarefa/fase já
+teve um caso real de `.select()` virando `GenericStringError` por motivo de
+tipagem não óbvio (string concatenada perdendo o tipo literal, achado da
+3.4). Três queries simples com filtro `org_id` explícito são previsíveis:
+mesmo padrão já usado em toda a camada de queries, sem depender de um
+mecanismo de tipagem que não dá pra confirmar sem tentar.
+
+**Descartado:** embedded select mesmo assim, aceitando `as any`/cast solto no
+retorno — resolveria a tipagem à força, mas esconderia erro de coluna
+renomeada ou relação errada até o runtime, exatamente o tipo de bug que os
+types manuais já tornam mais fácil de introduzir.
+
+**Custo aceito:** `attachDisplayData()` faz 3 queries em vez de 1 por
+carregamento de lista/detalhe de lead — aceitável no volume do MVP (uma PME
+não tem milhares de leads na tela ao mesmo tempo); revisar se paginação
+(fora do escopo do MVP) tornar isso um gargalo real.
+
+---
+
 ## Questões abertas
 
 Sonnet: adicione aqui o que travar. Opus resolve no próximo checkpoint.

@@ -9,11 +9,14 @@ export interface NavGroup {
 }
 
 // Item de menu só aparece quando o módulo existe de verdade (ARCHITECTURE.md
-// → Rotas). Nesta fase só /today existe — Leads, Contatos e Configurações
-// entram conforme as Fases 2/3 forem completadas.
+// → Rotas). /leads entrou na tarefa 3.5 — Contatos e Configurações entram
+// conforme o resto da Fase 3 for completado.
 export const NAV_GROUPS: NavGroup[] = [
   {
     label: 'Operação',
-    items: [{ label: 'Hoje', href: '/today' }],
+    items: [
+      { label: 'Hoje', href: '/today' },
+      { label: 'Leads', href: '/leads' },
+    ],
   },
 ]

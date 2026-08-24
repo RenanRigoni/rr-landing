@@ -1144,18 +1144,90 @@ supabase ou next (verificar com grep).
 >
 > **Não avançado para a 3.5** — aguardando nova instrução.
 
-### [ ] 3.5 Tela de leads
+### [x] 3.5 Tela de leads
 
-`app/(app)/leads/page.tsx` (Server Component) — lista densa conforme
-`DESIGN_SYSTEM.md`:
-
-- Colunas: contato, título, estágio (badge), fonte, valor (**mono**), último contato
-  (**mono**, relativo: "há 4 dias"), próxima ação.
-- Filtros por estágio/fonte/status na URL (search params — é estado de URL, não de
-  cliente).
-- Estado vazio honesto com botão "Novo lead".
-- `app/(app)/leads/[leadId]/page.tsx`: dados do lead, dados do contato, histórico de
-  atividades (vem na Fase 4), botões de ação.
+> feito: `app/(app)/leads/page.tsx` (Server Component) — tabela densa (não
+> div-grid: dado tabular de verdade, web/coding-style pede semântico
+> primeiro) com as 7 colunas do spec: contato (nome + telefone em
+> `font-mono`), título, estágio (`StageBadge`), fonte, valor (`font-mono`,
+> `formatBRL`), último contato (`font-mono`, relativo — `formatRelativeDateBR`),
+> próxima ação (idem, futuro). Campo nulo em qualquer coluna mostra `—`, não
+> dado inventado (PRODUCT_SPEC.md regra 5). Filtros de estágio/fonte/status
+> são só `<Link>` pra search params diferentes — zero `'use client'` na
+> lista, estado é mesmo de URL. Estágio filtra por `key` (estável, não uuid
+> — DATABASE.md já chama `key` de "estável pra código"), fonte/status por
+> `id`/valor do enum. Filtro sem resultado mostra mensagem leve +
+> "Limpar filtros"; zero lead na organização (sem filtro nenhum) mostra o
+> empty-state completo do `DESIGN_SYSTEM.md` com botão "Novo lead"
+> (`/leads/new` — rota que a 3.6 vai criar; o link já aponta pra lá, nada do
+> formulário da 3.6 foi construído aqui).
+>
+> `app/(app)/leads/[leadId]/page.tsx` — dados do lead (valor, fonte, status,
+> último contato, próxima ação, interesse quando houver), dados do contato,
+> seção "Histórico" com texto honesto ("Histórico de atividades chega na
+> Fase 4" — `sales.activities` não existe até a migration 0006, tarefa 4.1)
+> em vez de fingir que a seção existe. `notFound()` (next/navigation) para
+> lead inexistente ou de outra organização — `getLeadForDisplay()` já filtra
+> por `org_id` (RLS + filtro explícito, mesmo padrão de sempre), `null`
+> vira 404 de verdade, testado no browser.
+>
+> **"Botões de ação"** do spec: `StageMover` (`components/leads/StageMover.tsx`),
+> único Client Component da tarefa — precisa de estado local (pending/erro)
+> pra chamar `moveStage(leadId, stageId)` direto (dois argumentos
+> posicionais, não dá pra ser `<form action>`). Nenhuma regra de negócio no
+> componente: ele só chama a Server Action e mostra o que ela devolve;
+> validação/pertencimento à organização/a mudança em si vivem inteiramente
+> em `lib/actions/leads-core.ts` (D-020), sem duplicação. `router.refresh()`
+> após sucesso — testado no browser: estágio muda, badge atualiza, botão do
+> novo estágio atual fica desabilitado, banco confirmado por SQL direto.
+>
+> `lib/queries/leads.ts` ganhou `listLeadsForDisplay()`/`getLeadForDisplay()`
+> — junta lead + contato + estágio + fonte via três `select` explícitos
+> filtrados por `org_id`, não embedded select do postgrest-js (risco de
+> tipagem não confiável com types mantidos à mão — **D-021**). `lib/domain/date.ts`
+> (`formatRelativeDateBR`) é wrapper fino sobre `date-fns` (`formatDistance`,
+> locale `ptBR`), mesmo par que o CRM-RR já usa — **D-021** também documenta
+> o achado real de teste: a locale usa "cerca de" em alguns baldes (horas,
+> anos) e não em outros (dias, meses), não dava pra adivinhar. `lib/utils/cn.ts`
+> portado do CRM-RR (`ARCHITECTURE.md` já previa, tabela de port 1:1).
+> `components/ui/StageBadge.tsx` conforme o spec exato de "Badge de
+> estágio" — hoje sempre no fallback neutro, porque nenhum estágio semeado
+> tem `color` (só via configuração futura).
+>
+> `lib/navigation.ts`: "Leads" entrou no menu (`Sidebar.tsx` já dizia "item
+> só aparece quando o módulo existe de verdade" — agora existe).
+>
+> **Validado no browser, não só por typecheck/build** — subi
+> `next dev`, logei como `rls-test-a` de verdade, criei organização pelo
+> onboarding, semeei 2 contatos + 2 leads (estágios/valores/datas
+> diferentes) direto no banco pra popular a tela:
+> - Lista renderiza as 7 colunas certas, valor/telefone em mono, "há 4 dias"
+>   batendo com o exemplo literal do `DESIGN_SYSTEM.md`, campos nulos como
+>   `—`.
+> - Filtro por estágio (`?stage=proposta_enviada`) reduz a lista
+>   corretamente; outros grupos de filtro preservam o parâmetro já ativo na
+>   própria URL do link (`?stage=proposta_enviada&source=...`).
+> - Filtro sem match mostra "Nenhum lead encontrado com esses filtros" +
+>   "Limpar filtros", não o empty-state grande.
+> - Detalhe do lead renderiza todos os campos; `StageMover` move
+>   "Proposta enviada" → "Negociação" de verdade — badge, botão desabilitado
+>   e banco (`select stage_id` direto) todos confirmam a mudança.
+> - `/leads/<uuid inexistente>` devolve 404 de verdade.
+> - Dado de QA removido do banco depois (`organizations=0` confirmado).
+>
+> **Validado também por typecheck/lint/test/test:rls/build** — sem
+> regressão: `test:rls` continua **64/64**, suíte rápida **44/44** (12 novos
+> de `tests/domain/date.test.ts`). Sem `select('*')` em nenhum arquivo novo
+> (grep). Nenhum componente importa `@/lib/supabase`/`createClient` (grep).
+> Sem migration nesta tarefa — `0001`-`0005` intactos.
+>
+> Duas decisões permanentes novas, ambas em **D-021**: `date-fns`/`ptBR`
+> como padrão pra data relativa; join de exibição em queries explícitas
+> (não embedded select) enquanto os types de `sales` forem mantidos à mão.
+>
+> Um commit.
+>
+> **Não avançado para a 3.6** — aguardando nova instrução.
 
 ### [ ] 3.6 Formulário de lead
 
