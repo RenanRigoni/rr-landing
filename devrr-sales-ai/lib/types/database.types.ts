@@ -1,12 +1,14 @@
 // Tipos do schema `sales`, escritos à mão a partir de
 // supabase/migrations/0001_schema_and_helpers.sql (tarefa 2.1).
 //
-// Não gerados por `generate_typescript_types`: o gerador só introspecta
-// schemas listados em Settings → API → Exposed schemas, e `sales` ainda não
-// foi adicionado lá (ação manual no dashboard, fora do alcance de qualquer
-// ferramenta disponível nesta tarefa — confirmado tentando gerar: o retorno
-// só trouxe o schema `public`). Até essa exposição acontecer, este arquivo é
-// mantido em sincronia manual com as migrations; ver docs/DATABASE.md.
+// `sales` já está em Settings → API → Exposed schemas (confirmado batendo
+// direto no PostgREST: erro de "tabela não encontrada", não de "schema
+// inválido" — a lista de exposed schemas do projeto inclui `sales`). O que
+// não funciona é a ferramenta MCP `generate_typescript_types` desta sessão,
+// que só introspecta `public` — nem o schema `crm` do CRM-RR aparece nela,
+// apesar de exposto e em produção. Limitação da ferramenta, não do projeto.
+// Até haver outro meio de gerar (Supabase CLI local, por exemplo), este
+// arquivo é mantido em sincronia manual com as migrations; ver DATABASE.md.
 //
 // `Tables`/`Views`/`Functions`/`CompositeTypes` seguem `Record<string, never>`
 // porque a migration 0001 só cria schema, enums e as duas funções helper —

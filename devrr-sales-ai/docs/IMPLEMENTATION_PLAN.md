@@ -294,21 +294,24 @@ Esta é a fase que não pode ser feita depois. Checkpoint Opus ao final.
 > - `typecheck`/`lint`/`test`/`build` limpos (build reconhece as 4 rotas +
 >   `Proxy (Middleware)`).
 >
-> **Não fiz, e por quê:**
-> - **"Expor `sales` em Settings → API → Exposed schemas"** (citado no texto
->   da tarefa): é ação exclusiva do dashboard do Supabase, sem equivalente em
->   SQL nem em nenhuma ferramenta MCP disponível — confirmado tentando
->   `generate_typescript_types`, que só devolveu o schema `public`
->   (`sales` não introspectado por não estar exposto). **Ação manual
->   pendente do usuário** antes da 2.2, senão `org_members`/`organizations`
->   também não aparecerão no gerador.
-> - **Types "gerados"**: como consequência do ponto acima, não veio do
->   `generate_typescript_types`. Escrevi `lib/types/database.types.ts` à
->   mão, espelhando exatamente os 6 enums da migration aplicada (`Tables`/
->   `Views`/`Functions`/`CompositeTypes` continuam `Record<string, never>`
->   — nenhum existe ainda). Comentário no arquivo explica que é temporário até
->   a exposição manual acontecer; a partir da 2.2 o gerador real pode
->   substituir este arquivo por completo.
+> **Não fiz sozinho, precisou de ação manual do usuário — feita e confirmada:**
+> - **"Expor `sales` em Settings → API → Exposed schemas"**: é ação exclusiva
+>   do dashboard do Supabase, sem equivalente em SQL nem em nenhuma ferramenta
+>   MCP disponível. O usuário fez manualmente durante esta mesma tarefa.
+>   Confirmado que funcionou batendo direto no PostgREST (não via o gerador
+>   de types — ver ponto abaixo): request com `Accept-Profile: sales` contra
+>   tabela inexistente devolveu `PGRST205` ("tabela não encontrada"), não
+>   `PGRST106` ("schema inválido"); e um schema realmente não exposto, testado
+>   como controle, devolveu a lista real do projeto —
+>   `public, graphql_public, crm, sales` — confirmando `sales` presente.
+> - **Types "gerados"**: `generate_typescript_types` (ferramenta MCP) continuou
+>   devolvendo só o schema `public` mesmo depois da exposição confirmada —
+>   nem o schema `crm` do CRM-RR aparece nela, apesar de exposto e em produção
+>   há meses. É limitação da ferramenta desta sessão, não do projeto Supabase.
+>   `lib/types/database.types.ts` continua escrito à mão, espelhando os 6
+>   enums da migration (`Tables`/`Views`/`Functions`/`CompositeTypes`
+>   continuam `Record<string, never>` — nenhum existe ainda). Comentário no
+>   arquivo atualizado para não dizer mais que a exposição está pendente.
 > - **Commit único da tarefa**: fiz dois commits, não um. `CLAUDE.md` exige
 >   migration commitada **antes** de aplicada — commitei
 >   `0001_schema_and_helpers.sql` sozinho primeiro (`ab36fcc`), *depois*
