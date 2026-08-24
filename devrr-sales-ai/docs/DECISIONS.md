@@ -459,6 +459,74 @@ de ser opção no momento em que ficou provado que quebra o build real, não só
 
 ---
 
+## D-020 — Actions ganham módulo `*-core` injetável; IDs relacionados são checados por org na mão
+
+**Data:** 2026-08-24 · **Status:** decidido, tarefa 3.4 · **Aplica a:** todo `lib/actions/*.ts` futuro
+
+Duas descobertas na 3.4 que viram padrão permanente, não só solução pontual de
+`contacts.ts`/`leads.ts`.
+
+**1. `cookies()` não roda em vitest puro — actions precisam de um núcleo
+testável separado do `'use server'`.** `lib/supabase/server.ts` usa
+`next/headers` (`cookies()`), que só existe dentro de uma request real do
+Next; chamar `createClient()` (e por tabela, `requireOrgId()`) direto de um
+teste vitest lança `cookies was called outside a request scope` — confirmado
+na prática antes de decidir, não hipótese. Sem separação, a única forma de
+testar a lógica de uma action seria mockar o Supabase, o que não prova nada
+de RLS/isolamento (mesmo argumento de `README.md` → Testes de RLS).
+
+**Decisão:** todo arquivo de action ganha um par de arquivos —
+`lib/actions/<entidade>-core.ts` (sem `'use server'`, funções `async` que
+recebem `supabase` (client já autenticado) e `orgId` como parâmetros, toda a
+lógica de validação/gravação mora aqui) e `lib/actions/<entidade>.ts`
+(`'use server'`, só resolve `orgId` via `requireOrgId()`, `supabase` via
+`createClient()`, delega pro `-core` e chama `revalidatePath`). Produção usa
+o wrapper; testes de integração chamam o `-core` direto com um client
+autenticado real (`tests/helpers/rls-fixtures.ts`, mesmo padrão de
+`tests/rls.test.ts`) — prova real de isolamento entre tenants na camada de
+action, não só na de RLS pura. `tests/actions/*.test.ts` roda em
+`vitest.rls.config.ts` pelo mesmo motivo de `tests/rls.test.ts`: precisa de
+rede real e dos dois usuários de teste.
+
+**Efeito colateral que também virou regra:** com mais de um arquivo
+dependendo dos mesmos dois usuários reais (`rls-test-a/b`) na mesma suíte, o
+paralelismo padrão de arquivo do Vitest faz um arquivo apagar organização que
+o outro ainda está usando — `tests/rls.test.ts`, inalterado, passou a falhar
+de forma instável só por rodar ao lado de `tests/actions/leads.test.ts`.
+`vitest.rls.config.ts` ganhou `fileParallelism: false`. Vale para todo teste
+futuro adicionado a essa suíte.
+
+**2. FK garante que a linha existe, não que existe na organização certa —
+toda referência a outra tabela multi-tenant precisa de checagem explícita de
+`org_id`.** `sales.leads.contact_id`/`source_id`/`stage_id` são FKs simples
+para `contacts`/`lead_sources`/`pipeline_stages` (migration 0005); nenhuma
+delas garante que a linha referenciada pertence à mesma organização do lead.
+RLS de `leads` filtra só `leads.org_id` — não impede um `insert`/`update`
+apontando `stage_id` de outra organização, porque a FK só checa "a linha
+existe em algum lugar" e a policy de `pipeline_stages` roda numa query
+separada, sem saber que está sendo referenciada por um lead de fora.
+
+**Decisão:** toda action que recebe um id de entidade relacionada
+(`contact_id`, `source_id`, `stage_id`, e o padrão vale para o que vier
+depois — `rule_id`, `ai_prompt_id`, etc.) confirma com uma query própria
+(`select id from <tabela> where id = :id and org_id = :orgId`) antes de
+gravar. `lib/actions/leads-core.ts` → `belongsToOrg()`. Testado de propósito
+com id real de outra organização, não só com uuid inválido — é o caso que
+prova a checagem existe, o `uuid()` do Zod só prova que o formato é válido.
+
+**Descartado:** confiar só na RLS da tabela relacionada (ela impede o
+não-membro de *ler* a linha errada, mas o `insert`/`update` em `leads` nunca
+consulta a policy de `pipeline_stages`, então não vaza erro nem bloqueia
+sozinha); resolver com constraint de banco (checar `org_id` cruzado entre
+tabelas exigiria trigger ou constraint composta bem mais complexa que a
+checagem de aplicação, para um ganho marginal — a checagem em código já é
+suficiente e testada).
+
+**Custo aceito:** uma query a mais por id relacionado em cada `create`/
+`update` que referencia outra tabela multi-tenant.
+
+---
+
 ## Questões abertas
 
 Sonnet: adicione aqui o que travar. Opus resolve no próximo checkpoint.

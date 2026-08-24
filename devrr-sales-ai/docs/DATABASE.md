@@ -414,6 +414,14 @@ atividade conta como "próxima ação" é lógica de produto que precisa de test
 disciplina — toda escrita em `activities` recalcula os caches do lead. Um job de
 reconciliação valida a consistência (tarefa 6.4).
 
+**`contact_id`/`source_id`/`stage_id` não garantem organização por FK.** A FK só
+prova que a linha referenciada existe em algum lugar, não que existe na mesma
+organização do lead — nada aqui impede, a nível de banco, um `insert`/`update`
+apontando `stage_id` de outro tenant (RLS de `leads` filtra só `leads.org_id`; a
+policy de `pipeline_stages` roda numa query separada, sem saber que está sendo
+referenciada de fora). A checagem é responsabilidade da camada de `lib/actions/`
+(`belongsToOrg()` em `lib/actions/leads-core.ts`, tarefa 3.4). Ver **D-020**.
+
 ---
 
 ## Tabelas — Fase 4 (follow-up)

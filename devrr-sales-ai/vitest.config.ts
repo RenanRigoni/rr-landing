@@ -5,7 +5,7 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: ['tests/**/*.test.ts'],
-    exclude: ['tests/rls.test.ts'],
+    exclude: ['tests/rls.test.ts', 'tests/actions/**/*.test.ts'],
     setupFiles: ['./tests/setup/load-env.ts'],
   },
   resolve: {

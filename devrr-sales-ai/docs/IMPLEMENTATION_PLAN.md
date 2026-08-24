@@ -1039,16 +1039,110 @@ supabase ou next (verificar com grep).
 
 </details>
 
-### [ ] 3.4 Actions e queries
+### [x] 3.4 Actions e queries
 
-- `lib/actions/contacts.ts`: `createContact`, `updateContact`. Padrão: Zod valida →
-  `requireOrgId()` → grava → `revalidatePath`.
-- `lib/actions/leads.ts`: `createLead`, `updateLead`, `moveStage(leadId, stageId)`.
-  `moveStage` grava também uma `activity` do tipo `note` registrando a mudança.
-- `lib/queries/contacts.ts`: `listContacts`, `getContact`, `searchContactsByPhone`.
-- `lib/queries/leads.ts`: `listLeads` (filtros: estágio, fonte, status, busca
-  textual), `getLead`.
-- Sem `select *`. Colunas explícitas.
+> feito: `lib/actions/contacts.ts` (`createContact`, `updateContact`) e
+> `lib/actions/leads.ts` (`createLead`, `updateLead`,
+> `moveStage(leadId, stageId)`), todas `'use server'`, padrão Zod valida →
+> `requireOrgId()` → grava → `revalidatePath`. `lib/queries/contacts.ts`
+> (`listContacts`, `getContact`, `searchContactsByPhone`) e
+> `lib/queries/leads.ts` (`listLeads` com filtros de estágio/fonte/status/
+> busca textual, `getLead`), `server-only`, mesmo padrão de
+> `lib/queries/catalogs.ts` (3.1). Sem `select *` em nenhum arquivo novo
+> (conferido por grep).
+>
+> **Achado 1 — `cookies()` não roda em vitest puro, actions ganharam núcleo
+> testável separado.** `createClient()`/`requireOrgId()` dependem de
+> `next/headers`, que lança `cookies was called outside a request scope`
+> fora de uma request real do Next — confirmado tentando antes de decidir
+> a estrutura, não hipótese. Sem separação, só dava para testar mockando o
+> Supabase, o que não prova isolamento nenhum (mesmo argumento do
+> `README.md` para não mockar RLS). Toda action virou um par de arquivos:
+> `lib/actions/contacts-core.ts`/`lib/actions/leads-core.ts` (sem
+> `'use server'`, recebem `supabase` e `orgId` já resolvidos como
+> parâmetro — toda a lógica de verdade mora aqui) e
+> `lib/actions/contacts.ts`/`lib/actions/leads.ts` (`'use server'`, só
+> resolvem `orgId`/`supabase` e delegam). Build (`next build`) confirmado
+> limpo com o split — o compilador de Server Actions não reclama porque o
+> parâmetro não-serializável (`SupabaseClient`) nunca fica num arquivo com
+> `'use server'`. Decisão registrada em **D-020**.
+>
+> **Achado 2 — FK não garante organização.** `leads.contact_id`/`source_id`/
+> `stage_id` são FKs simples (migration 0005): garantem que a linha existe,
+> não que existe na mesma organização do lead. RLS de `leads` filtra só
+> `leads.org_id` — nada impede, a nível de banco, um `insert`/`update`
+> apontando `stage_id` de outro tenant. `lib/actions/leads-core.ts` ganhou
+> `belongsToOrg()`, chamada para `contact_id`/`stage_id`/`source_id` em
+> todo `create`/`update` que os recebe, antes de gravar. Testado com id
+> real de outra organização (não só uuid mal formado — esse só prova
+> formato, não prova a checagem de tenant). **D-020**, nota espelhada em
+> `DATABASE.md` → `sales.leads`.
+>
+> **`updateLead` não aceita `stage_id`** (herdado do schema da 3.3, via
+> `.omit()`) — único caminho de mudança de estágio é `moveStage`. Testado
+> enviando `stage_id` no payload de `updateLead`: é descartado, o lead
+> permanece no estágio original.
+>
+> **`moveStage` registra a mudança de estágio; a activity de registro fica
+> pendente de propósito** — `sales.activities` só existe a partir de
+> `supabase/migrations/0006_activities.sql` (tarefa 4.1, Fase 4), ainda não
+> aplicada. `moveStageCore` já isola a transição nesta única função; quando
+> 0006 existir, o insert de activity entra ali, sem mudar contrato nem abrir
+> segundo caminho de mudança de estágio. Não é lacuna nova — está comentado
+> no código e é consequência direta de a Fase 4 não ter começado, não desta
+> tarefa ter deixado algo pela metade.
+>
+> Nenhuma action usa `service_role` (conferido por grep em `lib/actions/`);
+> todas usam o client autenticado real via `createClient()`. `org_id` nunca
+> aceito do cliente — nem via Zod (3.3 já excluía), nem via parâmetro solto
+> (as `-core` recebem `orgId` só de quem já resolveu via `requireOrgId()`
+> ou do fixture de teste, nunca do payload).
+>
+> **Testes** — `tests/actions/contacts.test.ts` (10) e
+> `tests/actions/leads.test.ts` (18), chamando as funções `*Core` direto
+> com clients reais autenticados (`tests/helpers/rls-fixtures.ts`, mesmos
+> dois usuários e mesma técnica de `tests/rls.test.ts`), cobrindo create/
+> update válidos, payload inválido, `value_cents` negativo, `contact_id`/
+> `stage_id`/`source_id` de outra organização (create e update), tentativa
+> de enviar `org_id` no payload, tentativa de mudar `stage_id` por
+> `updateLead`, `moveStage` válido, `moveStage` para estágio de outra
+> organização, `moveStage` de lead de outra organização, lead/contato
+> inexistente, ids mal formados. Cada `it()` monta seu próprio dado (cria
+> contato/lead do zero quando precisa) — não depende de ordem entre testes
+> além do `beforeAll` compartilhado de organização/estágios/fonte.
+>
+> **Achado 3 — arquivos da mesma suíte rodando em paralelo corrompiam
+> estado um do outro.** Adicionar `tests/actions/*.test.ts` a
+> `vitest.rls.config.ts` (ao lado de `tests/rls.test.ts`) fez os dois
+> usuários reais compartilhados (`rls-test-a/b`) colidirem: o paralelismo
+> padrão de arquivo do Vitest roda os arquivos ao mesmo tempo, e um arquivo
+> apagava organização que o outro ainda estava usando — `tests/rls.test.ts`
+> **inalterado** passou a falhar de forma instável só por rodar ao lado de
+> `tests/actions/leads.test.ts`. Corrigido com `fileParallelism: false` em
+> `vitest.rls.config.ts`. Registrado em **D-020** como regra para toda
+> suíte futura que reusar os mesmos dois usuários.
+>
+> **Validado, não só assumido:**
+> - `npm run test:rls`: **64/64** (36 de `tests/rls.test.ts`, preservados,
+>   + 18 de `tests/actions/leads.test.ts` + 10 de
+>   `tests/actions/contacts.test.ts`), rodado duas vezes seguidas —
+>   nenhuma flakiness, zero organização/contato/lead residual depois
+>   (`organizations=0`, `contacts=0`, `leads=0`, confirmado por
+>   `execute_sql` direto).
+> - `npm run test` (suíte rápida, sem rede): continua **32/32**, só domínio
+>   — confirmado que os testes de actions ficaram fora dela
+>   (`vitest.config.ts` ganhou `tests/actions/**/*.test.ts` no `exclude`).
+> - Sem migration nesta tarefa — `0001`-`0005` intactos.
+> - `typecheck`/`lint`/`build` limpos.
+>
+> Uma decisão permanente nova: **D-020** (núcleo de action testável
+> separado do `'use server'`; checagem de organização em toda referência
+> relacionada; `fileParallelism: false` na suíte real). `DATABASE.md`
+> ganhou nota espelhada em `sales.leads` apontando pra ela.
+>
+> Um commit (sem migration nesta tarefa).
+>
+> **Não avançado para a 3.5** — aguardando nova instrução.
 
 ### [ ] 3.5 Tela de leads
 
