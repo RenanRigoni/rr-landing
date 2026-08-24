@@ -1,6 +1,6 @@
 // Tipos do schema `sales`, escritos à mão a partir de
-// supabase/migrations/0001_schema_and_helpers.sql e 0002_organizations.sql
-// (tarefas 2.1 e 2.2).
+// supabase/migrations/0001_schema_and_helpers.sql, 0002_organizations.sql e
+// 0004_catalogs.sql (tarefas 2.1, 2.2 e 3.1).
 //
 // `sales` está em Settings → API → Exposed schemas (confirmado batendo direto
 // no PostgREST: erro de "tabela não encontrada", não de "schema inválido").
@@ -71,6 +71,91 @@ export interface Database {
         Relationships: [
           {
             foreignKeyName: 'org_members_org_id_fkey'
+            columns: ['org_id']
+            isOneToOne: false
+            referencedRelation: 'organizations'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      lead_sources: {
+        Row: {
+          id: string
+          org_id: string
+          name: string
+          is_active: boolean
+          position: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          org_id: string
+          name: string
+          is_active?: boolean
+          position?: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          org_id?: string
+          name?: string
+          is_active?: boolean
+          position?: number
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'lead_sources_org_id_fkey'
+            columns: ['org_id']
+            isOneToOne: false
+            referencedRelation: 'organizations'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      pipeline_stages: {
+        Row: {
+          id: string
+          org_id: string
+          key: string
+          label: string
+          position: number
+          probability: number
+          is_won: boolean
+          is_lost: boolean
+          color: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          org_id: string
+          key: string
+          label: string
+          position: number
+          probability?: number
+          is_won?: boolean
+          is_lost?: boolean
+          color?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          org_id?: string
+          key?: string
+          label?: string
+          position?: number
+          probability?: number
+          is_won?: boolean
+          is_lost?: boolean
+          color?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'pipeline_stages_org_id_fkey'
             columns: ['org_id']
             isOneToOne: false
             referencedRelation: 'organizations'

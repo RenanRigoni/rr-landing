@@ -847,19 +847,68 @@ junto, na 6.4, migrando para `beforeAll`.
 
 # FASE 3 — Leads
 
-### [ ] 3.1 Catálogos: fontes e estágios
+### [x] 3.1 Catálogos: fontes e estágios
 
-`supabase/migrations/0004_catalogs.sql`: `lead_sources` e `pipeline_stages` conforme
-`DATABASE.md`, com RLS.
-
-- Função `sales.seed_org_defaults(p_org_id uuid)` (`security definer`) criando as 6
-  fontes e os 7 estágios padrão.
-- Chamar `seed_org_defaults` dentro de `create_organization` (alterar a RPC da 2.2).
-- `lib/queries/catalogs.ts`: `listStages()`, `listSources()`.
-
-**Pronto quando:** org nova nasce com 6 fontes e 7 estágios. (Não há org preexistente
-para seedar à mão: `organizations` está com 0 linhas — ver Achado C do checkpoint da
-Fase 2. A verificação é criar uma org nova pelo onboarding e conferir os catálogos.)
+> feito: `supabase/migrations/0004_catalogs.sql` — `lead_sources` e
+> `pipeline_stages` conforme `DATABASE.md`, RLS `tenant_isolation for all`
+> padrão (dado operacional, não de governança — D-017 não se aplica). Trigger
+> `pipeline_stages_set_updated_at`.
+>
+> `sales.seed_org_defaults(p_org_id uuid)`, `security definer`, insere as 6
+> fontes (`Site`, `WhatsApp`, `Google`, `Instagram`, `Indicação`, `Outro`) e os
+> 7 estágios (`novo` → `perdido`, valores de probabilidade exatos da tabela do
+> roadmap). **Revogada de `authenticated` e de `public`** — só é chamável de
+> dentro de `create_organization` (que roda como dona via `security definer`,
+> preserva execução mesmo sem grant explícito). Sem essa revogação, qualquer
+> autenticado poderia chamar `seed_org_defaults(org_id_alheio)` e a função,
+> ignorando RLS por ser `security definer`, semearia catálogo duplicado em
+> organização de outro tenant — mesma classe de risco do Achado A do
+> checkpoint da Fase 2, fechada aqui antes de existir.
+>
+> `create_organization` (0002) alterada via `create or replace` nesta mesma
+> migration — chama `perform sales.seed_org_defaults(v_org_id)` ao final,
+> mesma transação da criação da org e da membership do owner. `0001`/`0002`/
+> `0003` não tocados; `CREATE OR REPLACE FUNCTION` preserva os grants
+> existentes de `create_organization` (revogado de `public`, concedido a
+> `authenticated`), nenhum grant repetido.
+>
+> `lib/queries/catalogs.ts`: `listStages()` e `listSources()`, `server-only`,
+> via `requireOrgId()` + filtro explícito `org_id` (RLS já isola, o filtro é
+> defesa em profundidade e deixa a query auto-explicativa). Colunas explícitas,
+> sem `select *`. Tipos em `lib/types/database.types.ts` (`lead_sources`,
+> `pipeline_stages`), mantidos à mão pelo mesmo motivo já documentado ali
+> (ferramenta de geração automática não introspecta `sales`).
+>
+> **Validado, não só assumido:**
+> - Fluxo real ponta a ponta com client anon autenticado (`rls-test-a`):
+>   `create_organization` → org nova nasce com **6 fontes e 7 estágios**
+>   exatos, nomes e chaves batendo com `DATABASE.md`.
+> - Isolamento: usuário sem membership não vê fontes/estágios de organização
+>   alheia (0 linhas via RLS).
+> - `seed_org_defaults` chamada direta por usuário autenticado sem ser dono
+>   da org: **negada** (`permission denied for function seed_org_defaults`) —
+>   prova de que a revogação funciona, não só que existe no arquivo.
+> - Replay do zero: `drop schema sales cascade` + reaplicar 0001→0004 na ordem
+>   → 4 tabelas, 9 policies, 5 funções, 6 enums — bate com o estado vivo.
+> - `npm run test:rls` contra o schema replayado: **36/36 seguem passando**
+>   (3.1 não tocou `organizations`/`org_members`, sem regressão esperada nem
+>   observada).
+> - `get_advisors(security)`: nenhum alerta novo em `sales` — mesmos 3 WARN de
+>   D-013. `seed_org_defaults` não aparece (confirma que a revogação de
+>   `authenticated` remove o alerta que apareceria se fosse chamável).
+> - `anon`: sem grant em `lead_sources`/`pipeline_stages` (herdado do padrão
+>   já provado do schema — nada é concedido a `anon` em nenhuma tabela).
+> - `typecheck`/`lint`/`test`/`build` limpos. Zero organização residual no
+>   banco após toda a validação.
+>
+> Nenhuma decisão permanente nova para `DECISIONS.md` — a RLS `for all` já é
+> o padrão documentado, e a revogação de `seed_org_defaults` é aplicação do
+> mesmo princípio de D-013/D-017 (privilégio mínimo em função
+> `security definer`), não um trade-off novo.
+>
+> Dois commits: migration sozinha antes de aplicar, resto depois.
+>
+> **Não avançado para a 3.2** — aguardando nova instrução.
 
 ### [ ] 3.2 Contatos e leads (banco)
 

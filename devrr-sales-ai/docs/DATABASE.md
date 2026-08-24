@@ -312,6 +312,41 @@ derivado (existe follow-up pendente para esse lead), não posição no funil. Ve
 `key` é imutável depois de criado. `label` o usuário edita à vontade. Código nunca
 lê `label`.
 
+### `sales.seed_org_defaults(p_org_id uuid)`
+
+Semeia as 6 fontes e os 7 estágios padrão de uma organização nova. `security definer`
+porque roda dentro de `create_organization`, antes de a membership existir (a policy
+`tenant_isolation` de `lead_sources`/`pipeline_stages` bloquearia o próprio insert de
+seed sem isso).
+
+**Não é chamável direto pelo cliente** — `revoke all ... from public` e
+`revoke execute ... from authenticated` logo após a definição, único caminho é via
+`create_organization` (que roda como dona da função via `security definer` e por isso
+preserva a chamada mesmo sem grant explícito para `authenticated`). Sem essa
+revogação, qualquer usuário autenticado poderia chamar
+`seed_org_defaults(org_id_alheio)` diretamente via PostgREST e a função, ignorando RLS
+por ser `security definer`, semearia catálogo em organização de outro tenant — mesma
+classe de risco do Achado A do checkpoint da Fase 2 (ver D-017), fechada aqui antes de
+existir.
+
+```sql
+create or replace function sales.seed_org_defaults(p_org_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = sales, public
+as $fn$ ... $fn$;
+
+revoke all on function sales.seed_org_defaults(uuid) from public;
+revoke execute on function sales.seed_org_defaults(uuid) from authenticated;
+```
+
+`create_organization` (0002) chama `perform sales.seed_org_defaults(v_org_id)` ao
+final, na mesma transação da criação da org e da membership do owner — alterada via
+`create or replace function` na migration 0004; `CREATE OR REPLACE FUNCTION` preserva
+grants existentes, então os grants de `create_organization` (revogado de `public`,
+concedido a `authenticated`) não precisaram ser repetidos.
+
 ### `sales.contacts`
 
 A pessoa que entrou em contato com a PME.
