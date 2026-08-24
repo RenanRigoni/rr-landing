@@ -1229,6 +1229,98 @@ supabase ou next (verificar com grep).
 >
 > **Não avançado para a 3.6** — aguardando nova instrução.
 
+### [x] 3.6 Formulário de lead
+
+> feito: `lib/validation/lead-intake.ts` (`leadIntakeSchema`) reaproveita
+> campo a campo `createContactSchema`/`createLeadSchema` (`.shape.*`, D-020
+> em espírito — reusa validação já existente em vez de duplicar regra) e
+> soma só o que é próprio deste fluxo: `value_reais` (usuário digita reais,
+> não centavos — conversão via `lib/domain/money.ts` `reaisToCents` no core,
+> não no schema), `contact_id`/`force_new_contact` (decisão de
+> vincular/criar mesmo assim).
+>
+> `lib/actions/lead-intake-core.ts` (`createLeadIntakeCore`): sem telefone
+> informado ou telefone novo na organização, cria contato + lead juntos.
+> Telefone batendo com contato existente → devolve `status: 'duplicate'`
+> com os dados do contato, **sem gravar nada** — nunca força vincular nem
+> força cadastrar contato separado antes. Reusa `belongsToOrg()` de
+> `lib/actions/leads-core.ts` (exportada nesta tarefa) para `contact_id`
+> (inclusive o enviado de volta pelo botão "Vincular a este contato" — id
+> vindo do navegador, revalidado igual qualquer outro, D-020) e `source_id`.
+> Estágio inicial é sempre a `pipeline_stage` de `key = 'novo'` da
+> organização atual, resolvida no servidor — não existe campo de estágio
+> nesta tela. `lib/actions/lead-intake.ts` (`'use server'`) resolve
+> `orgId`/`supabase`/`user`, delega pro core, e só no sucesso chama
+> `revalidatePath('/leads')` + `redirect('/leads/{id}')` (mesmo padrão já
+> usado em `lib/actions/orgs.ts` → `createOrganization`).
+>
+> `components/leads/NewLeadForm.tsx` + `app/(app)/leads/new/page.tsx`
+> (Server Component, só busca `listSources()` da organização atual e passa
+> como prop — fontes vêm sempre do servidor, nunca hardcoded no cliente).
+> Um único formulário: nome, telefone, e-mail, empresa, título, interesse,
+> fonte, valor potencial (R$), observações. Erro exibido inline
+> (`state.error`), sem `alert()`. Quando o telefone bate com um contato
+> existente, uma faixa aparece com dois botões — "Vincular a este contato"
+> (reenvia com `contact_id`) e "Criar contato novo mesmo assim" (reenvia com
+> `force_new_contact`) — cada um usando `name`/`value` do próprio `<button
+> type="submit">`, sem JS extra pra decidir o que mandar.
+>
+> **Achado real testado no browser, motivo de D-022:** com inputs não
+> controlados (padrão do resto do projeto, `OnboardingForm`), o React 19
+> reseta todo campo do formulário depois de qualquer chamada de
+> `useActionState` que não lança — inclusive quando a action só devolve
+> `status: 'duplicate'` sem erro. Confirmado por screenshot antes de
+> corrigir: nome/título/e-mail/etc. voltavam vazios bem no momento em que o
+> usuário precisa decidir vincular ou criar mesmo assim. Corrigido trocando
+> os inputs para controlados (estado local `values` + `onChange`) — decisão
+> registrada em **D-022**, com a regra geral de quando controlado > não
+> controlado neste projeto.
+>
+> **Testes** — `tests/actions/lead-intake.test.ts` (10), mesmo padrão de
+> `tests/actions/leads.test.ts` (chama a `*Core` direto com clients reais
+> autenticados): cria contato+lead sem telefone; cria contato+lead com
+> telefone novo (confere `value_cents` calculado a partir de `value_reais`);
+> telefone repetido devolve `duplicate` sem gravar nada; reenvio com
+> `contact_id` vincula sem duplicar contato; reenvio com
+> `force_new_contact` cria um segundo contato de propósito; payload
+> inválido (título vazio); `value_reais` negativo; `source_id` de outra
+> organização (nada criado); `contact_id` de outra organização enviado
+> direto — tentativa de mass assignment (nada criado); `org_id` enviado no
+> payload é ignorado.
+>
+> **Validado no browser, não só por typecheck/build** — subi `next dev`,
+> logei como `rls-test-a`, criei organização nova pelo onboarding (a
+> anterior da 3.5 já tinha sido limpa): cadastrei lead com telefone novo
+> (valor `R$ 2.500,50` calculado certo, redirecionou pro detalhe do lead
+> criado); reenviei outro cadastro com o mesmo telefone → faixa de
+> duplicata apareceu com os campos digitados intactos (prova visual do
+> achado/fix de D-022); cliquei "Vincular a este contato" → lead novo, **1
+> contato só** (`select count(*)` direto no banco); repeti o fluxo e cliquei
+> "Criar contato novo mesmo assim" → **2 contatos** com o mesmo telefone,
+> confirmado por SQL direto; lista `/leads` mostra os 3 leads criados com
+> os dados certos. Dado de QA removido depois (`organizations=0
+> contacts=0 leads=0` confirmado).
+>
+> **Validado também por typecheck/lint/test/test:rls/build** — sem
+> regressão: `test:rls` **74/74** (64 preservados + 10 novos), rodado duas
+> vezes seguidas, zero organização/contato/lead residual entre execuções.
+> Suíte rápida continua **44/44** (esta tarefa não mexeu em `lib/domain/`).
+> Sem `select('*')` em nenhum arquivo novo (grep). Nenhum componente
+> importa `@/lib/supabase`/`createClient` (grep). Nenhuma action usa
+> `service_role` (grep). `get_advisors(security)`: nenhum alerta novo no
+> schema `sales` — sem migration nesta tarefa, `0001`-`0005` intactos.
+>
+> Uma decisão permanente nova: **D-022** (dedupe por telefone sugere, nunca
+> força; inputs controlados quando o mesmo formulário pode reprocessar
+> mais de uma vez sem navegar).
+>
+> Dois commits: código + testes, depois docs.
+>
+> **Não avançado além da 3.6** — aguardando nova instrução.
+
+<details>
+<summary>Texto original da tarefa (referência)</summary>
+
 ### [ ] 3.6 Formulário de lead
 
 - Criação em um passo: se o telefone informado casar com contato existente da org,
@@ -1240,6 +1332,8 @@ supabase ou next (verificar com grep).
 
 **Pronto quando:** dá pra cadastrar um lead real da DevRR de ponta a ponta em menos
 de 30 segundos e ele aparece na lista.
+
+</details>
 
 ---
 

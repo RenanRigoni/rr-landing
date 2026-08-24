@@ -582,6 +582,57 @@ não tem milhares de leads na tela ao mesmo tempo); revisar se paginação
 
 ---
 
+## D-022 — Formulário de cadastro em um passo: dedupe por telefone só sugere, nunca força; campos controlados por causa do reset automático do React 19 em `useActionState`
+
+**Data:** 2026-08-24 · **Status:** decidido, tarefa 3.6 · **Aplica a:** todo formulário futuro que precise reapresentar uma confirmação sem perder o que o usuário já digitou
+
+**1. `createLeadIntakeCore` nunca cria contato duplicado por engano, mas também
+nunca bloqueia o cadastro por telefone repetido.** Se o telefone digitado bate
+com um contato já existente na organização, a função devolve
+`status: 'duplicate'` com os dados do contato encontrado e **não grava nada**
+— quem decide é o usuário: reenviar com `contact_id` (vincula ao existente,
+`belongsToOrg()` revalida mesmo assim — D-020) ou com `force_new_contact`
+(cria mesmo repetido; PMEs reais têm dois clientes na mesma linha de WhatsApp
+comercial, forçar unicidade seria dado errado, não proteção).
+
+**Descartado:** bloquear silenciosamente e sempre vincular ao contato
+encontrado — tira do usuário um caso legítimo (nova pessoa, mesmo telefone);
+bloquear com erro duro exigindo edição manual do telefone — o objetivo
+declarado da tarefa é "nunca forçar cadastrar contato antes", forçar resolver
+um conflito de telefone tem o mesmo efeito de atrito.
+
+**2. `components/leads/NewLeadForm.tsx` usa inputs controlados, não o padrão
+uncontrolled+`defaultValue` que o resto do projeto usa (`OnboardingForm`,
+`LoginForm`).** Achado real testado no browser antes de decidir: com
+`<form action={formAction}>` via `useActionState`, o React 19 reseta todo
+input não controlado depois de **qualquer** chamada da action que não lança
+exceção — inclusive quando `createLeadIntake` devolve `status: 'duplicate'`
+sem erro nenhum. Confirmado visualmente (screenshot): nome, título, e-mail,
+empresa, interesse, fonte, valor e observações voltavam vazios assim que a
+faixa de "já existe contato com esse telefone" aparecia — exatamente o
+momento em que perder o que foi digitado dói mais. Trocar os inputs para
+controlados (estado local `values`, `value`+`onChange`) resolve porque o
+valor renderizado deixa de depender do que o DOM tenta resetar sozinho.
+
+**Descartado:** `defaultValue` combinado com `key` para forçar remount —
+resolveria, mas exigiria devolver os valores digitados de volta pelo próprio
+`LeadIntakeResult` (estado do servidor ecoando o que o cliente já tem)
+só para poder montar de novo o mesmo `defaultValue`; mais estado percorrendo
+a rede pelo mesmo resultado. Estado controlado local é mais direto quando o
+formulário já precisa sobreviver a múltiplas idas e voltas da mesma action.
+
+**Regra geral que isso cria:** todo formulário que possa reprocessar a mesma
+tela mais de uma vez com a mesma instância montada (confirmação, correção de
+erro sem navegação) usa inputs controlados. Formulário de submissão única
+(cria e sai, ou cria e falha só uma vez antes de o usuário editar) continua
+uncontrolled — é o caso comum, e o padrão dos formulários anteriores
+(`OnboardingForm`) segue correto para o caso deles.
+
+**Custo aceito:** mais código no componente (um `useState` de objeto e um
+`handleChange` genérico) do que o padrão uncontrolled do resto do projeto.
+
+---
+
 ## Questões abertas
 
 Sonnet: adicione aqui o que travar. Opus resolve no próximo checkpoint.
