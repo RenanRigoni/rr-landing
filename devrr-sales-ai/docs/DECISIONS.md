@@ -233,6 +233,43 @@ granularidade.
 
 ---
 
+## D-013 — Toda RLS que checa papel dentro de `org_members` passa por helper `security definer`
+
+**Data:** 2026-08-23 · **Status:** decidido, tarefa 2.2
+
+`org_members` precisa restringir escrita a `role in ('owner','admin')`
+(`DATABASE.md`), mas uma policy de `org_members` não pode consultar `org_members`
+diretamente — é a mesma recursão que `current_org_ids()` já resolve para leitura
+(`ARCHITECTURE.md` → Multiempresa). Criado `sales.current_org_role(p_org_id)`,
+`security definer`, `search_path` fixo, mesmo padrão de `current_org_ids()`.
+
+**Por quê:** sem o helper, `with check (exists (select 1 from org_members where
+org_id = x and user_id = auth.uid() and role in (...)))` dispara a própria policy de
+`org_members` ao ler `org_members` — recursão infinita, o mesmo bug que
+`current_org_ids()` já existe para evitar em `select`.
+
+**Regra que isso cria:** qualquer tabela futura que precise checar papel/atributo de
+`org_members` dentro de uma policy usa um helper `security definer` dedicado, nunca
+uma subquery direta em `org_members`. `org_members` também é a primeira tabela a não
+seguir o padrão "uma policy `tenant_isolation` `for all`" — leitura (qualquer membro
+vê os outros da própria org) e escrita (só owner/admin) têm regras diferentes,
+exigindo policies por operação. Documentar esse padrão em `DATABASE.md` quando a
+próxima tabela precisar de policy assimétrica por operação.
+
+**Efeito colateral aceito, não é falha:** `get_advisors(security)` acusa
+`current_org_role`, `current_org_ids` e `create_organization` como
+"Signed-In Users Can Execute SECURITY DEFINER Function" (WARN). É esperado — as três
+são RPC que o app precisa mesmo chamar via `authenticated`, e nenhuma vaza dado de
+outro usuário: `current_org_ids`/`current_org_role` só retornam dado do próprio
+`auth.uid()` (nulo/vazio para org alheia), `create_organization` cria uma org nova e
+torna o chamador `owner` dela — comportamento pretendido. Nenhuma das três aparece
+para `anon` (confirmado via `has_function_privilege`).
+
+**Custo aceito:** uma função a mais por tipo de checagem de papel; policies de
+`org_members` mais numerosas (4) que o padrão de 1 policy por tabela.
+
+---
+
 ## Questões abertas
 
 Sonnet: adicione aqui o que travar. Opus resolve no próximo checkpoint.

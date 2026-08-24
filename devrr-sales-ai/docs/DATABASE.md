@@ -143,11 +143,16 @@ created_at, updated_at
 ```
 
 RLS: `using (id in (select sales.current_org_ids()))` — sem `org_id`, a própria PK é
-o discriminador. Insert é feito por Server Action que cria org + membership na mesma
-transação (RPC `sales.create_organization(name)` com `security definer`).
+o discriminador. Insert direto pelo cliente nunca passa (a org não existe em
+`current_org_ids()` antes de a membership existir) — a criação é sempre via RPC
+`sales.create_organization(p_name)`, `security definer`, que grava organização e
+membership na mesma transação e gera o `slug` a partir do nome (kebab-case ASCII,
+sufixo numérico em colisão).
 
 `timezone` e `business_hours` não são decoração: follow-up agendado para sábado às 3h
 da manhã é bug de produto. O cálculo de próxima data respeita os dois.
+
+Trigger `organizations_set_updated_at` chama `sales.fn_set_updated_at()`.
 
 ### `sales.org_members`
 
@@ -160,8 +165,58 @@ created_at
 unique (org_id, user_id)
 ```
 
-RLS aqui usa `security definer` na helper, então não há recursão. Policy de escrita
-restrita a `role in ('owner','admin')` — implementar na Fase 2, testar na 6.4.
+Índice em `user_id` (`org_members_user_id_idx`): `current_org_ids()` consulta esta
+tabela por `user_id` em toda policy do schema — é o hot path de todo o RLS
+multi-tenant, sem índice cada checagem faria sequential scan.
+
+Não segue o padrão `tenant_isolation` de uma policy só "for all": leitura é por
+associação (qualquer membro vê os outros membros da própria org), escrita é
+restrita a `role in ('owner','admin')` — duas regras por operação exigem policies
+separadas.
+
+```sql
+create policy tenant_isolation_select on sales.org_members
+  for select to authenticated
+  using (org_id in (select sales.current_org_ids()));
+
+create policy owner_admin_insert on sales.org_members
+  for insert to authenticated
+  with check (sales.current_org_role(org_id) in ('owner', 'admin'));
+
+create policy owner_admin_update on sales.org_members
+  for update to authenticated
+  using (sales.current_org_role(org_id) in ('owner', 'admin'))
+  with check (sales.current_org_role(org_id) in ('owner', 'admin'));
+
+create policy owner_admin_delete on sales.org_members
+  for delete to authenticated
+  using (sales.current_org_role(org_id) in ('owner', 'admin'));
+```
+
+`sales.current_org_role(p_org_id)` é helper `security definer` irmão de
+`current_org_ids()` — mesmo motivo: uma policy de escrita em `org_members` que
+consultasse `org_members` diretamente disparia a própria policy (recursão). Resolve
+o papel do usuário logado numa org específica, `security definer` bypassa RLS
+nessa leitura interna.
+
+```sql
+create or replace function sales.current_org_role(p_org_id uuid)
+returns sales.org_role
+language sql
+stable
+security definer
+set search_path = sales, public
+as $fn$
+  select role from sales.org_members
+   where org_id = p_org_id and user_id = auth.uid()
+$fn$;
+```
+
+Testado ponta a ponta com dois usuários reais simulados via JWT (dentro de
+transação com `rollback`, nenhum dado deixado): usuário sem membership não vê
+organização nem membership de outra org, `current_org_role` retorna `null` para
+org da qual não é membro, e insert direto de membership numa org alheia é
+bloqueado pela policy `owner_admin_insert` (não pela FK).
 
 ---
 

@@ -338,7 +338,64 @@ Depois: expor `sales` em Settings → API → Exposed schemas; gerar
 **Pronto quando:** arquivo commitado antes de aplicado, schema existe, types gerados,
 advisors sem alerta novo, `DATABASE.md` conferido.
 
-### [ ] 2.2 Organizations + org_members
+### [x] 2.2 Organizations + org_members
+
+> feito: `supabase/migrations/0002_organizations.sql` aplicada no Supabase
+> remoto. Tabelas `organizations` e `org_members` conforme `DATABASE.md`, RLS
+> nas duas, trigger `organizations_set_updated_at` → `fn_set_updated_at()`,
+> RPC `create_organization(p_name)` `security definer` (gera `slug` kebab-case
+> ASCII do nome, com sufixo numérico em colisão — não especificado literalmente
+> em `DATABASE.md`, implementação necessária pra cumprir `slug not null
+> unique`).
+>
+> **Desvio permanente, registrado como D-013:** `org_members` não segue o
+> padrão de uma policy `tenant_isolation` `for all` — leitura é por associação
+> (`tenant_isolation_select`), escrita é restrita a `role in ('owner','admin')`
+> via 3 policies (`owner_admin_insert/update/delete`). A checagem de papel
+> usa novo helper `sales.current_org_role(p_org_id)`, `security definer` +
+> `search_path` fixo, mesmo padrão de `current_org_ids()` — necessário porque
+> uma policy de `org_members` não pode consultar `org_members` direto (mesma
+> recursão que `current_org_ids()` já existe pra evitar). Índice
+> `org_members_user_id_idx` acrescentado (não estava no texto literal da
+> tarefa) porque `current_org_ids()` consulta essa tabela por `user_id` em
+> toda policy do schema — hot path do RLS inteiro.
+>
+> **Validado, não só assumido:**
+> - Replay do zero: `drop schema sales cascade` + reaplicar 0001 e 0002 finais,
+>   sozinhos, na ordem — sucesso.
+> - `get_advisors(security)` após o replay: só 3 alertas novos no schema
+>   `sales`, todos WARN "authenticated pode executar função security
+>   definer" (`create_organization`, `current_org_ids`, `current_org_role`).
+>   Aceito por desenho e documentado em D-013 — nenhuma das três vaza dado de
+>   outro usuário, e nenhuma aparece pra `anon` (confirmado via
+>   `has_function_privilege`).
+> - `pg_policies`: as 5 policies (`tenant_isolation` em organizations;
+>   `tenant_isolation_select`, `owner_admin_insert/update/delete` em
+>   org_members) existem exatamente como projetadas.
+> - **Isolamento provado ponta a ponta**, não só policy existindo: simulação
+>   SQL com dois usuários reais de `auth.users` (JWT fake via
+>   `set local request.jwt.claims`, dentro de transação com `rollback`, zero
+>   dado deixado — confirmado `count(*) = 0` em `organizations`/`org_members`
+>   depois). 7 casos, todos bateram o esperado: usuário A cria org via RPC e
+>   vira `owner`; usuário B não vê a org de A (nem em `organizations` nem em
+>   `org_members`); `current_org_role()` de B na org de A retorna `null`;
+>   insert direto de B se auto-nomeando membro da org de A é bloqueado pela
+>   policy `owner_admin_insert` (erro `insufficient_privilege`, não passa por
+>   ser bloqueado na FK). Essa é uma prova funcional pontual, não a suíte
+>   completa da 2.4 (`tests/rls.test.ts` com vitest + dois usuários reais via
+>   client anon) — 2.4 continua sendo quem fecha esse item oficialmente.
+> - Grants: `organizations`/`org_members` têm
+>   `select,insert,update,delete` pra `authenticated`/`service_role` via
+>   `alter default privileges` da 0001 (nenhum grant explícito precisou ser
+>   escrito nesta migration). `anon` sem privilégio nenhum.
+> - `typecheck`/`lint`/`test`/`build` limpos.
+>
+> `lib/types/database.types.ts` atualizado à mão (gerador MCP continua só
+> devolvendo `public`, mesma limitação da 2.1) com as duas tabelas e as 3
+> funções (pra tipar `.rpc('create_organization', ...)` na 2.3).
+> `DATABASE.md` → org_members ganhou o SQL final das policies e do helper
+> (antes só descrevia em prosa). Dois commits: migration sozinha antes de
+> aplicar (`e4c0804`), resto depois.
 
 `supabase/migrations/0002_organizations.sql`:
 
