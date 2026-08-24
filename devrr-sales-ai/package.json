@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
+    "test:rls": "vitest run --config vitest.rls.config.ts",
     "seed:demo": "tsx supabase/seed/run.ts",
     "seed:purge": "tsx supabase/seed/purge.ts"
   },

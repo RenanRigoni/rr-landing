@@ -294,6 +294,58 @@ de escopo hoje, mas a tabela já suporta múltiplos membros desde D-013).
 
 ---
 
+## D-015 — Usuários de teste de RLS são provisionados automaticamente, não manualmente
+
+**Data:** 2026-08-23 · **Status:** decidido, tarefa 2.4
+
+`tests/helpers/rls-fixtures.ts` → `ensureTestUser()` garante que
+`rls-test-a@devrr-sales-ai.test` e `rls-test-b@devrr-sales-ai.test` existem antes de
+`tests/rls.test.ts` rodar: tenta logar primeiro (rápido); só cria a conta via API
+admin do Supabase Auth (`email_confirm: true`) se o login falhar. Domínio `.test`
+(reservado pela IANA, nunca resolve — nenhum e-mail sai de verdade).
+
+**Por quê:** o texto original da tarefa 2.4 pedia "documentar em README.md como criar
+os dois usuários de teste", sugerindo criação manual via dashboard — mas isso torna a
+suíte não reproduzível sem um passo humano toda vez que o ambiente for resetado (ou
+em CI, quando existir). Provisionamento automático e idempotente resolve isso sem
+custo: primeira execução cria, todas as seguintes só logam.
+
+**Descartado:** documentar só o passo manual (dashboard → Authentication → Users) —
+mantido no README.md como *fallback* para reset manual, não como caminho principal.
+
+**Custo aceito:** a suíte de RLS precisa de `SUPABASE_SERVICE_ROLE_KEY` válida em
+`.env.local` — achado real na 2.4: essa variável estava vazia desde a cópia original
+do `.env.local` do CRM-RR (tarefa 1.3), nunca antes exercitada em código.
+
+---
+
+## D-016 — Teste de RLS em UPDATE/DELETE sempre encadeia `.select()`
+
+**Data:** 2026-08-23 · **Status:** decidido, tarefa 2.4 · **Aplica a:** todo teste de RLS futuro (Fase 6.4 inclusive)
+
+Quando a cláusula `USING` de uma policy bloqueia um `UPDATE`/`DELETE` (o usuário não
+tem permissão nenhuma sobre a linha), o Postgres **não gera erro** — a linha
+simplesmente não entra no conjunto afetado, e a operação "sucede" com 0 linhas.
+Erro real só acontece quando `USING` passa mas o `WITH CHECK` rejeita o novo valor
+(ex.: mover `org_id` para uma org onde o usuário não é admin).
+
+**Por quê importa:** um teste que só checa `expect(error).not.toBeNull()` em um
+`UPDATE`/`DELETE` bloqueado por `USING` **passa por engano mesmo se a policy cair** —
+`error` vem `null` de qualquer forma. Achado real na 2.4: os dois testes de "member
+não consegue alterar/apagar a própria membership" falharam na primeira rodada
+exatamente por isso, e a correção (checar `data` do `.select()` encadeado, esperando
+`[]`) é o padrão certo, não gambiarra pontual.
+
+**Regra permanente:** todo teste de RLS que exercita `UPDATE`/`DELETE` encadeia
+`.select()` e verifica `data` (deve vir `[]` quando bloqueado por `USING`); só usa
+`expect(error).not.toBeNull()` para `INSERT` (onde `WITH CHECK` falhando sempre gera
+erro real) ou para `UPDATE` que muda um valor coberto por `WITH CHECK` (ex.: `org_id`).
+
+**Custo aceito:** nenhum — é estritamente mais correto que a alternativa, sem
+complexidade extra relevante.
+
+---
+
 ## Questões abertas
 
 Sonnet: adicione aqui o que travar. Opus resolve no próximo checkpoint.

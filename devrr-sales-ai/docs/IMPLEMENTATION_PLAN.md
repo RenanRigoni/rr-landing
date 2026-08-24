@@ -483,7 +483,60 @@ advisors sem alerta novo, `DATABASE.md` conferido.
 **Pronto quando:** usuário novo é levado ao onboarding, cria a empresa, e chega em
 `/today` com a org ativa resolvida no servidor.
 
-### [ ] 2.4 Provar o isolamento
+### [x] 2.4 Provar o isolamento
+
+> feito: `tests/rls.test.ts` (24 casos) + `tests/helpers/rls-fixtures.ts`.
+> Cobre os 4 casos literais da tarefa e os 8 do checklist de segurança do
+> checkpoint: A acessa a própria org; B não acessa a org de A (`organizations`
+> e `org_members`); B não se autoadiciona à org de A (insert bloqueado); A não
+> insere com `org_id` de B; A não move a própria membership pra org de B
+> (update bloqueado); owner adiciona membro real e o member resultante
+> respeita as permissões (não altera o próprio papel, não apaga a própria
+> membership, mas lê a lista — `tenant_isolation_select` é por associação,
+> não só para owner/admin); `current_org_ids()` não vaza org alheia e passa a
+> incluir a org quando o usuário vira membro de verdade;
+> `current_org_role()` retorna `null` para org alheia e o papel certo
+> (`owner`/`member`) para a própria; `create_organization()` cria o vínculo
+> certo (criador = único membro, papel `owner`); ausência de organização
+> tratada (usuário recém-criado: `organizations` vazio, `current_org_ids()`
+> vazio); anon bloqueado em `organizations`, `org_members`,
+> `current_org_ids()` e `create_organization()`.
+>
+> `npm run test:rls`: **24/24 passam**, duas vezes seguidas (idempotência —
+> confirmado por `select` direto que zero organização de teste ficou no
+> banco entre execuções). Suíte separada de `npm run test` via
+> `vitest.rls.config.ts` (rede real, não deve rodar em todo commit de tarefa
+> futura) — exatamente o que o texto da tarefa previa ("marcar como suite
+> separada se ficar lento").
+>
+> **Achado real, não um bug meu:** `SUPABASE_SERVICE_ROLE_KEY` estava
+> **vazia** em `.env.local` — não só neste projeto, o `.env.local` do
+> CRM-RR de onde copiei na tarefa 1.3 já tinha a mesma linha vazia
+> (confirmado comparando os dois arquivos, mesmo tamanho de linha). Bloqueava
+> qualquer uso real de `lib/supabase/admin.ts`, nunca exercitado em código
+> até agora. Sem ferramenta MCP disponível expõe essa chave (só
+> `get_publishable_keys`, que é pública por design) — reportei o bloqueio ao
+> usuário, que forneceu o valor real do dashboard; preenchido em
+> `.env.local` (gitignored, confirmado via `git check-ignore`).
+>
+> **Achado real de RLS, motivo de existir a 2.4:** um `UPDATE`/`DELETE`
+> bloqueado pela cláusula `USING` da policy (o usuário não tem permissão
+> nenhuma sobre a linha) **não gera erro** — o Postgres só filtra a linha do
+> conjunto afetado, "sucesso" com 0 linhas. Erro real só acontece quando a
+> `USING` passa mas o `WITH CHECK` rejeita o novo valor (caso do teste "A move
+> a própria membership pra org de B"). Os dois testes de "member não
+> consegue alterar/apagar a própria linha" caíram nisso na primeira rodada —
+> corrigidos para checar `data` do `.select()` encadeado (`[]`), não `error`.
+> **Registrado como D-016** — vale para qualquer teste de RLS futuro
+> (Fase 6.4 reexecuta esta suíte estendida).
+>
+> **Decisão permanente, D-015:** provisionamento dos dois usuários de teste é
+> automático (`ensureTestUser`, idempotente), não manual como o texto
+> original da tarefa sugeria ("documentar como criar"). README.md documenta
+> o mecanismo e como resetar manualmente se precisar.
+>
+> Nenhuma migration nesta tarefa — 0001/0002 não tocadas.
+> `typecheck`/`lint`/`test`/`build` limpos.
 
 Não é "escrever RLS". É **provar que ela funciona**.
 

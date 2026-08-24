@@ -5,6 +5,8 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: ['tests/**/*.test.ts'],
+    exclude: ['tests/rls.test.ts'],
+    setupFiles: ['./tests/setup/load-env.ts'],
   },
   resolve: {
     alias: {
