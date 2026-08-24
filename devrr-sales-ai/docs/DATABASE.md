@@ -79,6 +79,15 @@ create policy tenant_isolation on sales.<tabela>
   with check (org_id in (select sales.current_org_ids()));
 ```
 
+**Quando o padrão acima NÃO serve:** ele dá a todo membro da org o mesmo poder de
+leitura e escrita — correto para dado operacional (contatos, leads, atividades: quem
+está na empresa trabalha o funil da empresa), errado para dado de **governança** do
+próprio tenant (`organizations`, `org_members`, e futuramente cobrança/assinatura).
+Nesses casos a policy é assimétrica por operação: `select` por associação, escrita
+por papel via `sales.current_org_role()`. Ver D-013 e D-017. Regra prática: se a
+operação altera *quem manda* ou *se o tenant existe*, ela é de owner/admin, nunca
+`for all`.
+
 ### Grants — o detalhe que quebra a migration 0002 se for esquecido
 
 ```sql
@@ -142,12 +151,40 @@ business_hours jsonb not null default '{"start":"09:00","end":"18:00","days":[1,
 created_at, updated_at
 ```
 
-RLS: `using (id in (select sales.current_org_ids()))` — sem `org_id`, a própria PK é
-o discriminador. Insert direto pelo cliente nunca passa (a org não existe em
-`current_org_ids()` antes de a membership existir) — a criação é sempre via RPC
-`sales.create_organization(p_name)`, `security definer`, que grava organização e
-membership na mesma transação e gera o `slug` a partir do nome (kebab-case ASCII,
-sufixo numérico em colisão).
+Sem `org_id`: a própria PK é o discriminador. Insert direto pelo cliente nunca passa
+(a org não existe em `current_org_ids()` antes de a membership existir) — a criação é
+sempre via RPC `sales.create_organization(p_name)`, `security definer`, que grava
+organização e membership na mesma transação e gera o `slug` a partir do nome
+(kebab-case ASCII, sufixo numérico em colisão).
+
+**RLS assimétrica por operação, igual a `org_members`** (ver D-017): leitura é por
+associação, escrita é só de `owner`/`admin`. Uma policy `for all` única aqui daria a
+qualquer `member` o poder de renomear **e apagar** a organização — e `on delete
+cascade` de toda tabela transacional faz esse `delete` levar junto contatos, leads,
+atividades e histórico do tenant inteiro.
+
+```sql
+create policy tenant_isolation_select on sales.organizations
+  for select to authenticated
+  using (id in (select sales.current_org_ids()));
+
+create policy owner_admin_update on sales.organizations
+  for update to authenticated
+  using (sales.current_org_role(id) in ('owner', 'admin'))
+  with check (sales.current_org_role(id) in ('owner', 'admin'));
+
+create policy owner_delete on sales.organizations
+  for delete to authenticated
+  using (sales.current_org_role(id) = 'owner');
+```
+
+Não existe policy de `insert` para `organizations`: a única criação legítima é pela
+RPC `create_organization`, que é `security definer` e não passa por RLS. Sem policy
+de insert, todo `insert` direto via PostgREST é negado — que é exatamente o
+comportamento desejado.
+
+`delete` é mais restrito que `update` de propósito: renomear a empresa é operação de
+administração; apagar o tenant é irreversível e cascateia — só o `owner`.
 
 `timezone` e `business_hours` não são decoração: follow-up agendado para sábado às 3h
 da manhã é bug de produto. O cálculo de próxima data respeita os dois.
@@ -556,13 +593,14 @@ alter view sales.v_leads_without_action set (security_invoker = true);
 |---|---|---|
 | `0001_schema_and_helpers.sql` | schema `sales`, grants, `fn_set_updated_at`, `current_org_ids`, enums | 2.1 |
 | `0002_organizations.sql` | `organizations`, `org_members`, RPC `create_organization`, RLS | 2.2 |
-| `0003_catalogs.sql` | `lead_sources`, `pipeline_stages` + seeds por org | 3.1 |
-| `0004_contacts_leads.sql` | `contacts`, `leads`, índices, RLS | 3.2 |
-| `0005_activities.sql` | `activities`, índices, RLS | 4.1 |
-| `0006_followup_rules.sql` | `followup_rules` + seed | 4.1 |
-| `0007_ai.sql` | `ai_prompts`, `ai_runs` + seed de prompts | 5.1 |
-| `0008_views.sql` | `v_today_actions`, `v_leads_without_action` + `security_invoker` | 4.3 |
-| `0009_audit.sql` | `audit_logs` | 5.4 |
+| `0003_organizations_role_policies.sql` | policies de `organizations` por papel (D-017) | 2.5 |
+| `0004_catalogs.sql` | `lead_sources`, `pipeline_stages` + seeds por org | 3.1 |
+| `0005_contacts_leads.sql` | `contacts`, `leads`, índices, RLS | 3.2 |
+| `0006_activities.sql` | `activities`, índices, RLS | 4.1 |
+| `0007_followup_rules.sql` | `followup_rules` + seed | 4.1 |
+| `0008_ai.sql` | `ai_prompts`, `ai_runs` + seed de prompts | 5.1 |
+| `0009_views.sql` | `v_today_actions`, `v_leads_without_action` + `security_invoker` | 4.3 |
+| `0010_audit.sql` | `audit_logs` | 5.4 |
 
 A numeração segue a **ordem de aplicação**, não a ordem das fases: as views (4.3)
 entram antes da auditoria (5.4), então são `0008`, não `0009`. Replay do zero precisa

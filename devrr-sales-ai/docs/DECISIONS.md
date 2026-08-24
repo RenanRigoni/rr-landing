@@ -346,6 +346,53 @@ complexidade extra relevante.
 
 ---
 
+## D-017 — Dado de governança do tenant tem RLS por papel, não `for all`
+
+**Data:** 2026-08-23 · **Status:** decidido no checkpoint da Fase 2 · **Implementar em:** tarefa 2.5
+
+`sales.organizations` nasceu (0002) com uma policy `tenant_isolation` `for all`:
+`using (id in (select sales.current_org_ids()))`. Isso é isolamento entre orgs
+correto, e autorização dentro da org **errada** — dá a qualquer `member` o mesmo
+poder que o `owner` sobre a linha da organização.
+
+**Achado real, provado no checkpoint**, não hipótese: simulação SQL com os dois
+usuários reais de teste, `set local role authenticated` + `request.jwt.claims` do
+usuário B com papel `member` na org de A. Resultado: `UPDATE organizations SET name`
+→ **1 linha afetada** (nome trocado); `DELETE FROM organizations` → **1 linha
+afetada** (org apagada). Ambos deveriam ser 0.
+
+**Por que importa mais a cada fase:** toda tabela transacional da Fase 3+ tem
+`org_id ... references sales.organizations(id) on delete cascade`. A partir da 3.2,
+esse `DELETE` de uma linha apaga contatos, leads, atividades, follow-ups, runs de IA
+e auditoria da empresa inteira — um `member` derruba o tenant com uma chamada
+PostgREST, sem passar por nenhuma tela. Hoje não é explorável (o onboarding cria a
+org com um único membro `owner` e não existe fluxo de convite), e é exatamente por
+isso que a hora de fechar é agora: a superfície é de duas policies.
+
+**Decisão:** `organizations` passa a seguir o mesmo modelo assimétrico de
+`org_members` (D-013) — `select` por associação, `update` para `owner`/`admin`,
+`delete` só para `owner`, nenhuma policy de `insert` (a criação legítima é só pela
+RPC `create_organization`, `security definer`, que não passa por RLS). SQL final em
+`DATABASE.md` → `sales.organizations`.
+
+**Regra geral que isso cria:** o padrão `tenant_isolation` `for all` vale para dado
+**operacional** (contatos, leads, atividades — todo membro trabalha o funil da
+empresa). Dado de **governança do tenant** (a própria organização, quem é membro, e
+futuramente assinatura/cobrança) é sempre por papel. Critério: se a operação muda
+*quem manda* ou *se o tenant existe*, não é `for all`.
+
+**Descartado:** deixar para quando existir gestão de membros na UI — a policy errada
+já está aplicada no banco, e o custo de corrigir cresce com o número de tabelas que
+cascateiam a partir de `organizations`. Também descartado tirar o `on delete cascade`
+(ele está certo: org apagada não deve deixar órfão; o que estava errado era quem pode
+apagar).
+
+**Custo aceito:** três policies onde havia uma; `organizations` deixa de ser
+gravável por `member` — se algum dia um `member` precisar editar algo da empresa,
+vira coluna/tabela separada, não afrouxamento desta policy.
+
+---
+
 ## Questões abertas
 
 Sonnet: adicione aqui o que travar. Opus resolve no próximo checkpoint.

@@ -555,11 +555,145 @@ conserta antes de seguir.** → **Checkpoint Opus.**
 
 ---
 
+## ⛔ Checkpoint Opus — fim da Fase 2 (2026-08-23) — **NÃO APROVADO até a 2.5**
+
+Revisão de 2.1 → 2.4: migrations, policies, helpers, camada de app, gate de
+onboarding e a suíte de RLS. **Isolamento *entre* organizações está correto e
+provado.** O que reprova o checkpoint é autorização *dentro* da organização.
+
+### Revalidado do zero neste checkpoint (não só lido)
+
+- **Replay real:** `drop schema sales cascade` + reaplicar 0001 e 0002 na ordem →
+  5 policies, 4 funções, 6 enums, 2 tabelas. Sem perda: o schema estava com
+  `organizations = 0` e `org_members = 0` linhas (ver achado C).
+- **`npm run test:rls` logo após o replay: 24/24 passam.** É a prova mais forte que
+  o projeto tem até aqui — schema recriado do arquivo, suíte verde contra ele.
+- `typecheck` / `lint` / `test` / `build` limpos.
+- `get_advisors(security)`: no schema `sales`, só os 3 WARN já documentados em D-013
+  (`authenticated` executa função `security definer`). Todo o resto dos alertas é de
+  `public`, de outros projetos no mesmo Supabase — nenhum alerta novo.
+- Estado vivo × arquivo: as 5 policies, as 4 funções (todas com
+  `search_path = sales, public`; as 3 `security definer` corretas), os 5 índices e as
+  default privileges batem exatamente com 0001/0002. Sem drift.
+- **`anon` não tem nada:** `has_schema_privilege('anon','sales','usage') = false`,
+  zero grant de tabela, `execute = false` nas três RPC. Confirmado no catálogo, além
+  dos 4 testes de anon na suíte.
+- Camadas: nenhum componente importa `@/lib/supabase`; `createAdminClient()` não é
+  chamado em lugar nenhum do app (só existe para os seeds da 6.x); `service_role`
+  aparece só em `lib/env.server.ts`, `lib/supabase/admin.ts` e nas fixtures de teste
+  — nunca numa asserção de RLS.
+
+### Achado A — BLOQUEANTE · `member` renomeia e apaga a organização
+
+`organizations` tem uma policy `tenant_isolation` `for all`, então quem passa no
+`using (id in current_org_ids())` — **qualquer membro, inclusive `role = 'member'`** —
+pode `UPDATE` e `DELETE` a linha da própria organização.
+
+**Provado, não suposto.** Simulação SQL com os dois usuários de teste reais,
+`set local role authenticated` + `request.jwt.claims` do usuário B como `member` na
+org de A:
+
+| operação de B (`member`) | esperado | obtido |
+|---|---|---|
+| `select organizations` | 1 linha | 1 linha ✓ |
+| `update organizations set name` | 0 linhas | **1 linha — nome trocado** |
+| `delete from organizations` | 0 linhas | **1 linha — org apagada** |
+
+**Risco concreto:** a partir da 3.2 toda tabela transacional referencia
+`organizations(id) on delete cascade`. Esse `DELETE` de uma linha passa a apagar
+contatos, leads, atividades, follow-ups, runs de IA e auditoria da empresa inteira —
+um membro comum derruba o tenant com uma chamada PostgREST direta, sem tela nenhuma.
+Hoje não é explorável (onboarding cria a org com um único `owner`, não existe convite),
+e é por isso que a hora é agora: a correção é uma migration de três policies, contra
+auditar sete tabelas depois.
+
+**Correção mínima:** tarefa 2.5 abaixo. Decisão de contrato registrada em **D-017**,
+SQL final em `DATABASE.md` → `sales.organizations`.
+
+### Achado B — IMPORTANTE · gate de onboarding engole erro de banco
+
+`lib/supabase/middleware.ts` faz `const { data: membership } = await supabase.from('org_members')...`
+e descarta o `error`. Qualquer falha transitória (rede, timeout, PostgREST fora do ar)
+vira `hasOrg = false`, e o usuário **com** organização é jogado em `/onboarding` — onde
+o caminho oferecido a ele é criar uma segunda empresa. Falha silenciosa que gera dado
+sujo em vez de erro. Correção mínima: tratar `error` explicitamente e, nesse caso,
+deixar a request seguir (a RLS já protege o dado — o gate é de UX, não de segurança).
+Responsável: **tarefa 2.5**.
+
+### Achado C — IMPORTANTE (documental) · a org da 2.3 não existe mais
+
+`organizations` está com 0 linhas — a org criada na 2.3 foi removida por algum
+`cleanupOrgsForUser` da suíte da 2.4 (ela apaga toda org do usuário de teste, e a 2.3
+foi validada com esses mesmos usuários). O critério de pronto da 3.1 dizia "a org
+criada na 2.3 recebe o seed via chamada manual da função" — instrução impossível de
+cumprir. Corrigido no texto da 3.1 neste commit.
+
+### Achado D — MELHORIA FUTURA (nenhum bloqueia a Fase 3)
+
+1. **`app/(app)/layout.tsx` não checa sessão** — a proteção é só do `proxy.ts`. O
+   bypass de middleware do Next (CVE-2025-29927) está corrigido nesta major, e o dado
+   é protegido por RLS de qualquer forma (sem sessão a query falha, não vaza), então é
+   defesa em profundidade, não buraco. Fazer quando o layout já tiver que buscar dado
+   do usuário — provavelmente 3.5.
+2. **Cookie `active_org_id` é lido e nunca escrito** (`getCurrentOrg()`) — o seletor
+   de organização não existe. Não vaza nada (o `find` roda sobre a lista já filtrada
+   por RLS), mas é caminho morto até haver usuário com 2+ orgs. Resolver junto do
+   seletor, ou remover.
+3. **`create_organization` não tem limite por usuário** — qualquer autenticado cria
+   organizações sem teto. Sem custo hoje; virar limite quando houver cadastro aberto.
+4. **Colisão de `slug` em concorrência** — o `while exists` da RPC não é atômico: duas
+   criações simultâneas com o mesmo nome podem estourar a unique. Falha segura (erro,
+   não dado errado). Corrigir com retry/`on conflict` se aparecer de verdade.
+5. **`slug` permite enumerar tenants** — criar "Acme" e receber `acme-1` revela que
+   `acme` existe. Aceitável no MVP.
+6. **Ordem entre os `it()` da suíte de RLS** — `orgAId`/`orgBId` são preenchidos num
+   teste e usados nos seguintes. Funciona (vitest roda o arquivo em ordem), mas quebra
+   se alguém rodar com `--sequence.shuffle` ou isolar um `it`. Migrar para `beforeAll`
+   quando a suíte crescer na 6.4.
+
+### [ ] 2.5 Autorização por papel em `organizations` (correção do checkpoint)
+
+`supabase/migrations/0003_organizations_role_policies.sql` — conteúdo exato em
+`DATABASE.md` → `sales.organizations`, decisão em **D-017**:
+
+- `drop policy tenant_isolation on sales.organizations`;
+- `tenant_isolation_select` (`select`, por associação — comportamento atual mantido);
+- `owner_admin_update` (`update`, `using` **e** `with check` por
+  `sales.current_org_role(id)`);
+- `owner_delete` (`delete`, só `owner`);
+- **nenhuma policy de `insert`** — a criação legítima é só pela RPC
+  `create_organization`, que é `security definer` e não passa por RLS. Confirmar que
+  `create_organization` continua funcionando depois da mudança (é o teste que prova
+  que a ausência de policy de insert não quebrou o onboarding).
+
+Corrigir também o Achado B em `lib/supabase/middleware.ts` (tratar o `error` da
+consulta de `org_members` em vez de descartá-lo).
+
+Estender `tests/rls.test.ts` — casos novos, seguindo **D-016** (`update`/`delete`
+bloqueado por `USING` se prova por `data === []` com `.select()` encadeado, não por
+`error`):
+
+- `member` **não** renomeia a organização (0 linhas + nome intacto);
+- `member` **não** apaga a organização (0 linhas + org ainda existe);
+- `owner` **renomeia** a própria organização (caso positivo — a policy não pode ter
+  fechado demais);
+- não-membro não renomeia nem apaga a org alheia;
+- `insert` direto em `organizations` é negado para membro autenticado;
+- `create_organization()` continua criando org + membership `owner` (regressão do
+  bootstrap);
+- `anon` não executa `current_org_role()` (faltava na lista de anon).
+
+**Pronto quando:** a suíte estendida passa inteira, incluindo os casos positivos;
+replay do zero (0001 → 0002 → 0003) funciona; `get_advisors(security)` sem alerta novo;
+`DATABASE.md` já atualizado neste checkpoint bate com a migration aplicada.
+
+---
+
 # FASE 3 — Leads
 
 ### [ ] 3.1 Catálogos: fontes e estágios
 
-`supabase/migrations/0003_catalogs.sql`: `lead_sources` e `pipeline_stages` conforme
+`supabase/migrations/0004_catalogs.sql`: `lead_sources` e `pipeline_stages` conforme
 `DATABASE.md`, com RLS.
 
 - Função `sales.seed_org_defaults(p_org_id uuid)` (`security definer`) criando as 6
@@ -567,12 +701,13 @@ conserta antes de seguir.** → **Checkpoint Opus.**
 - Chamar `seed_org_defaults` dentro de `create_organization` (alterar a RPC da 2.2).
 - `lib/queries/catalogs.ts`: `listStages()`, `listSources()`.
 
-**Pronto quando:** org nova nasce com 6 fontes e 7 estágios; a org criada na 2.3
-recebe o seed via chamada manual da função.
+**Pronto quando:** org nova nasce com 6 fontes e 7 estágios. (Não há org preexistente
+para seedar à mão: `organizations` está com 0 linhas — ver Achado C do checkpoint da
+Fase 2. A verificação é criar uma org nova pelo onboarding e conferir os catálogos.)
 
 ### [ ] 3.2 Contatos e leads (banco)
 
-`supabase/migrations/0004_contacts_leads.sql` conforme `DATABASE.md`, com todos os
+`supabase/migrations/0005_contacts_leads.sql` conforme `DATABASE.md`, com todos os
 índices e RLS. Types regerados.
 
 ### [ ] 3.3 Domínio + validação
@@ -630,7 +765,7 @@ O núcleo do produto. Checkpoint Opus ao final.
 
 ### [ ] 4.1 Atividades e regras (banco)
 
-`0005_activities.sql` e `0006_followup_rules.sql` conforme `DATABASE.md`.
+`0006_activities.sql` e `0007_followup_rules.sql` conforme `DATABASE.md`.
 Estender `seed_org_defaults` com a sequência padrão (+1d, +3d, +7d em
 `proposta_enviada`). Types regerados.
 
@@ -678,7 +813,7 @@ supabase/next no arquivo.
 - `lib/actions/leads.ts` → `markResponded(leadId)`: grava `responded_at`, cancela
   **todos** os automáticos pendentes, grava `audit_log`, cria atividade de histórico.
 - Follow-up manual (`is_auto = false`) **nunca** é cancelado automaticamente.
-- `0008_views.sql`: `v_today_actions` e `v_leads_without_action`, ambas com
+- `0009_views.sql`: `v_today_actions` e `v_leads_without_action`, ambas com
   `security_invoker = true`. Advisors limpo.
 
 ### [ ] 4.4 Tela "Ações de hoje"
@@ -716,7 +851,7 @@ ponta a ponta. → **Checkpoint Opus.**
 
 ### [ ] 5.1 Infra de IA
 
-- `0007_ai.sql`: `ai_prompts` e `ai_runs` conforme `DATABASE.md`.
+- `0008_ai.sql`: `ai_prompts` e `ai_runs` conforme `DATABASE.md`.
 - Portar de `../CRM-RR/lib/ai/`: `gateway.ts` (ajustar para `org_id` e `lead_id`),
   `render-template.ts`, `error-categories.ts`, `schemas.ts`.
 - `AI_GATEWAY_API_KEY` no env. Modelo default `anthropic/claude-sonnet-5`.
@@ -758,7 +893,7 @@ escrever bobagem sobre preço. Regra da `PRODUCT_SPEC.md` #1 aplicada na prátic
   como `reviewed`. `Descartar` marca `discarded`.
 - `Copiar` copia para a área de transferência com feedback visual. **Nada é enviado
   automaticamente no MVP.**
-- `0009_audit.sql` + `lib/actions/audit.ts` portado do CRM-RR: registrar
+- `0010_audit.sql` + `lib/actions/audit.ts` portado do CRM-RR: registrar
   `create`/`update`/`stage_change`/`cancel_followups`/`ai_used`.
 
 **Pronto quando:** dá pra gerar mensagem para um lead real, editar, copiar, colar no
