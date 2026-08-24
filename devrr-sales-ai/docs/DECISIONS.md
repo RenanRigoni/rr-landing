@@ -429,6 +429,36 @@ destruir o fluxo de quem já tem organização.
 
 ---
 
+## D-019 — `tsconfig.json` da raiz exclui `CRM-RR/` e `devrr-sales-ai/`
+
+**Data:** 2026-08-23 · **Status:** decidido e aplicado · **Resolve:** Q-004 · **Escopo:** repositório, não este projeto
+
+`tsconfig.json` da raiz (`rr-dev`, projeto Vercel `rr-landing`) incluía `**/*.ts` e
+`**/*.tsx` sem excluir os projetos irmãos. Isso não era só ruído de
+`tsc --noEmit` avulso (subestimado quando a Q-004 foi aberta): o `next build` da
+raiz também typecheca por esse `tsconfig.json`, e quebrou o deploy real do
+`rr-landing` na Vercel — `CRM-RR/app/(app)/ai-quality/page.tsx` importa
+`@/lib/queries/ai`, que existe de verdade em `CRM-RR/lib/queries/ai.ts`, mas sob o
+`paths` da raiz (`@/*` → `./*` da raiz, não de `CRM-RR/`) o alias resolve para um
+caminho que não existe — "Cannot find module" falso, build vermelho em produção.
+
+**Correção:** `"CRM-RR"` e `"devrr-sales-ai"` adicionados ao `exclude` do
+`tsconfig.json` da raiz. Cada projeto já tem `tsconfig.json` e build próprios,
+isolados — excluir da raiz só para de misturar os três; não reduz cobertura de
+typecheck de nenhum deles.
+
+**Validado:** `next build` da raiz limpo (`/`, `/servicos`, `/_not-found`);
+`npm run typecheck` de `CRM-RR/` e de `devrr-sales-ai/` continuam limpos, cada um
+isolado no próprio `tsconfig.json`.
+
+**Descartado:** deixar como dívida documentada (postura original da Q-004) — deixou
+de ser opção no momento em que ficou provado que quebra o build real, não só o
+`tsc` avulso.
+
+**Custo aceito:** nenhum — é correção estritamente melhor, sem trade-off.
+
+---
+
 ## Questões abertas
 
 Sonnet: adicione aqui o que travar. Opus resolve no próximo checkpoint.
@@ -440,10 +470,4 @@ Sonnet: adicione aqui o que travar. Opus resolve no próximo checkpoint.
 - **Q-003** — Multi-usuário por organização: `org_members` já suporta, mas não há
   "dono do lead" (`assigned_to`). Adicionar quando existir a primeira PME com 2+
   vendedores. Não antes.
-- **Q-004** — `tsconfig.json` da **raiz** do repo inclui `**/*.ts` sem excluir os
-  projetos irmãos, então `npx tsc --noEmit` na raiz compila `CRM-RR/` e
-  `devrr-sales-ai/` contra o `node_modules` e o alias `@/*` do `rr-landing`: 281 erros
-  hoje (263 do CRM-RR, 18 daqui). É pré-existente e não afeta os builds de cada
-  projeto isoladamente, mas é dívida do repositório. Correção mínima: adicionar
-  `"CRM-RR"` e `"devrr-sales-ai"` ao `exclude` do tsconfig da raiz. Fora do escopo
-  deste projeto — decisão do dono do `rr-landing`.
+- ~~**Q-004**~~ — resolvida, ver **D-019**.
