@@ -557,6 +557,10 @@ conserta antes de seguir.** → **Checkpoint Opus.**
 
 ## ⛔ Checkpoint Opus — fim da Fase 2 (2026-08-23) — **NÃO APROVADO até a 2.5**
 
+> **Superado.** A 2.5 fechou o Achado A e o Achado B. Registro histórico —
+> o veredito válido é o **checkpoint de fechamento (2026-08-24)** logo abaixo
+> da tarefa 2.5.
+
 Revisão de 2.1 → 2.4: migrations, policies, helpers, camada de app, gate de
 onboarding e a suíte de RLS. **Isolamento *entre* organizações está correto e
 provado.** O que reprova o checkpoint é autorização *dentro* da organização.
@@ -748,6 +752,96 @@ replay do zero (0001 → 0002 → 0003) funciona; `get_advisors(security)` sem a
 `DATABASE.md` já atualizado neste checkpoint bate com a migration aplicada.
 
 </details>
+
+---
+
+## ✅ Checkpoint Opus — fechamento da Fase 2 (2026-08-24) — **APROVADO**
+
+Revisão curta e dirigida da correção: migration 0003, middleware, suíte de RLS.
+**Achado A fechado, Achado B fechado, nenhum BLOQUEANTE restante.**
+
+### Revalidado do zero neste checkpoint (não só lido)
+
+- **Replay real, na ordem, do arquivo:** `drop schema sales cascade` → 0001 → 0002
+  → 0003. Resultado: 7 policies (3 em `organizations`), 4 funções, 6 enums, 2 tabelas,
+  0 linhas. Bate com o estado vivo anterior — sem drift.
+- **Regressão do Achado A provada nos dois sentidos.** Com o schema replayado parando
+  em 0002, a simulação SQL (`set local role authenticated` + `request.jwt.claims` do
+  usuário B como `member`) reproduziu o defeito original: `update` → **1 linha**,
+  `delete` → **1 linha**. Aplicada a 0003 sobre o mesmo schema, a matriz completa saiu
+  exatamente como D-017 especifica:
+
+  | papel | operação | esperado | obtido |
+  |---|---|---|---|
+  | `member` | `select` | 1 linha | 1 ✓ |
+  | `member` | `update` | 0 linhas | 0 ✓ |
+  | `member` | `delete` | 0 linhas | 0 ✓ |
+  | `member` | `insert` direto | erro | `new row violates row-level security policy for table "organizations"` ✓ |
+  | `admin` | `update` | 1 linha | 1 ✓ |
+  | `admin` | `delete` | 0 linhas | 0 ✓ |
+  | `owner` | `update` | 1 linha | 1 ✓ |
+  | `owner` | `delete` | 1 linha | 1 ✓ |
+
+- **`npm run test:rls` contra o schema recém-replayado: 36/36 passam** (24 da 2.4 + 12
+  da 2.5), zero organização residual depois (`organizations=0`, `org_members=0`).
+- **D-016 respeitada:** todos os casos de `update`/`delete` bloqueados por `USING` na
+  suíte encadeiam `.select()` e afirmam `data === []`, com conferência independente
+  por `clientA` (nome e existência da linha intactos). `expect(error).not.toBeNull()`
+  só aparece onde é válido — `insert` e `update` de `org_id` (coberto por `WITH CHECK`).
+- **`create_organization()` continua sendo o único caminho de criação** e continua
+  funcionando: cria org + membership `owner` na mesma transação (2 testes na suíte),
+  e o `insert` direto em `organizations` é negado justamente por não existir policy
+  de `insert`.
+- **0001 e 0002 intactos** — `git log` confirma que a 2.5 só adicionou
+  `0003_organizations_role_policies.sql`; a correção é aditiva, o histórico continua
+  reproduzível do zero.
+- **`anon` sem nada:** `has_schema_privilege('anon','sales','usage') = false`, zero
+  grant de tabela, `execute = false` nas três RPC (`current_org_ids`,
+  `current_org_role`, `create_organization`). Confirmado no catálogo, além dos 5
+  testes de anon na suíte.
+- **`security definer` com grants mínimos e `search_path` seguro:** as 3 funções
+  têm `search_path = sales, public` fixo, `revoke all ... from public` +
+  `grant execute ... to authenticated`. `fn_set_updated_at` não é `security definer`
+  (não precisa ser — roda no contexto do trigger).
+- **`get_advisors(security)`:** no schema `sales`, os mesmos 3 WARN já documentados em
+  **D-013** e nada mais. `owner_admin_update`/`owner_delete` não introduzem alerta —
+  não são `security definer`. Todo o resto é de `public`, de outros projetos no mesmo
+  Supabase.
+- `typecheck` / `lint` / `test` / `build` limpos; build gera `/`, `/login`,
+  `/onboarding`, `/today` + proxy.
+
+### Achado B — revisado e aprovado
+
+`lib/supabase/middleware.ts` agora captura o `error` e não converte falha em
+"usuário sem organização". Conferido linha a linha:
+
+- **Não abre bypass de autenticação:** o branch `if (!user)` roda antes e é
+  independente do erro — sessão ausente continua indo para `/login` sempre.
+- **Não abre bypass de RLS:** o middleware nunca decidiu `org_id`. Quem decide
+  continua sendo `getCurrentOrg()`/`requireOrgId()` no servidor, que refazem a
+  consulta com RLS aplicada. Deixar a request seguir não abre nenhuma linha que a
+  policy não abriria de qualquer forma.
+- **É fail-safe:** na falha persistente, `getCurrentOrg()` **lança** em vez de
+  devolver `null` — o usuário vê erro honesto, não uma tela que finge que ele não tem
+  empresa. E não há laço: erro saindo de `/login` → `/today`; `/today` sem org →
+  `/onboarding`; `/onboarding` sob erro passa direto (não é redirecionado de volta).
+
+### D-018 — permanece
+
+É contrato de comportamento, não detalhe de implementação: define o que o gate faz
+quando não sabe a resposta, e a alternativa simétrica (`hasOrg = true` no erro) já
+está descartada com justificativa. Vale para todo gate futuro de onboarding/seleção
+de organização. **Mantida.**
+
+### O que continua aberto (nenhum bloqueia a Fase 3)
+
+Os 6 itens do Achado D do checkpoint anterior seguem válidos e classificados como
+**MELHORIA FUTURA**. Um deles ganhou superfície nova e vale a nota: a describe da
+2.5 também depende da ordem entre `it()` (a promoção de B para `admin` acontece num
+`it()` de setup e os seguintes contam com ela). Mesma classe do item 6 — resolver
+junto, na 6.4, migrando para `beforeAll`.
+
+**LIBERADO PARA FASE 3.**
 
 ---
 
