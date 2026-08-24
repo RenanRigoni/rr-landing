@@ -957,6 +957,75 @@ junto, na 6.4, migrando para `beforeAll`.
 >
 > **Não avançado para a 3.3** — aguardando nova instrução.
 
+### [x] 3.3 Domínio + validação
+
+> feito: `lib/domain/phone.ts` — `normalizePhoneBR` normaliza telefone BR
+> (com ou sem DDI, com ou sem máscara) para E.164 (`+55` + 10 ou 11 dígitos
+> locais), `null` quando os dígitos não formam número válido; só remove o
+> DDI quando o total é 12 ou 13 dígitos (único tamanho inambíguo — evita
+> confundir DDI `55` com DDD `55` real, Santa Maria/RS, testado
+> explicitamente). `formatPhoneBR` formata para exibição
+> (`(11) 98888-7777` celular, `(11) 3333-4444` fixo), devolve o valor
+> original sem lançar quando não reconhece o formato. Ambos puros, zero
+> import de supabase/next (confirmado por grep).
+>
+> `lib/domain/money.ts` — `centsToReais`/`reaisToCents` convertem entre a
+> unidade de armazenamento (`value_cents`, inteiro) e reais; `formatBRL`
+> formata centavos direto como `"R$ 2.500,00"` via `Intl.NumberFormat`.
+> Achado ao escrever o teste: o separador entre `R$` e o valor que o
+> `Intl.NumberFormat('pt-BR')` desta engine produz é espaço não separável
+> (U+00A0), não espaço comum — confirmado byte a byte antes de fixar a
+> asserção, para não travar em CI com um literal que parece certo no editor
+> mas nunca bate.
+>
+> `lib/validation/contacts.ts` — `createContactSchema`/`updateContactSchema`
+> (Zod). `org_id`, `is_demo` e `created_by` fora do schema — sempre
+> resolvidos no servidor, nunca aceitos do cliente (confirmado: enviar
+> `org_id` no payload é descartado silenciosamente pelo strip default do
+> Zod, não vaza para o objeto validado).
+>
+> `lib/validation/leads.ts` — `createLeadSchema`/`updateLeadSchema`. Além de
+> `org_id`, ficam fora do schema (mesmo motivo, D-006): `status`,
+> `last_contact_at`, `next_action_at`, `responded_at`, `closed_at` (cache
+> mantido pela camada de actions, não campo de formulário), `is_demo`,
+> `created_by`. **`stage_id` também sai do `updateLeadSchema`** (via
+> `.omit()`) — decisão de escopo desta tarefa, não do checkpoint: a 3.4
+> reserva `moveStage(leadId, stageId)` como action dedicada para transição
+> de estágio, que também grava a activity da mudança; se `updateLead`
+> aceitasse `stage_id` também existiriam dois caminhos para a mesma mudança,
+> um deles pulando esse registro. `stage_id` continua obrigatório em
+> `createLeadSchema` (coluna `not null`, mesmo padrão de `createDealSchema`
+> no CRM-RR).
+>
+> **Validado, não só assumido:**
+> - `npm run test`: **32/32** (`tests/domain/phone.test.ts` 19,
+>   `tests/domain/money.test.ts` 13) — positivos, negativos e casos-limite
+>   (string vazia, tamanho errado, DDI vs. DDD ambíguo, arredondamento de
+>   ponto flutuante, valor negativo formatado). Nenhum teste depende de
+>   ordem entre `it()` — cada um monta seu próprio input.
+> - `grep` em `lib/domain/`: zero import de `supabase` ou `next`.
+> - Verificação direta (fora da suíte, script descartável): `org_id` e
+>   `stage_id` (no update) enviados no payload são descartados pelo Zod sem
+>   erro e sem aparecer no objeto validado; `value_cents` negativo e
+>   `full_name`/`title` vazios são rejeitados; `contact_id` não-uuid é
+>   rejeitado; defaults (`value_cents=0`, `currency='BRL'`) aplicados quando
+>   omitidos.
+> - `typecheck`/`lint`/`build` limpos. Nenhuma migration nesta tarefa —
+>   `test:rls` não roda (banco/RLS não tocados) e `0001`-`0005` seguem
+>   intactos.
+>
+> Nenhuma decisão permanente nova para `DECISIONS.md` — a exclusão de
+> `stage_id` do update é escopo de arquitetura já implícito na separação
+> `updateLead`/`moveStage` da 3.4 (`IMPLEMENTATION_PLAN.md`), não um
+> trade-off novo sendo introduzido aqui.
+>
+> Um commit (sem migration nesta tarefa).
+>
+> **Não avançado para a 3.4** — aguardando nova instrução.
+
+<details>
+<summary>Texto original da tarefa (referência)</summary>
+
 ### [ ] 3.3 Domínio + validação
 
 - `lib/domain/phone.ts`: normaliza telefone BR para E.164 (`normalizePhoneBR`),
@@ -967,6 +1036,8 @@ junto, na 6.4, migrando para `beforeAll`.
 
 **Pronto quando:** `npm run test` verde; nenhum arquivo em `lib/domain/` importa
 supabase ou next (verificar com grep).
+
+</details>
 
 ### [ ] 3.4 Actions e queries
 
