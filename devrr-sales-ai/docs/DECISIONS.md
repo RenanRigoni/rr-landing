@@ -633,12 +633,44 @@ uncontrolled — é o caso comum, e o padrão dos formulários anteriores
 
 ---
 
+## D-023 — Um contato pode ter vários leads abertos ao mesmo tempo, e a UI não alerta
+
+**Data:** 2026-08-24 · **Status:** decidido no checkpoint da Fase 3 · **Resolve:** Q-001
+
+O modelo sempre permitiu (`leads.contact_id` é FK simples, sem unicidade), mas
+faltava decidir se a interface incentiva, ignora ou alerta contra. A Q-001 marcava
+"decidir na Fase 3.5, com dado real" e nenhuma tarefa decidiu — enquanto isso, a 3.6
+já implementou o comportamento na prática: quando o telefone bate com um contato
+existente, o botão "Vincular a este contato" cria um **lead novo** para um contato
+que pode já ter outros leads abertos, sem nenhum aviso.
+
+**Decisão: permitir, sem alerta.** É o comportamento certo para o ICP do produto
+(`PRODUCT_SPEC.md`): a PME de serviço recebe do mesmo cliente um pedido de orçamento
+hoje e outro daqui a duas semanas, e os dois são vendas independentes que precisam de
+follow-up independente. Tratar o segundo como suspeito criaria atrito exatamente no
+fluxo que o produto existe para destravar — e `D-003` já define lead como "o
+interesse", não "o cliente", justamente para que vários coexistam.
+
+**Descartado:** alertar "este contato já tem lead aberto" (transforma o caso normal
+em exceção e treina o usuário a ignorar o aviso); bloquear ou sugerir mesclar
+(destrói a separação entre contato e interesse, que é a base do modelo em D-003).
+
+**O que isso não resolve:** a tela de contato ainda não mostra "este contato tem N
+leads" — quando `/contacts` existir, listar os leads do contato é a forma correta de
+dar essa visibilidade, em vez de um alerta no cadastro.
+
+**Custo aceito:** nada impede dois leads praticamente idênticos criados por engano
+para o mesmo contato. A lista de leads mostra os dois, e o usuário resolve marcando
+um como perdido. Revisitar se o uso real da Fase 6.5 mostrar que acontece com
+frequência.
+
+---
+
 ## Questões abertas
 
 Sonnet: adicione aqui o que travar. Opus resolve no próximo checkpoint.
 
-- **Q-001** — Um contato pode ter vários leads simultâneos abertos? Modelo permite.
-  Falta decidir se a UI incentiva ou alerta contra. Decidir na Fase 3.5, com dado real.
+- ~~**Q-001**~~ — resolvida no checkpoint da Fase 3, ver **D-023** (permitir, sem alerta).
 - **Q-002** — Quando um lead vai para `perdido`, o contato deve entrar em alguma
   cadência de reativação futura? Fora do MVP; reavaliar após a Fase 6.5.
 - **Q-003** — Multi-usuário por organização: `org_members` já suporta, mas não há

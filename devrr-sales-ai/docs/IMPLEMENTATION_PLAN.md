@@ -1337,6 +1337,222 @@ de 30 segundos e ele aparece na lista.
 
 ---
 
+## ⚠️ Checkpoint Opus — fim da Fase 3 (2026-08-24) — **APROVADO COM 2 CORREÇÕES (tarefa 3.7)**
+
+Revisão de 3.1 → 3.6: migrations 0004/0005, catálogos, contatos, leads, domínio,
+validação, actions, queries, as três telas e as suítes de teste.
+**Isolamento multi-tenant está correto e provado. Nenhum BLOQUEANTE.** Dois achados
+IMPORTANTES, ambos de correção pequena, ambos com custo que cresce se a Fase 4
+começar antes.
+
+### Revalidado por execução neste checkpoint (não só lido)
+
+- **Replay real do zero:** `drop schema sales cascade` → 0001 → 0002 → 0003 → 0004
+  → 0005, na ordem, direto dos arquivos. Resultado idêntico à baseline anterior:
+  **6 tabelas, 11 policies, 5 funções, 6 enums, 16 índices, 4 triggers.** Sem drift.
+- **`npm run test:rls` contra o schema recém-replayado: 74/74** (36 de `rls.test.ts`
+  + 18 leads + 10 contacts + 10 lead-intake). Zero resíduo depois
+  (`organizations=0 contacts=0 leads=0 org_members=0`).
+- `typecheck` / `lint` / `test` (44/44) / `build` limpos. Build gera `/leads`,
+  `/leads/[leadId]`, `/leads/new` como dinâmicas.
+- **`seed_org_defaults` não é executável por `authenticated` nem por `anon`**
+  (`has_function_privilege` = false nos dois) — a revogação da 3.1 se sustenta no
+  estado vivo, não só no arquivo. Ela também **não aparece** no `get_advisors`,
+  que é a confirmação independente de que não está exposta via PostgREST.
+- **`get_advisors(security)`:** no schema `sales`, exatamente os 3 WARN já
+  documentados em **D-013** (`create_organization`, `current_org_ids`,
+  `current_org_role`). Nenhum alerta novo. Todo o resto é do schema `public`, de
+  outro produto no mesmo projeto Supabase.
+- **`anon` sem nada:** `has_schema_privilege('anon','sales','usage') = false`; zero
+  `select` em todas as 6 tabelas; `execute = false` nas RPC.
+- **Todas as 6 tabelas com RLS ligada** e a contagem de policies exata do desenho
+  (organizations 3, org_members 4, e 1 `tenant_isolation` em cada tabela
+  operacional — `lead_sources`, `pipeline_stages`, `contacts`, `leads`).
+- **Types à mão × schema real: zero drift.** Comparação coluna a coluna, nas 6
+  tabelas, entre `lib/types/database.types.ts` e `information_schema.columns` —
+  mesmos nomes, mesma ordem. A estratégia de manter os types à mão (limitação
+  documentada do gerador) se sustentou por 5 migrations.
+- **`0001`–`0005` intactos:** `git log` por arquivo confirma que cada migration só
+  foi tocada pelo próprio commit de criação. Nenhuma tarefa da 3.3 → 3.6 alterou
+  migration existente. Histórico continua reproduzível.
+- **Camadas (grep):** zero import de `@/lib/supabase`/`createClient` em
+  `components/` e `app/`; zero `select('*')` em código de produção; `lib/domain/`
+  sem import de supabase/next; `service_role` só em `lib/env.server.ts` e
+  `lib/supabase/admin.ts` — e `createAdminClient()` **não é chamado em lugar
+  nenhum** do app (só existirá para os seeds da 6.1).
+- **`stage_id` tem um único caminho de alteração.** Grep em todo `lib/actions/`:
+  três escritas ao todo — duas são `INSERT` de criação com valor resolvido no
+  servidor (`createLeadCore` valida por `belongsToOrg`; `createLeadIntakeCore`
+  resolve pela `key = 'novo'`, sem campo de estágio no formulário) e **um único
+  `UPDATE`, em `moveStageCore`**. `updateLeadSchema` remove `stage_id` via
+  `.omit()`, provado por teste.
+
+### Aderência a PRODUCT_SPEC / ARCHITECTURE — confere
+
+`org_id` nunca vem do cliente (Zod faz `strip`, provado por teste em três actions
+diferentes); toda referência relacional passa por `belongsToOrg()` antes de gravar
+(**D-020**), testada com id real de outra organização, não só uuid inválido;
+wrapper fino + `*-core` testável em todas as quatro actions; `revalidatePath` só nos
+wrappers; nenhum componente fala com Supabase; regra de negócio fora dos Client
+Components (`StageMover` e `NewLeadForm` só chamam a action e mostram o retorno);
+campo nulo aparece como `—`, sem dado inventado (regra 5 do PRODUCT_SPEC).
+
+**D-021 revisada e mantida.** `attachDisplayData()` usa `.in(ids)` — o número de
+queries **não cresce com o número de leads**. Não há N+1 na Fase 3: é 1 query de
+leads + no máximo 3 de dados relacionados, para qualquer tamanho de lista.
+
+**D-022 revisada e mantida.** Inputs controlados são a solução adequada: o reset
+automático do React 19 em `useActionState` acontece em toda action que não lança, e
+o retorno `duplicate` é exatamente um retorno que não lança. A alternativa
+(`defaultValue` + `key`) exigiria ecoar os valores digitados de volta pelo servidor
+só para remontar o mesmo formulário — mais estado na rede pelo mesmo resultado.
+
+### Achado A — IMPORTANTE · a deduplicação de telefone morre em silêncio depois do primeiro "criar mesmo assim"
+
+`lib/actions/lead-intake-core.ts` procura contato duplicado com
+`.eq('phone', phone).maybeSingle()` — **sem `.limit(1)`** — e **descarta o `error`**:
+
+```ts
+const { data: existing } = await supabase
+  .from('contacts').select('id, full_name, phone')
+  .eq('org_id', orgId).eq('phone', phone)
+  .maybeSingle()          // <- 2+ linhas = erro PGRST116, data = null
+if (existing) { /* ... */ }
+```
+
+Quando existem **dois ou mais** contatos com o mesmo telefone, `maybeSingle()`
+devolve erro e `data = null`. Com o `error` descartado, o código lê `null` como
+"não existe duplicata" e segue criando mais um contato — sem avisar ninguém.
+
+E dois contatos com o mesmo telefone **não são um estado anormal**: é exatamente o
+que o botão "Criar contato novo mesmo assim" produz, por decisão deliberada de
+**D-022**. O índice `contacts_org_phone_idx` é não-único justamente para permitir
+isso. Ou seja, o próprio caminho feliz do produto desarma a deduplicação.
+
+**Provado, não suposto.** Teste descartável contra o Supabase real (removido depois,
+zero resíduo):
+
+| passo | ação | esperado | obtido |
+|---|---|---|---|
+| 1 | cadastro com telefone novo | cria | cria ✓ |
+| 2 | mesmo telefone + "criar mesmo assim" | 2 contatos | 2 contatos ✓ |
+| 3 | mesmo telefone, **sem** force | `duplicate` | **`success`** — 3º contato criado, sem aviso |
+
+**Risco concreto:** a partir do segundo contato num telefone, todo cadastro futuro
+naquele número cria um contato novo silenciosamente. Os leads do mesmo cliente se
+espalham por contatos diferentes, e "qual é o contato certo" deixa de ter resposta.
+Não é perda de dado nem falha de isolamento — é degradação silenciosa da qualidade
+do dado, a mesma classe do Achado B da Fase 2 (erro engolido virando decisão
+errada). A Fase 10 (match do webhook de WhatsApp por telefone) depende exatamente
+desse lookup.
+
+**Correção mínima:** trocar por `.limit(1).maybeSingle()` — que é o padrão já usado
+corretamente em `lib/supabase/middleware.ts` — e **tratar o `error`** em vez de
+descartá-lo (na dúvida, falhar visível, nunca seguir como se não houvesse
+duplicata). Responsável: **tarefa 3.7**.
+
+### Achado B — IMPORTANTE · a mesma consulta de organização roda 4 vezes por render
+
+Cada `requireOrgId()` chama `getCurrentOrg()`, que faz um
+`select id, name, slug, timezone from organizations`. Em `/leads` isso acontece
+**quatro vezes** no mesmo render, com resultado idêntico:
+
+| origem | chamadas a `requireOrgId()` |
+|---|---|
+| `listStages()` | 1 |
+| `listSources()` | 1 |
+| `listLeadsForDisplay()` | 1 |
+| └ `listLeads()`, chamada por ela | 1 |
+
+Total em `/leads`: **10 queries, 4 delas a mesma**. Em `/leads/[leadId]`: 8, 3 delas
+a mesma. Mais a consulta de `org_members` do middleware em toda request (**D-014**,
+já aceita).
+
+**Não é N+1** — não cresce com o número de leads. É redundância constante, e por
+isso não estava visível nos testes.
+
+**Por que agora e não como melhoria futura:** a Fase 4 acrescenta a tela "Ações de
+hoje" com três blocos e as duas views novas, mais `lib/queries/activities.ts` — cada
+função nova herda o mesmo padrão de resolver a organização por conta própria. O
+custo de corrigir hoje é **uma linha**; depois da Fase 4 é auditar todas as funções
+de query de novo.
+
+**Correção mínima:** envolver `getCurrentOrg` em `cache()` do React (React 19 já é
+dependência), que dedupa por request:
+
+```ts
+import { cache } from 'react'
+export const getCurrentOrg = cache(async (): Promise<CurrentOrg | null> => { /* ... */ })
+```
+
+Sem mudar nenhuma assinatura, sem tocar em quem chama. Responsável: **tarefa 3.7**.
+
+### Melhoria futura (nenhuma bloqueia a Fase 4)
+
+1. **`app/(app)/layout.tsx` continua sem checar sessão** — item 1 do Achado D da
+   Fase 2, que apontava a 3.5 como lugar provável. Não foi feito. Segue sendo defesa
+   em profundidade (o `proxy.ts` protege e a RLS decide o dado), não buraco. Fazer
+   quando o layout precisar buscar dado do usuário.
+2. **Erro do formulário é geral, não por campo.** O texto da 3.6 pedia "erro de campo
+   exibido inline"; o que existe é `parsed.error.issues[0]?.message` exibido junto ao
+   formulário. Atende o espírito (inline, sem `alert()`), não a letra (o campo
+   culpado não é destacado). Revisitar quando houver formulário maior.
+3. **"Vincular a este contato" descarta em silêncio o nome/e-mail/empresa digitados**
+   — comportamento correto (vincular = usar o contato que já existe), mas o usuário
+   não é avisado de que o que ele digitou não será gravado.
+4. Itens ainda válidos do Achado D da Fase 2: ordem entre `it()` em `rls.test.ts`
+   (resolver na 6.4), cookie `active_org_id` lido e nunca escrito, `create_organization`
+   sem limite por usuário, colisão de slug sob concorrência, slug enumerável.
+
+### Questão aberta resolvida
+
+**Q-001** ("um contato pode ter vários leads simultâneos abertos? a UI incentiva ou
+alerta?") estava marcada para decidir "na Fase 3.5, com dado real" e não foi
+decidida em nenhuma tarefa. O comportamento implementado na 3.6 já responde na
+prática: o fluxo de duplicata oferece "Vincular a este contato", que cria um lead
+novo para um contato que já tem lead — sem alerta. **Decisão registrada em D-023:**
+permitir, sem alerta.
+
+### Veredito
+
+Fase 3 está **arquiteturalmente aprovada**: multi-tenancy correto e provado,
+`organization_id` nunca vindo do cliente, ids relacionados validados contra o
+tenant, caminho único para `stage_id`, camadas respeitadas, migrations replayáveis,
+74/74 verdes contra schema recriado do zero.
+
+**Antes de iniciar a 4.1, executar a tarefa 3.7** (Achados A e B). São correções
+pequenas e localizadas, e as duas ficam mais caras se a Fase 4 começar antes.
+
+### [ ] 3.7 Correções do checkpoint da Fase 3
+
+Sem migration — as duas correções são de código de aplicação. `0001`–`0005` não
+são tocadas.
+
+**Achado A — deduplicação de telefone (`lib/actions/lead-intake-core.ts`):**
+
+- trocar `.maybeSingle()` por `.limit(1).maybeSingle()` na busca do contato
+  duplicado (mesmo padrão já correto em `lib/supabase/middleware.ts`);
+- **tratar o `error`** em vez de descartá-lo: em caso de falha na consulta, retornar
+  erro visível ao usuário, nunca seguir em frente como se não houvesse duplicata
+  (o modo de falha certo aqui é avisar, não criar contato silenciosamente);
+- teste novo em `tests/actions/lead-intake.test.ts`, cobrindo exatamente a sequência
+  provada no checkpoint: cadastra → força contato novo (2 contatos) → **terceiro
+  cadastro sem force ainda devolve `duplicate`**. Sem esse teste a regressão volta
+  sem ninguém ver.
+
+**Achado B — organização resolvida uma vez por request (`lib/queries/orgs.ts`):**
+
+- envolver `getCurrentOrg` em `cache()` do React;
+- conferir por medição (log ou `query_logs`) que `/leads` passa de 4 para 1
+  `select` em `organizations`;
+- não mudar assinatura nem quem chama; `requireOrgId()` continua igual.
+
+**Pronto quando:** `test:rls` verde com o teste novo (75/75), `typecheck`/`lint`/
+`test`/`build` limpos, e a contagem de queries de `/leads` confirmada por medição —
+não por leitura do código.
+
+---
+
 # FASE 4 — Follow-up
 
 O núcleo do produto. Checkpoint Opus ao final.
