@@ -408,7 +408,67 @@ advisors sem alerta novo, `DATABASE.md` conferido.
 
 **Pronto quando:** advisors limpo, types regerados, `DATABASE.md` atualizado.
 
-### [ ] 2.3 Vincular usuário → organização na aplicação
+### [x] 2.3 Vincular usuário → organização na aplicação
+
+> feito: `lib/queries/orgs.ts` (`getCurrentOrg()`), `lib/actions/orgs.ts`
+> (`createOrganization`, Server Action com Zod), `lib/validation/orgs.ts`
+> (`createOrganizationSchema` — não citado literalmente na tarefa, mas
+> obrigatório pela regra dura "toda entrada de usuário passa por Zod"),
+> `lib/queries/require-org.ts` (`requireOrgId()`). `app/onboarding/page.tsx` +
+> `components/ui/OnboardingForm.tsx` seguindo o mesmo padrão visual da tela de
+> login (logo `logo-primary-color.svg` 180px, botão primário exato do
+> `DESIGN_SYSTEM.md`, `font-display` no título — "estado vazio grande" antes
+> do produto existir de fato pro usuário).
+>
+> `lib/supabase/middleware.ts` ganhou o gate: usuário autenticado sem
+> nenhuma `org_members` é redirecionado para `/onboarding`; com org, não
+> pode ficar em `/onboarding` (redireciona para `/today`). Também corrigido
+> para usar `db: { schema: 'sales' }` e o client tipado `<Database,'sales'>`
+> — faltava desde a 1.2/2.1, e sem isso a consulta de `org_members` nem
+> compilaria contra o schema certo.
+>
+> **Desvio, resolvendo achado C do checkpoint da Fase 1:** `app/page.tsx`
+> (ainda placeholder "Fundação do projeto") agora só faz `redirect('/today')`.
+> Não estava no texto literal da 2.3, mas o próprio achado do checkpoint
+> pedia para resolver "junto do onboarding" — é a mesma decisão de roteamento
+> (usuário autenticado que chega em `/` já tem org, garantido pelo
+> middleware, então só falta mandar pro app). `app/(app)/today/page.tsx`
+> passou a chamar `getCurrentOrg()` de verdade e mostrar o nome da org — sem
+> isso "chega em `/today` com a org ativa resolvida no servidor" (critério de
+> pronto da tarefa) não seria demonstrável em código nenhum.
+>
+> **Decisão permanente, D-014:** o gate de onboarding consulta `org_members`
+> em toda request autenticada, sem cache — mesmo trade-off já aceito para
+> `getUser()` no mesmo middleware. Registrado com o porquê e o que foi
+> descartado (cookie `has_org`).
+>
+> **Validado:**
+> - `typecheck`/`lint`/`test`/`build` limpos. Achado de tipo real durante o
+>   typecheck: `@supabase/postgrest-js` 2.x exige `Relationships:
+>   GenericRelationship[]` em toda tabela do `Database` type — sem isso,
+>   `organizations`/`org_members` caíam pra `never` e todo o arquivo
+>   `lib/queries/orgs.ts` quebrava em cadeia. Corrigido em
+>   `lib/types/database.types.ts` (array vazio em `organizations`, FK real
+>   declarada em `org_members` → `organizations`).
+> - Playwright real (dev server): `/today`, `/onboarding` e `/` sem sessão
+>   → `307` para `/login` (confirma que a nova rota está protegida igual às
+>   demais); `/login` sem sessão → `200`.
+> - Sem conta real de teste (mesma limitação da 1.4 — criar conta é processo
+>   manual fora do código), o fluxo autenticado completo foi validado por
+>   simulação SQL com usuário real de `auth.users` (JWT fake, dentro de
+>   transação com `rollback`, zero dado deixado — mesma técnica da 2.2): a
+>   query exata que o middleware roda (`select id from org_members
+>   limit 1`) retorna vazio antes de criar org e 1 linha depois; a query
+>   exata de `getCurrentOrg` (`select id,name,slug,timezone from
+>   organizations order by created_at`) retorna 1 org, depois 2 ao criar uma
+>   segunda, com a primeira criada por `created_at` sendo a primeira
+>   retornada — confirma o "default = a primeira" da spec sem precisar
+>   simular leitura de cookie (isso é lógica pura de JS, determinística, não
+>   depende de teste de banco). Prova pontual da lógica de dados; não
+>   substitui teste E2E real de sessão de browser, que precisa de conta.
+>
+> Nada em `supabase/migrations/` nesta tarefa — regra de "commit antes de
+> aplicar" não se aplica.
 
 - `lib/queries/orgs.ts`: `getCurrentOrg()` — resolve a org do usuário logado. Se ele
   tem várias, lê de cookie `active_org_id`; default = a primeira.

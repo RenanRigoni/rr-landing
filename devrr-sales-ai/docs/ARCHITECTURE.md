@@ -131,6 +131,7 @@ impossível de reproduzir. Aqui isso é bloqueante.
 
 ```
 app/(auth)/login                    Supabase Auth
+app/onboarding                      autenticado sem org → cria a empresa (RPC create_organization)
 app/(app)/layout.tsx                shell autenticado, middleware protege o grupo
 app/(app)/today                     Ações de hoje  ← tela principal do MVP
 app/(app)/leads                     lista + filtros

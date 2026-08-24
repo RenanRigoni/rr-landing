@@ -270,6 +270,30 @@ para `anon` (confirmado via `has_function_privilege`).
 
 ---
 
+## D-014 — Gate de onboarding consulta o banco em toda request autenticada, sem cache
+
+**Data:** 2026-08-23 · **Status:** decidido, tarefa 2.3
+
+`lib/supabase/middleware.ts` roda `select id from org_members limit 1` em toda
+request de usuário autenticado (exceto a resposta já resolvida por outro branch),
+para decidir se ele vai para `/onboarding` ou segue para a rota pedida.
+
+**Por quê:** é o mesmo trade-off já aceito para `supabase.auth.getUser()` no mesmo
+middleware — uma chamada de rede a mais por request, em troca de nunca depender de
+estado potencialmente desatualizado. Cachear "tem org" em cookie ou JWT claim
+economizaria a query, mas criaria uma janela onde um cookie desatualizado prende o
+usuário no onboarding (ou libera acesso indevido) até expirar — errado justamente no
+momento mais sensível do fluxo (cadastro).
+
+**Descartado:** cookie `has_org` setado após `createOrganization` — resolve o caso
+feliz mas não invalida sozinho se a membership for removida por outro caminho (fora
+de escopo hoje, mas a tabela já suporta múltiplos membros desde D-013).
+
+**Custo aceito:** uma query extra (`org_members`, índice por `user_id` já criado na
+2.2) em toda navegação autenticada. Revisar se performance real na 6.5 justificar.
+
+---
+
 ## Questões abertas
 
 Sonnet: adicione aqui o que travar. Opus resolve no próximo checkpoint.
