@@ -910,10 +910,52 @@ junto, na 6.4, migrando para `beforeAll`.
 >
 > **Não avançado para a 3.2** — aguardando nova instrução.
 
-### [ ] 3.2 Contatos e leads (banco)
+### [x] 3.2 Contatos e leads (banco)
 
-`supabase/migrations/0005_contacts_leads.sql` conforme `DATABASE.md`, com todos os
-índices e RLS. Types regerados.
+> feito: `supabase/migrations/0005_contacts_leads.sql` — `contacts` e `leads`
+> conforme `DATABASE.md`, todos os índices (`contacts_org_phone_idx`;
+> `leads_org_status_next_action_idx`, `leads_org_stage_idx`,
+> `leads_org_contact_idx`) e triggers de `updated_at`. RLS `tenant_isolation
+> for all` padrão nas duas — dado operacional, D-017 não se aplica (todo
+> membro trabalha o funil da empresa, mesma classificação de `lead_sources`/
+> `pipeline_stages` na 3.1). Nenhuma função nova, nenhuma superfície de
+> `security definer` adicional nesta tarefa.
+>
+> `0001`-`0004` não tocados. Types em `lib/types/database.types.ts`
+> (`contacts`, `leads`, com `Relationships` para `organizations`, `contacts`,
+> `lead_sources`, `pipeline_stages`), mantidos à mão pelo mesmo motivo já
+> documentado (ferramenta de geração automática não introspecta `sales`).
+>
+> **Validado, não só assumido, com dois usuários reais (`rls-test-a`/`b`) e
+> duas organizações distintas:**
+> - A cria contato + lead na própria org: sucede (1 linha cada).
+> - A tenta inserir contato com `org_id` da org B: **bloqueado por RLS**
+>   (`new row violates row-level security policy for table "contacts"`).
+> - B lê `contacts`/`leads` filtrando pela org de A: **0 linhas**, sem erro
+>   (RLS filtra, não recusa).
+> - B tenta `DELETE` do lead de A **por id direto**, sem passar `org_id` no
+>   filtro (tentativa de bypass): **0 linhas afetadas**, sem erro — D-016
+>   respeitado na validação (não só nos testes automatizados); lead de A
+>   confirmado intacto depois.
+> - `anon`: `has_table_privilege` `false` em `contacts` e `leads`.
+> - Replay do zero: `drop schema sales cascade` + reaplicar 0001→0005 na
+>   ordem → 6 tabelas, 11 policies, 5 funções, 6 enums, 16 índices — bate com
+>   o estado vivo.
+> - `npm run test:rls` contra o schema replayado: **36/36 seguem passando**
+>   (3.2 não tocou tabelas de governança nem de catálogo, sem regressão
+>   esperada nem observada).
+> - `get_advisors(security)`: nenhum alerta novo em `sales` — mesmos 3 WARN
+>   de D-013 (nenhuma função nova criada nesta tarefa).
+> - Zero organização/contato/lead residual no banco após toda a validação.
+> - `typecheck`/`lint`/`test`/`build` limpos.
+>
+> Nenhuma decisão permanente nova para `DECISIONS.md` — RLS `for all` em dado
+> operacional é o padrão já documentado em D-017/`DATABASE.md`, aplicado aqui
+> sem desvio.
+>
+> Dois commits: migration sozinha antes de aplicar, resto depois.
+>
+> **Não avançado para a 3.3** — aguardando nova instrução.
 
 ### [ ] 3.3 Domínio + validação
 

@@ -1,6 +1,6 @@
 // Tipos do schema `sales`, escritos à mão a partir de
-// supabase/migrations/0001_schema_and_helpers.sql, 0002_organizations.sql e
-// 0004_catalogs.sql (tarefas 2.1, 2.2 e 3.1).
+// supabase/migrations/0001_schema_and_helpers.sql, 0002_organizations.sql,
+// 0004_catalogs.sql e 0005_contacts_leads.sql (tarefas 2.1, 2.2, 3.1 e 3.2).
 //
 // `sales` está em Settings → API → Exposed schemas (confirmado batendo direto
 // no PostgREST: erro de "tabela não encontrada", não de "schema inválido").
@@ -159,6 +159,160 @@ export interface Database {
             columns: ['org_id']
             isOneToOne: false
             referencedRelation: 'organizations'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      contacts: {
+        Row: {
+          id: string
+          org_id: string
+          full_name: string
+          phone: string | null
+          email: string | null
+          company_name: string | null
+          city: string | null
+          notes: string | null
+          is_demo: boolean
+          created_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          org_id: string
+          full_name: string
+          phone?: string | null
+          email?: string | null
+          company_name?: string | null
+          city?: string | null
+          notes?: string | null
+          is_demo?: boolean
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          org_id?: string
+          full_name?: string
+          phone?: string | null
+          email?: string | null
+          company_name?: string | null
+          city?: string | null
+          notes?: string | null
+          is_demo?: boolean
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'contacts_org_id_fkey'
+            columns: ['org_id']
+            isOneToOne: false
+            referencedRelation: 'organizations'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      leads: {
+        Row: {
+          id: string
+          org_id: string
+          contact_id: string
+          title: string
+          interest: string | null
+          source_id: string | null
+          stage_id: string
+          status: 'open' | 'won' | 'lost'
+          temperature: 'cold' | 'warm' | 'hot' | null
+          value_cents: number
+          currency: string
+          last_contact_at: string | null
+          next_action_at: string | null
+          responded_at: string | null
+          closed_at: string | null
+          lost_reason: string | null
+          notes: string | null
+          is_demo: boolean
+          created_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          org_id: string
+          contact_id: string
+          title: string
+          interest?: string | null
+          source_id?: string | null
+          stage_id: string
+          status?: 'open' | 'won' | 'lost'
+          temperature?: 'cold' | 'warm' | 'hot' | null
+          value_cents?: number
+          currency?: string
+          last_contact_at?: string | null
+          next_action_at?: string | null
+          responded_at?: string | null
+          closed_at?: string | null
+          lost_reason?: string | null
+          notes?: string | null
+          is_demo?: boolean
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          org_id?: string
+          contact_id?: string
+          title?: string
+          interest?: string | null
+          source_id?: string | null
+          stage_id?: string
+          status?: 'open' | 'won' | 'lost'
+          temperature?: 'cold' | 'warm' | 'hot' | null
+          value_cents?: number
+          currency?: string
+          last_contact_at?: string | null
+          next_action_at?: string | null
+          responded_at?: string | null
+          closed_at?: string | null
+          lost_reason?: string | null
+          notes?: string | null
+          is_demo?: boolean
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'leads_org_id_fkey'
+            columns: ['org_id']
+            isOneToOne: false
+            referencedRelation: 'organizations'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'leads_contact_id_fkey'
+            columns: ['contact_id']
+            isOneToOne: false
+            referencedRelation: 'contacts'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'leads_source_id_fkey'
+            columns: ['source_id']
+            isOneToOne: false
+            referencedRelation: 'lead_sources'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'leads_stage_id_fkey'
+            columns: ['stage_id']
+            isOneToOne: false
+            referencedRelation: 'pipeline_stages'
             referencedColumns: ['id']
           },
         ]
