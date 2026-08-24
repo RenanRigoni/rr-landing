@@ -7,7 +7,7 @@ const optionalText = z
   .nullable()
   .optional()
 
-const optionalUuid = z
+export const optionalUuid = z
   .string()
   .trim()
   .transform((value) => (value === '' ? null : value))

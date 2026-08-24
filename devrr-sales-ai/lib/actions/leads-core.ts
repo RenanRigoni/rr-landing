@@ -23,7 +23,7 @@ const uuidSchema = z.string().uuid()
  * filtra só por leads.org_id, e o resultado é uma linha corrompida que
  * vaza estrutura de outra organização através de join.
  */
-async function belongsToOrg(supabase: SalesClient, table: RelatedTable, id: string, orgId: string): Promise<boolean> {
+export async function belongsToOrg(supabase: SalesClient, table: RelatedTable, id: string, orgId: string): Promise<boolean> {
   const { data } = await supabase.from(table).select('id').eq('id', id).eq('org_id', orgId).maybeSingle()
   return data !== null
 }
