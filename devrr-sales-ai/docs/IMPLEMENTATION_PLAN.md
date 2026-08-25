@@ -1337,7 +1337,11 @@ de 30 segundos e ele aparece na lista.
 
 ---
 
-## ⚠️ Checkpoint Opus — fim da Fase 3 (2026-08-24) — **APROVADO COM 2 CORREÇÕES (tarefa 3.7)**
+## ✅ Checkpoint Opus — fim da Fase 3 (2026-08-24) — **APROVADO** (correções fechadas na 3.7)
+
+> **Fase 3 encerrada.** Os dois achados abaixo foram corrigidos na tarefa 3.7 e
+> reauditados por execução independente — ver "Reauditoria da 3.7" no fim desta
+> seção. **LIBERADO PARA FASE 4.**
 
 Revisão de 3.1 → 3.6: migrations 0004/0005, catálogos, contatos, leads, domínio,
 validação, actions, queries, as três telas e as suítes de teste.
@@ -1523,6 +1527,10 @@ tenant, caminho único para `stage_id`, camadas respeitadas, migrations replayá
 **Antes de iniciar a 4.1, executar a tarefa 3.7** (Achados A e B). São correções
 pequenas e localizadas, e as duas ficam mais caras se a Fase 4 começar antes.
 
+> **Atualização (2026-08-24, após a 3.7): as duas correções foram entregues e
+> reauditadas por execução independente. Fase 3 encerrada — LIBERADO PARA FASE 4.**
+> Detalhe da reauditoria no fim desta seção.
+
 ### [x] 3.7 Correções do checkpoint da Fase 3
 
 > feito: **Achado A** — `lib/actions/lead-intake-core.ts`, busca do contato
@@ -1618,6 +1626,76 @@ são tocadas.
 não por leitura do código.
 
 </details>
+
+### Reauditoria da 3.7 (2026-08-24) — **os dois achados fecharam**
+
+Revisão dirigida só aos dois achados, confirmada por execução independente — não
+pelos testes que a própria 3.7 escreveu, e não por leitura do diff.
+
+**Diff conferido primeiro:** `git show` de `ef84c7b` mostra exatamente
+`.limit(1)` + tratamento de `error` em `lead-intake-core.ts` e `cache()` em
+`orgs.ts`. Nenhuma instrumentação residual, nenhum `console.log`, nenhuma
+mudança de assinatura, nenhuma migration.
+
+#### Achado A — fechado
+
+Probe próprio, mais agressivo que o teste da suíte (3 contatos no mesmo telefone,
+não 2), e cobrindo o caso que a suíte **não** cobre:
+
+| caso | esperado | obtido |
+|---|---|---|
+| dedupe com **3** contatos no mesmo telefone | `duplicate` | `duplicate` ✓ (e o 4º contato não foi criado) |
+| **erro na consulta de dedupe** (client com falha injetada) | `error` | `{"status":"error","error":"Não foi possível verificar contatos existentes com esse telefone."}` ✓ |
+
+O segundo caso é o item 5 do escopo da 3.7 ("erro da query de dedupe não pode cair
+silenciosamente em success") e **não tem teste na suíte permanente** — só o
+comportamento no código. Foi provado aqui injetando um client stub que falha
+exatamente na consulta de dedupe e delega o resto ao client real. Isso só é
+possível porque a `-core` recebe o `supabase` por parâmetro (**D-020**) — a mesma
+decisão que existia para testar RLS de verdade também permitiu exercitar o caminho
+de erro sem mexer no banco. Vale como lição do padrão, não como pendência.
+
+**Sobrou uma lacuna pequena, classificada MELHORIA FUTURA:** o caminho de erro da
+consulta de dedupe está correto e provado aqui, mas não tem teste permanente — se
+alguém remover o `if (dedupeError)` amanhã, a suíte continua verde. O stub usado
+nesta auditoria é a base pronta para virar teste. Fazer quando `tests/actions/`
+ganhar helpers de stub (provavelmente na 6.2, que já prevê testes de integração
+mais amplos).
+
+#### Achado B — fechado
+
+Instrumentação temporária própria (removida em seguida; `git checkout` confirmou
+`orgs.ts` idêntico ao commitado), `next dev` real, Playwright, **dois usuários
+reais** com **duas organizações distintas e nomeadas** para tornar qualquer
+vazamento visível:
+
+| request | execuções de `getCurrentOrg` | org retornada |
+|---|---|---|
+| `/leads` como usuário A | **1** (era 4) | `AUDIT ORG DO USUARIO A` |
+| `/leads` como usuário B | **1** | `AUDIT ORG DO USUARIO B` |
+
+As quatro execuções registradas no período tiveram timestamps distintos, e cada
+uma devolveu a organização do usuário logado naquela request. `/today` do usuário
+B renderizou `AUDIT ORG DO USUARIO B` na tela — se a memoização fosse singleton de
+módulo, B teria visto a organização de A ali, visivelmente.
+
+Isso cobre os três riscos de uma memoização mal escopada, cada um por observação
+direta: **redução real** (4 → 1), **sem cache cross-request** (timestamps novos a
+cada request), **sem cache cross-user** (organização correta por sessão, conferida
+também na tela).
+
+#### Suíte completa, contra o código como está commitado
+
+`test:rls` **75/75** · `test` **44/44** · `typecheck` · `lint` · `build` — todos
+limpos. Zero resíduo no banco depois (`organizations=0 contacts=0 leads=0`),
+árvore de trabalho limpa, artefatos de auditoria removidos.
+
+### Veredito final da Fase 3
+
+**LIBERADO PARA FASE 4.** Nenhum BLOQUEANTE, nenhum IMPORTANTE em aberto. As
+melhorias futuras registradas neste checkpoint (layout sem checar sessão, erro de
+formulário não-por-campo, ordem entre `it()` na suíte de RLS, teste permanente do
+caminho de erro do dedupe) seguem válidas e nenhuma bloqueia a 4.1.
 
 ---
 
