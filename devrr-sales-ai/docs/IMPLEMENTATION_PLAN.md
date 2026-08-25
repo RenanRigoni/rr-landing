@@ -1703,11 +1703,74 @@ caminho de erro do dedupe) seguem válidas e nenhuma bloqueia a 4.1.
 
 O núcleo do produto. Checkpoint Opus ao final.
 
+### [x] 4.1 Atividades e regras (banco)
+
+> feito: `supabase/migrations/0006_activities.sql` — `sales.activities`
+> conforme `DATABASE.md`, RLS `tenant_isolation for all` padrão (dado
+> operacional, D-017 não se aplica — mesma classificação de contacts/leads).
+> `rule_id`/`ai_run_id` nascem sem FK (as tabelas referenciadas ainda não
+> existem — `followup_rules` chega em 0007, mesma tarefa; `ai_runs` só na
+> Fase 5.1). `supabase/migrations/0007_followup_rules.sql` — `sales.followup_rules`
+> conforme `DATABASE.md`, RLS `tenant_isolation for all` (config por
+> organização, sem `is_demo`, mesma classificação de `lead_sources`/
+> `pipeline_stages`), fecha a FK antecipada de `activities.rule_id` via
+> `alter table`, e estende `seed_org_defaults` (`create or replace`, 0004)
+> para semear os 3 passos padrão em `proposta_enviada` (+1d/+3d/+7d,
+> `whatsapp`, `followup_proposta`). `0001`-`0005` não tocados.
+>
+> **Validado, não só assumido:**
+> - Replay do zero: `drop schema sales cascade` + reaplicar 0001→0007 na
+>   ordem, direto dos arquivos → 8 tabelas, 13 policies, 5 funções, 6 enums,
+>   21 índices, 6 triggers — bate exatamente com o estado vivo pós-migration.
+> - `seed_org_defaults` continua **não executável** por `authenticated` nem
+>   `anon` depois do `create or replace` (`has_function_privilege` = false
+>   nos dois) — grants preservados através da troca de corpo, mesmo
+>   confirmado por execução na 3.1.
+> - `get_advisors(security)`: nenhum alerta novo em `sales` — mesmos 3 WARN
+>   de D-013. `activities`/`followup_rules` não geram alerta (RLS ligada,
+>   1 policy cada, `anon` sem `select` em nenhuma das duas).
+> - `tests/rls.test.ts` ganhou describe própria (org/usuários isolados dos
+>   blocos anteriores, mesmo motivo da 2.5), 12 casos novos: seed de
+>   `proposta_enviada` semeia exatamente 3 `followup_rules` com
+>   `delay_days` 1/3/7, `step_number` 1/2/3, `channel='whatsapp'`,
+>   `prompt_slug='followup_proposta'`, `is_active=true`; isolamento
+>   cross-tenant de `activities` (select 0 linhas, insert com `org_id`
+>   alheio rejeitado por `WITH CHECK`, `UPDATE`/`DELETE` bloqueados por
+>   `USING` — D-016: `.select()` encadeado, `data === []`, não
+>   `expect(error).not.toBeNull()`) e o mesmo conjunto para
+>   `followup_rules`; `anon` bloqueado nas duas tabelas.
+> - `npm run test:rls`: **87/87** (75 preservados + 12 novos), rodado duas
+>   vezes seguidas, zero organização/contato/lead/activity/followup_rule
+>   residual entre execuções.
+> - `npm run test`: continua **44/44** — nenhuma mudança em `lib/domain/`.
+> - `typecheck`/`lint`/`build` limpos. Build sem rota nova (tarefa é só de
+>   banco + types, UI chega na 4.3/4.4).
+> - `lib/types/database.types.ts` ganhou `activities`/`followup_rules`
+>   (`Row`/`Insert`/`Update`/`Relationships`, incluindo a FK de
+>   `activities.rule_id` → `followup_rules` fechada na 0007), mantidos à
+>   mão pelo mesmo motivo já documentado (ferramenta de geração automática
+>   não introspecta `sales`).
+>
+> Nenhuma decisão permanente nova para `DECISIONS.md` — a referência
+> antecipada de FK resolvida via `alter table` na migration seguinte é
+> aplicação do mesmo princípio já usado em `current_org_ids()`/`org_members`
+> na 0001 (D-002/arquitetura de multi-tenancy já documentada), não um
+> trade-off novo.
+>
+> Dois commits: migrations sozinhas antes de aplicar, resto depois.
+>
+> **Não avançado para a 4.2** — aguardando nova instrução.
+
+<details>
+<summary>Texto original da tarefa (referência)</summary>
+
 ### [ ] 4.1 Atividades e regras (banco)
 
 `0006_activities.sql` e `0007_followup_rules.sql` conforme `DATABASE.md`.
 Estender `seed_org_defaults` com a sequência padrão (+1d, +3d, +7d em
 `proposta_enviada`). Types regerados.
+
+</details>
 
 ### [ ] 4.2 Regra de próxima ação (domínio puro)
 

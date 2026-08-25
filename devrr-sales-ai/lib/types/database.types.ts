@@ -1,6 +1,7 @@
 // Tipos do schema `sales`, escritos à mão a partir de
 // supabase/migrations/0001_schema_and_helpers.sql, 0002_organizations.sql,
-// 0004_catalogs.sql e 0005_contacts_leads.sql (tarefas 2.1, 2.2, 3.1 e 3.2).
+// 0004_catalogs.sql, 0005_contacts_leads.sql, 0006_activities.sql e
+// 0007_followup_rules.sql (tarefas 2.1, 2.2, 3.1, 3.2 e 4.1).
 //
 // `sales` está em Settings → API → Exposed schemas (confirmado batendo direto
 // no PostgREST: erro de "tabela não encontrada", não de "schema inválido").
@@ -311,6 +312,200 @@ export interface Database {
           {
             foreignKeyName: 'leads_stage_id_fkey'
             columns: ['stage_id']
+            isOneToOne: false
+            referencedRelation: 'pipeline_stages'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      activities: {
+        Row: {
+          id: string
+          org_id: string
+          lead_id: string
+          contact_id: string | null
+          type:
+            | 'note'
+            | 'call'
+            | 'whatsapp'
+            | 'email'
+            | 'meeting'
+            | 'task'
+            | 'followup'
+            | 'proposal_sent'
+          title: string
+          body: string | null
+          status: 'pending' | 'done' | 'cancelled'
+          due_at: string | null
+          done_at: string | null
+          is_auto: boolean
+          rule_id: string | null
+          step_number: number | null
+          ai_run_id: string | null
+          is_demo: boolean
+          created_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          org_id: string
+          lead_id: string
+          contact_id?: string | null
+          type:
+            | 'note'
+            | 'call'
+            | 'whatsapp'
+            | 'email'
+            | 'meeting'
+            | 'task'
+            | 'followup'
+            | 'proposal_sent'
+          title: string
+          body?: string | null
+          status?: 'pending' | 'done' | 'cancelled'
+          due_at?: string | null
+          done_at?: string | null
+          is_auto?: boolean
+          rule_id?: string | null
+          step_number?: number | null
+          ai_run_id?: string | null
+          is_demo?: boolean
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          org_id?: string
+          lead_id?: string
+          contact_id?: string | null
+          type?:
+            | 'note'
+            | 'call'
+            | 'whatsapp'
+            | 'email'
+            | 'meeting'
+            | 'task'
+            | 'followup'
+            | 'proposal_sent'
+          title?: string
+          body?: string | null
+          status?: 'pending' | 'done' | 'cancelled'
+          due_at?: string | null
+          done_at?: string | null
+          is_auto?: boolean
+          rule_id?: string | null
+          step_number?: number | null
+          ai_run_id?: string | null
+          is_demo?: boolean
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'activities_org_id_fkey'
+            columns: ['org_id']
+            isOneToOne: false
+            referencedRelation: 'organizations'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'activities_lead_id_fkey'
+            columns: ['lead_id']
+            isOneToOne: false
+            referencedRelation: 'leads'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'activities_contact_id_fkey'
+            columns: ['contact_id']
+            isOneToOne: false
+            referencedRelation: 'contacts'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'activities_rule_id_fkey'
+            columns: ['rule_id']
+            isOneToOne: false
+            referencedRelation: 'followup_rules'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      followup_rules: {
+        Row: {
+          id: string
+          org_id: string
+          trigger_stage_id: string
+          step_number: number
+          delay_days: number
+          channel:
+            | 'note'
+            | 'call'
+            | 'whatsapp'
+            | 'email'
+            | 'meeting'
+            | 'task'
+            | 'followup'
+            | 'proposal_sent'
+          prompt_slug: string | null
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          org_id: string
+          trigger_stage_id: string
+          step_number: number
+          delay_days: number
+          channel?:
+            | 'note'
+            | 'call'
+            | 'whatsapp'
+            | 'email'
+            | 'meeting'
+            | 'task'
+            | 'followup'
+            | 'proposal_sent'
+          prompt_slug?: string | null
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          org_id?: string
+          trigger_stage_id?: string
+          step_number?: number
+          delay_days?: number
+          channel?:
+            | 'note'
+            | 'call'
+            | 'whatsapp'
+            | 'email'
+            | 'meeting'
+            | 'task'
+            | 'followup'
+            | 'proposal_sent'
+          prompt_slug?: string | null
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'followup_rules_org_id_fkey'
+            columns: ['org_id']
+            isOneToOne: false
+            referencedRelation: 'organizations'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'followup_rules_trigger_stage_id_fkey'
+            columns: ['trigger_stage_id']
             isOneToOne: false
             referencedRelation: 'pipeline_stages'
             referencedColumns: ['id']

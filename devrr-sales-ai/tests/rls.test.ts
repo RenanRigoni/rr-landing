@@ -486,3 +486,212 @@ describe('RLS — sales.organizations por papel (D-017 / migration 0003)', () =>
     })
   })
 })
+
+/**
+ * Fase 4.1 — sales.activities e sales.followup_rules (migrations
+ * 0006/0007). Describe própria com org e usuários isolados dos blocos
+ * acima (mesmo motivo da 2.5: não acoplar ordem entre describes). Nenhuma
+ * action/query existe ainda para essas tabelas (chega na 4.3) — isolamento
+ * é provado direto contra as tabelas, mesmo nível que 2.4 fez para
+ * organizations/org_members antes de existir camada de aplicação.
+ */
+describe('RLS — sales.activities e sales.followup_rules (migration 0006/0007)', () => {
+  let userAId: string
+  let userBId: string
+  let clientA: SupabaseClient<Database, 'sales'>
+  let clientB: SupabaseClient<Database, 'sales'>
+  let orgAId: string
+  let orgBId: string
+  let leadAId: string
+  let activityAId: string
+  let followupRuleAId: string
+
+  beforeAll(async () => {
+    userAId = await ensureTestUser(TEST_USER_A)
+    userBId = await ensureTestUser(TEST_USER_B)
+    await cleanupOrgsForUser(userAId)
+    await cleanupOrgsForUser(userBId)
+
+    clientA = await signInTestClient(TEST_USER_A)
+    clientB = await signInTestClient(TEST_USER_B)
+
+    const { data: newOrgA, error: orgAError } = await clientA.rpc('create_organization', {
+      p_name: 'RLS Activities Org A',
+    })
+    if (orgAError || !newOrgA) throw new Error(`Falha ao criar org A: ${orgAError?.message}`)
+    orgAId = newOrgA
+
+    const { data: newOrgB, error: orgBError } = await clientB.rpc('create_organization', {
+      p_name: 'RLS Activities Org B',
+    })
+    if (orgBError || !newOrgB) throw new Error(`Falha ao criar org B: ${orgBError?.message}`)
+    orgBId = newOrgB
+
+    // Contato + lead de A para prender a activity de teste — tabelas já
+    // provadas na 3.2, usadas aqui só como base, não é o que está sob teste.
+    const { data: contactA, error: contactAError } = await clientA
+      .from('contacts')
+      .insert({ org_id: orgAId, full_name: 'Contato Base Activities A' })
+      .select('id')
+      .single()
+    if (contactAError || !contactA) throw new Error(`Falha ao criar contato A: ${contactAError?.message}`)
+
+    const { data: stagesA } = await clientA.from('pipeline_stages').select('id, key').eq('org_id', orgAId)
+    const stageNovoA = stagesA!.find((s) => s.key === 'novo')!.id
+
+    const { data: leadA, error: leadAError } = await clientA
+      .from('leads')
+      .insert({ org_id: orgAId, contact_id: contactA.id, title: 'Lead Base Activities A', stage_id: stageNovoA })
+      .select('id')
+      .single()
+    if (leadAError || !leadA) throw new Error(`Falha ao criar lead A: ${leadAError?.message}`)
+    leadAId = leadA.id
+
+    const { data: rulesA } = await clientA.from('followup_rules').select('id').eq('org_id', orgAId).limit(1)
+    followupRuleAId = rulesA![0]!.id
+
+    const { data: activityA, error: activityAError } = await clientA
+      .from('activities')
+      .insert({ org_id: orgAId, lead_id: leadAId, type: 'note', title: 'Nota Base A', status: 'done' })
+      .select('id')
+      .single()
+    if (activityAError || !activityA) throw new Error(`Falha ao criar activity A: ${activityAError?.message}`)
+    activityAId = activityA.id
+  }, 30_000)
+
+  afterAll(async () => {
+    await cleanupOrgsForUser(userAId)
+    await cleanupOrgsForUser(userBId)
+  })
+
+  describe('seed_org_defaults — sequência padrão de follow-up', () => {
+    it('org nova recebe exatamente 3 followup_rules para o estágio proposta_enviada, com delay 1/3/7 dias', async () => {
+      const { data: stagesA } = await clientA.from('pipeline_stages').select('id, key').eq('org_id', orgAId)
+      const propostaStageId = stagesA!.find((s) => s.key === 'proposta_enviada')!.id
+
+      const { data: rules, error } = await clientA
+        .from('followup_rules')
+        .select('trigger_stage_id, step_number, delay_days, channel, prompt_slug, is_active')
+        .eq('org_id', orgAId)
+        .eq('trigger_stage_id', propostaStageId)
+        .order('step_number', { ascending: true })
+
+      expect(error).toBeNull()
+      expect(rules).toHaveLength(3)
+      expect(rules?.map((r) => r.delay_days)).toEqual([1, 3, 7])
+      expect(rules?.map((r) => r.step_number)).toEqual([1, 2, 3])
+      expect(rules?.every((r) => r.channel === 'whatsapp')).toBe(true)
+      expect(rules?.every((r) => r.prompt_slug === 'followup_proposta')).toBe(true)
+      expect(rules?.every((r) => r.is_active === true)).toBe(true)
+    })
+  })
+
+  describe('isolamento entre organizações — activities', () => {
+    it('A lê a própria activity', async () => {
+      const { data, error } = await clientA.from('activities').select('id').eq('id', activityAId)
+      expect(error).toBeNull()
+      expect(data?.map((a) => a.id)).toContain(activityAId)
+    })
+
+    it('B não vê a activity de A (0 linhas, não erro)', async () => {
+      const { data, error } = await clientB.from('activities').select('id').eq('id', activityAId)
+      expect(error).toBeNull()
+      expect(data).toEqual([])
+    })
+
+    it('B não consegue inserir activity com org_id de A (WITH CHECK rejeita, erro real)', async () => {
+      const { error } = await clientB
+        .from('activities')
+        .insert({ org_id: orgAId, lead_id: leadAId, type: 'note', title: 'Invasão B' })
+      expect(error).not.toBeNull()
+    })
+
+    it('B não consegue UPDATE da activity de A (bloqueado por USING — 0 linhas, não erro, D-016)', async () => {
+      const { data, error } = await clientB
+        .from('activities')
+        .update({ title: 'Alterado por B' })
+        .eq('id', activityAId)
+        .select()
+
+      expect(error).toBeNull()
+      expect(data).toEqual([])
+
+      const { data: stillOriginal } = await clientA.from('activities').select('title').eq('id', activityAId).single()
+      expect(stillOriginal?.title).toBe('Nota Base A')
+    })
+
+    it('B não consegue DELETE da activity de A (bloqueado por USING — 0 linhas, não erro, D-016)', async () => {
+      const { data, error } = await clientB.from('activities').delete().eq('id', activityAId).select()
+
+      expect(error).toBeNull()
+      expect(data).toEqual([])
+
+      const { data: stillThere } = await clientA.from('activities').select('id').eq('id', activityAId).maybeSingle()
+      expect(stillThere).not.toBeNull()
+    })
+  })
+
+  describe('isolamento entre organizações — followup_rules', () => {
+    it('B não vê as followup_rules de A (0 linhas, não erro)', async () => {
+      const { data, error } = await clientB.from('followup_rules').select('id').eq('org_id', orgAId)
+      expect(error).toBeNull()
+      expect(data).toEqual([])
+    })
+
+    it('B não consegue UPDATE de followup_rule de A (bloqueado por USING — 0 linhas, não erro, D-016)', async () => {
+      const { data, error } = await clientB
+        .from('followup_rules')
+        .update({ is_active: false })
+        .eq('id', followupRuleAId)
+        .select()
+
+      expect(error).toBeNull()
+      expect(data).toEqual([])
+
+      const { data: stillActive } = await clientA
+        .from('followup_rules')
+        .select('is_active')
+        .eq('id', followupRuleAId)
+        .single()
+      expect(stillActive?.is_active).toBe(true)
+    })
+
+    it('B não consegue DELETE de followup_rule de A (bloqueado por USING — 0 linhas, não erro, D-016)', async () => {
+      const { data, error } = await clientB.from('followup_rules').delete().eq('id', followupRuleAId).select()
+
+      expect(error).toBeNull()
+      expect(data).toEqual([])
+
+      const { data: stillThere } = await clientA
+        .from('followup_rules')
+        .select('id')
+        .eq('id', followupRuleAId)
+        .maybeSingle()
+      expect(stillThere).not.toBeNull()
+    })
+
+    it('B não consegue inserir followup_rule com org_id de A (WITH CHECK rejeita, erro real)', async () => {
+      const { data: stagesA } = await clientA.from('pipeline_stages').select('id, key').eq('org_id', orgAId)
+      const stageNovoA = stagesA!.find((s) => s.key === 'novo')!.id
+
+      const { error } = await clientB
+        .from('followup_rules')
+        .insert({ org_id: orgAId, trigger_stage_id: stageNovoA, step_number: 99, delay_days: 1 })
+      expect(error).not.toBeNull()
+    })
+  })
+
+  describe('anon', () => {
+    it('anon não lê activities', async () => {
+      const { data, error } = await anonClient().from('activities').select('id')
+      expect(error).not.toBeNull()
+      expect(data).toBeNull()
+    })
+
+    it('anon não lê followup_rules', async () => {
+      const { data, error } = await anonClient().from('followup_rules').select('id')
+      expect(error).not.toBeNull()
+      expect(data).toBeNull()
+    })
+  })
+})

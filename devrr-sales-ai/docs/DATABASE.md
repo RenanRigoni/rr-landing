@@ -455,6 +455,14 @@ created_by    uuid -> auth.users
 created_at, updated_at
 ```
 
+`rule_id` nasce sem FK em `0006_activities.sql` — `followup_rules` só existe na
+migration seguinte, mesma tarefa 4.1. A constraint (`activities_rule_id_fkey`)
+entra via `alter table` em `0007_followup_rules.sql`, depois que a tabela
+referenciada existe. Mesma classe de referência antecipada que
+`current_org_ids()`/`org_members` já resolveu em 0001, agora para FK de tabela
+em vez de corpo de função. `ai_run_id` está no mesmo caso, mas a referência a
+`ai_runs` só fecha na migration 0008 (Fase 5.1).
+
 Índices:
 
 ```sql
