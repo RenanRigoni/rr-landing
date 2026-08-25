@@ -1772,6 +1772,81 @@ Estender `seed_org_defaults` com a sequência padrão (+1d, +3d, +7d em
 
 </details>
 
+### [x] 4.2 Regra de próxima ação (domínio puro)
+
+> feito: `lib/domain/followup.ts` — `computeFollowupSchedule`,
+> `shouldCancelFollowups`, `resolveNextAction`, conforme a assinatura do
+> plano. `pushIntoBusinessWindow` (privada) empurra qualquer instante fora
+> do horário comercial pra próxima janela válida no fuso da organização,
+> usando `@date-fns/tz` (`TZDate`) — `date-fns` puro não tem noção de fuso
+> horário (confirmado por execução), e calcular "horário comercial" no fuso
+> do servidor em vez do fuso da org é exatamente o bug que
+> `DATABASE.md`/`timezone`/`business_hours` existem pra evitar. Decisão
+> registrada em **D-024**, incluindo por que isso não contraria a regra de
+> "versões iguais ao CRM-RR" (`followup.ts` não tem equivalente lá pra
+> portar) e a convenção de `BusinessHours.days` (`Date.getDay()`, não ISO).
+>
+> `FollowupRule` ganhou `alreadyExecuted?: boolean` (não estava na
+> assinatura literal do plano) — necessário pra cumprir o teste obrigatório
+> "passo já executado": sem um sinal explícito de que o passo já rodou, a
+> função não teria como diferenciar "regra ainda não chegou a vez" de
+> "regra já gerou activity", e geraria follow-up duplicado quando chamada de
+> novo pro mesmo lead (violaria a regra desta tarefa de "não criar caminho
+> paralelo que pule o registro de histórico" — aqui, o caminho que evita
+> duplicar é a própria função saber pular o que já foi feito).
+> `ActivityLike` usa `status`/`due_at` em vez de `stepNumber`/`dueAt`
+> (snake_case, não camelCase) de propósito — mesmo estilo do
+> `next-action.ts` do CRM-RR que `ARCHITECTURE.md` cita como referência: o
+> chamador (`lib/actions/`, 4.3) passa a linha do banco direto, sem mapear
+> campo a campo antes.
+>
+> **Validado por execução antes de virar teste** (mesma disciplina do achado
+> do NBSP/"cerca de" já registrada em D-020/D-021): script descartável
+> (criado e removido na própria tarefa, nunca commitado) rodou os 6 cenários
+> obrigatórios do plano contra a função real, e só depois os valores
+> confirmados viraram `expect(...).toEqual(...)` — sexta 17h + delay 1 dia
+> cai no sábado e empurra pra segunda 09h; entrada direto num sábado também
+> empurra pra segunda; o mesmo instante em fuso diferente (`America/Manaus`,
+> UTC-4) produz `dueAt` uma hora depois do equivalente em São Paulo,
+> provando que o fuso é respeitado e não é o do servidor; regra desativada e
+> passo já executado somem do array; "já passou" com `now` dentro do
+> expediente agenda pra agora mesmo, e com `now` fora do expediente empurra
+> pra próxima janela; janeiro e julho produzem o mesmo offset -03:00 em São
+> Paulo, documentando a premissa de que o Brasil não tem DST hoje (sem
+> testar transição de DST porque não existe uma pra testar).
+>
+> **Testes** — `tests/domain/followup.test.ts` (19), cobrindo os 6 cenários
+> acima mais casos positivos/negativos de `shouldCancelFollowups` (respondeu,
+> ganho, perdido, status fechado sem sinal de estágio, e o caso negativo —
+> nada se aplica, não cancela) e `resolveNextAction` (vazio, só
+> done/cancelled, pendente sem `due_at`, menor `due_at` entre pendentes
+> ignorando `done`/`cancelled` com data mais antiga, aceita `due_at` como
+> `Date` além de `string`).
+>
+> **Regras de segurança da tarefa (org_id nunca do cliente, Zod, wrapper+core,
+> mass assignment, IDs cross-tenant) não se aplicam a este arquivo** — é
+> domínio puro, sem banco, sem action, sem fronteira de entrada de usuário;
+> essas regras valem a partir da 4.3, quando `lib/actions/` de fato grava o
+> resultado destas funções.
+>
+> **Validado, não só assumido:**
+> - `npm run test`: **63/63** (44 preservados + 19 novos).
+> - `npm run typecheck`/`lint`/`build` limpos.
+> - `grep` em `lib/domain/followup.ts`: zero import de `supabase`/`next` —
+>   só `date-fns` e `@date-fns/tz`.
+> - Sem banco/action/RLS tocado nesta tarefa — `test:rls` não roda
+>   (0001-0007 intactos, nada para revalidar).
+>
+> Uma decisão permanente nova: **D-024** (`@date-fns/tz` como padrão pra
+> fuso horário no domínio; convenção `Date.getDay()` pra `BusinessHours.days`).
+>
+> Um commit.
+>
+> **Não avançado para a 4.3** — aguardando nova instrução.
+
+<details>
+<summary>Texto original da tarefa (referência)</summary>
+
 ### [ ] 4.2 Regra de próxima ação (domínio puro)
 
 `lib/domain/followup.ts` — **o coração do produto, 100% puro e testado**:
@@ -1804,6 +1879,8 @@ BR hoje mas o teste documenta a premissa.
 
 **Pronto quando:** cobertura da lógica de agendamento e cancelamento; zero import de
 supabase/next no arquivo.
+
+</details>
 
 ### [ ] 4.3 Geração e cancelamento automático
 

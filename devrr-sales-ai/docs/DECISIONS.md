@@ -666,6 +666,62 @@ frequência.
 
 ---
 
+## D-024 — `@date-fns/tz` para todo cálculo de fuso horário; `BusinessHours.days` usa a convenção de `Date.getDay()`
+
+**Data:** 2026-08-25 · **Status:** decidido, tarefa 4.2 · **Aplica a:** `lib/domain/followup.ts` e todo domínio futuro que precise de horário local por organização
+
+**1. `date-fns` sozinho (v4, já pinada por `ARCHITECTURE.md`) não tem noção de
+fuso horário** — confirmado por execução: `Object.keys(require('date-fns'))`
+não tem nenhum símbolo de timezone. Sem isso, `computeFollowupSchedule`
+calcularia "horário comercial" no fuso do servidor, não da organização —
+exatamente o bug que `DATABASE.md` descreve como motivo de `timezone`/
+`business_hours` existirem ("follow-up agendado pra sábado às 3h da manhã é
+bug de produto").
+
+**Decisão:** adicionar `@date-fns/tz` (`^1.5.0`) como dependência.
+`TZDate` se comporta como `Date` para qualquer API que espera um `Date`
+(`instanceof Date`, `.getTime()`, comparações), mas seus getters/setters
+(`getDay`, `getHours`, `setHours`...) leem/escrevem no horário local do fuso
+informado — inclusive DST, resolvido pela ICU do runtime (Node/V8), não por
+aritmética de offset escrita à mão. Confirmado por execução antes de
+escrever qualquer teste: mesmo instante UTC em `America/Sao_Paulo` (UTC-3) e
+`America/Manaus` (UTC-4) produz horas locais diferentes; `addDays`/
+`setHours` do `date-fns` preservam a classe `TZDate` (`instanceof TZDate` se
+mantém depois da chamada).
+
+**Por que não é violação de "versões iguais às do CRM-RR" (`CLAUDE.md`):**
+essa regra existe pra portar código 1:1 entre os dois projetos
+(`lib/supabase/`, `lib/ai/`, etc.). `followup.ts` não tem equivalente no
+CRM-RR — `ARCHITECTURE.md` só lista `next-action.ts` como referência de
+estilo pra reescrever, não pra portar literalmente, e o CRM-RR é
+single-tenant (não tem fuso por organização pra calcular). É dependência
+nova de funcionalidade nova, não divergência de uma já portada.
+
+**Descartado:** implementar a conversão de fuso à mão com `Intl.DateTimeFormat`
++ aritmética de offset — tecnicamente possível (é o que `@date-fns/tz` faz
+por baixo), mas é a classe de código mais fácil de acertar no caso feliz e
+errar silenciosamente em borda de DST/virada de ano; escrever isso à mão
+custaria mais superfície de bug pra um produto que já teve o cuidado de
+fixar `date-fns` como dependência única de manipulação de data.
+`date-fns-tz` (o pacote mais antigo, não `@date-fns/tz`) foi descartado por
+ser de outra major/API incompatível com `date-fns` v4 — `@date-fns/tz` é o
+companion oficial do mesmo projeto, pareado com a v4 já pinada.
+
+**2. `BusinessHours.days: number[]` usa a convenção nativa de
+`Date.getDay()`** (`0` = domingo … `6` = sábado), não ISO 8601 (`1` =
+segunda … `7` = domingo). O default `[1,2,3,4,5]` (segunda a sexta) dá o
+mesmo resultado nas duas convenções — a diferença só apareceria se algum
+dia existisse regra de expediente aos domingos, então vale registrar antes
+que a ambiguidade vire bug real: todo código que gerar ou ler
+`business_hours.days` (seed, formulário de configuração futuro,
+`computeFollowupSchedule`) usa `Date.getDay()`, nunca ISO.
+
+**Custo aceito:** uma dependência a mais no `package.json`, pequena e sem
+peer deps conflitantes (`npm audit` limpo, `date-fns` continua a única
+versão instalada).
+
+---
+
 ## Questões abertas
 
 Sonnet: adicione aqui o que travar. Opus resolve no próximo checkpoint.
