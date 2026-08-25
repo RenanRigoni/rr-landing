@@ -1882,6 +1882,118 @@ supabase/next no arquivo.
 
 </details>
 
+### [x] 4.3 Geração e cancelamento automático
+
+> feito: `supabase/migrations/0008_views.sql` — `v_today_actions` e
+> `v_leads_without_action` conforme `DATABASE.md`, ambas
+> `security_invoker = true`. Renumerada de `0009` pra `0008`: a tabela de
+> "Ordem das migrations" de `DATABASE.md` ainda numerava views/IA como se
+> `activities`/`followup_rules` (4.1) não tivessem ocupado `0006`/`0007` —
+> corrigido nesta tarefa (views = `0008`, IA/auditoria futuras reservam
+> `0009`/`0010`).
+>
+> `lib/actions/leads-core.ts` → `moveStageCore` estendida (não mais só troca
+> `stage_id`): busca o estágio de destino (`is_won`/`is_lost`), grava
+> `leads.status`/`closed_at` a partir dessas duas flags, e chama
+> `regenerateStageFollowups` (nova, privada) fora de won/lost. Esta cancela
+> os pendentes automáticos **do estágio de destino** (não de outros estágios
+> — ver **D-025**), marca `alreadyExecuted` pra todo `rule_id` com uma
+> activity `done` do lead, chama `computeFollowupSchedule` (4.2) com
+> `timezone`/`business_hours` reais da organização, e insere uma activity
+> `pending`/`is_auto=true` por passo do resultado. Estágio `is_won`/`is_lost`
+> cancela **todos** os pendentes automáticos do lead (gatilho documentado em
+> `DATABASE.md`), sem gerar novos.
+>
+> `markRespondedCore` (nova): grava `responded_at` (só se ainda nulo —
+> idempotente), cancela todos os pendentes automáticos, cria activity de
+> histórico ("Cliente respondeu", `is_auto=false`), recalcula o cache do
+> lead. `lib/actions/leads.ts` ganhou o wrapper `markResponded`.
+>
+> `recalculateLeadCache` (nova, `leads-core.ts`): `next_action_at` via
+> `resolveNextAction` (4.2, mesma função que decide a tela "Ações de hoje" —
+> um só lugar decide "próxima ação"), `last_contact_at` = maior `done_at`
+> entre as activities do lead. Chamada por toda escrita em `activities`
+> (D-006).
+>
+> `lib/actions/activities-core.ts` + `lib/actions/activities.ts` (novos,
+> par wrapper+core de D-020): `createActivity` (manual — `status`/`done_at`
+> derivados de `due_at` estar presente ou não, nunca aceita
+> `is_auto`/`rule_id`/`step_number`/`status`/`org_id` do payload — mass
+> assignment fechado no Zod, não só por convenção), `completeActivity`,
+> `cancelActivity` (as duas idempotentes: repetir não falha nem reescreve
+> `done_at`), `rescheduleActivity` (só em `pending`). Todas recalculam o
+> cache do lead.
+>
+> `belongsToOrg` (D-020) ganhou `'leads'` no tipo de tabela aceita, usada por
+> `createActivityCore` pra validar `lead_id`. `moveStageCore` não usa mais
+> `belongsToOrg` pra `stage_id` — busca o estágio direto (já precisa de
+> `is_won`/`is_lost`, então a mesma query serve pras duas coisas).
+>
+> **Desvio, não implementado — tabela não existe ainda:** `markResponded`
+> não grava `audit_log`. `sales.audit_logs` só nasce na migration da tarefa
+> 5.4 (`DATABASE.md` → Ordem das migrations); criar a tabela agora seria
+> antecipar 5.4 fora do escopo desta tarefa. Quando existir, o insert entra
+> em `markRespondedCore`, mesmo padrão de `activities`.
+>
+> **D-025** registra a decisão de escopo do cancelamento (só o estágio de
+> destino, exceto won/lost) e o achado não corrigido nesta tarefa
+> (**Q-005**): `belongsToOrg()` descarta erro de banco e trata como "não
+> encontrado" — fail-safe (rejeita a escrita, não abre dado cross-tenant),
+> mas não é o padrão de D-016/D-018 de tratar erro explicitamente. Não
+> corrigido aqui por tocar 3 arquivos de uma vez, fora do escopo de uma
+> tarefa que não é sobre `belongsToOrg`.
+>
+> **Testes:**
+> - `tests/actions/leads-followup.test.ts` (13 casos, novo): fluxo positivo
+>   com fuso/horário comercial reais (tolerância de 10s contra
+>   `computeFollowupSchedule` chamada em paralelo no teste — latência de
+>   rede real entre o `new Date()` do teste e o de dentro da action, não
+>   imprecisão de fuso — um bug de timezone erraria por horas, não
+>   milissegundos); regra desativada; A→B→A não duplica (3 pendentes, não
+>   6); passo já executado não regenerado; estágio `is_won`/`is_lost`
+>   cancela tudo e fecha o lead; follow-up manual nunca cancelado; lead/regra
+>   de outro tenant isolados (isolamento estrutural — `trigger_stage_id` de
+>   B nunca é igual ao de A — confirmado por execução, não só por leitura);
+>   erro de banco (client stub, mesmo padrão da 3.7) não vira sucesso;
+>   `markRespondedCore` idempotente, cross-tenant, erro de banco.
+> - `tests/actions/activities.test.ts` (17 casos, novo): status/`done_at`
+>   derivados de `due_at`; cache recalculado; cross-tenant (lead e contato);
+>   mass assignment fechado; complete/cancel idempotentes; reschedule só em
+>   pending; erro de banco não vira sucesso.
+> - `tests/helpers/stub-client.ts` (novo): client real desviado por tabela
+>   via `Proxy`, generalização do padrão de client-stub introduzido na 3.7
+>   (D-020 permite porque `-core` recebe o client como parâmetro).
+>
+> **Validado, não só assumido:**
+> - Replay do zero: `drop schema sales cascade` + reaplicar 0001→0008 na
+>   ordem, direto dos arquivos → 8 tabelas, 2 views, 13 policies, 5 funções,
+>   6 enums, 21 índices, 6 triggers — bate exatamente com o estado vivo
+>   pré-replay.
+> - `npm run test:rls` rodado **contra o schema recém-replayado**: 117/117
+>   (87 preservados + 13 + 17 novos), duas vezes seguidas antes do replay e
+>   mais uma depois — zero organização/activity residual em todas as
+>   rodadas.
+> - `get_advisors(security)`: mesmos 3 WARN de D-013 (`authenticated`
+>   executa função `security definer`), nada novo — as duas views não
+>   geram alerta (`security_invoker = true` confirmado).
+> - `npm run test`: **63/63** — nenhuma mudança em `lib/domain/`, `followup.ts`
+>   permanece puro (usado, não alterado).
+> - `typecheck`/`lint`/`build` limpos. Build sem rota nova — tarefa é só de
+>   banco/actions, UI chega na 4.4.
+>
+> `lib/types/database.types.ts` ganhou `Views.v_today_actions`/
+> `v_leads_without_action`. `DATABASE.md` ganhou a nota de `status`/`closed_at`
+> seguindo o estágio e a correção da tabela de ordem das migrations.
+>
+> Uma decisão permanente nova: **D-025**.
+>
+> Dois commits: migration sozinha antes de aplicar, resto depois.
+>
+> **Não avançado para a 4.4** — aguardando nova instrução.
+
+<details>
+<summary>Texto original da tarefa (referência)</summary>
+
 ### [ ] 4.3 Geração e cancelamento automático
 
 - `lib/actions/activities.ts`: `createActivity`, `completeActivity`, `cancelActivity`,
@@ -1895,6 +2007,8 @@ supabase/next no arquivo.
 - Follow-up manual (`is_auto = false`) **nunca** é cancelado automaticamente.
 - `0009_views.sql`: `v_today_actions` e `v_leads_without_action`, ambas com
   `security_invoker = true`. Advisors limpo.
+
+</details>
 
 ### [ ] 4.4 Tela "Ações de hoje"
 

@@ -516,6 +516,14 @@ Disparada quando: o lead recebe `responded_at`, muda para estágio `is_won`/`is_
 ou o usuário marca "cliente respondeu". Follow-up **manual** (`is_auto = false`)
 nunca é cancelado automaticamente — se o usuário agendou à mão, ele decide.
 
+**`leads.status`/`closed_at` seguem o estágio de destino** (tarefa 4.3,
+`lib/actions/leads-core.ts` → `moveStageCore`): `status = 'won'` se
+`stage.is_won`, `'lost'` se `stage.is_lost`, senão `'open'`; `closed_at` some
+junto se o lead volta a um estágio aberto. Sem isso `v_today_actions`/
+`v_leads_without_action` (ambas filtram `status = 'open'`) continuariam
+mostrando um lead que já ganhou ou perdeu — `moveStage` é o único caminho de
+mudança de estágio, então é o único lugar que precisa fazer essa gravação.
+
 ---
 
 ## Tabelas — Fase 5 (IA)
@@ -649,13 +657,18 @@ alter view sales.v_leads_without_action set (security_invoker = true);
 | `0005_contacts_leads.sql` | `contacts`, `leads`, índices, RLS | 3.2 |
 | `0006_activities.sql` | `activities`, índices, RLS | 4.1 |
 | `0007_followup_rules.sql` | `followup_rules` + seed | 4.1 |
-| `0008_ai.sql` | `ai_prompts`, `ai_runs` + seed de prompts | 5.1 |
-| `0009_views.sql` | `v_today_actions`, `v_leads_without_action` + `security_invoker` | 4.3 |
+| `0008_views.sql` | `v_today_actions`, `v_leads_without_action` + `security_invoker` | 4.3 |
+| `0009_ai.sql` | `ai_prompts`, `ai_runs` + seed de prompts | 5.1 |
 | `0010_audit.sql` | `audit_logs` | 5.4 |
 
-A numeração segue a **ordem de aplicação**, não a ordem das fases: as views (4.3)
-entram antes da auditoria (5.4), então são `0008`, não `0009`. Replay do zero precisa
-funcionar lendo os arquivos em ordem alfabética.
+A numeração segue a **ordem de aplicação**, não a ordem das fases. Esta tabela foi
+corrigida na tarefa 4.3: o texto desta seção já dizia "as views entram antes da
+auditoria, então são `0008`, não `0009`" desde o checkpoint da Fase 1, mas a própria
+tabela ainda numerava a IA (5.1) como `0008` e as views (4.3) como `0009` — resquício
+de antes de `activities`/`followup_rules` (4.1) ocuparem `0006`/`0007`, o que empurrou
+tudo depois em duas posições sem a tabela ser reajustada. `0009_ai.sql`/`0010_audit.sql`
+são reserva de numeração para quando as tarefas 5.1/5.4 forem executadas, não arquivos
+que já existem. Replay do zero precisa funcionar lendo os arquivos em ordem alfabética.
 
 Cada migration: arquivo commitado → aplicado → `get_advisors(type:'security')` sem
 alerta novo → esta doc atualizada → `npm run typecheck` com types regerados.

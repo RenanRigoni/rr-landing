@@ -1,7 +1,8 @@
 // Tipos do schema `sales`, escritos à mão a partir de
 // supabase/migrations/0001_schema_and_helpers.sql, 0002_organizations.sql,
-// 0004_catalogs.sql, 0005_contacts_leads.sql, 0006_activities.sql e
-// 0007_followup_rules.sql (tarefas 2.1, 2.2, 3.1, 3.2 e 4.1).
+// 0004_catalogs.sql, 0005_contacts_leads.sql, 0006_activities.sql,
+// 0007_followup_rules.sql e 0008_views.sql (tarefas 2.1, 2.2, 3.1, 3.2, 4.1
+// e 4.3).
 //
 // `sales` está em Settings → API → Exposed schemas (confirmado batendo direto
 // no PostgREST: erro de "tabela não encontrada", não de "schema inválido").
@@ -513,7 +514,51 @@ export interface Database {
         ]
       }
     }
-    Views: Record<string, never>
+    Views: {
+      v_today_actions: {
+        Row: {
+          id: string
+          org_id: string
+          lead_id: string
+          type:
+            | 'note'
+            | 'call'
+            | 'whatsapp'
+            | 'email'
+            | 'meeting'
+            | 'task'
+            | 'followup'
+            | 'proposal_sent'
+          title: string
+          body: string | null
+          due_at: string | null
+          is_auto: boolean
+          step_number: number | null
+          lead_title: string
+          value_cents: number
+          stage_id: string
+          contact_name: string
+          contact_phone: string | null
+          stage_label: string
+        }
+        Relationships: []
+      }
+      v_leads_without_action: {
+        Row: {
+          id: string
+          org_id: string
+          title: string
+          value_cents: number
+          stage_id: string
+          last_contact_at: string | null
+          contact_name: string
+          contact_phone: string | null
+          stage_label: string
+          stage_position: number
+        }
+        Relationships: []
+      }
+    }
     Functions: {
       create_organization: {
         Args: { p_name: string }

@@ -722,6 +722,83 @@ versão instalada).
 
 ---
 
+## D-025 — Escopo do cancelamento em `moveStageCore`: só o estágio de destino, exceto quando é `is_won`/`is_lost`
+
+**Data:** 2026-08-25 · **Status:** decidido, tarefa 4.3 · **Aplica a:** `lib/actions/leads-core.ts` → `moveStageCore`/`regenerateStageFollowups`
+
+O texto da tarefa 4.3 é literal só até certo ponto: "se já existirem
+pendentes automáticos para aquele estágio, cancelar antes de regerar
+(idempotência — mover A→B→A não duplica)" não diz o que fazer com pendentes
+de um estágio **diferente** do destino. Três leituras possíveis: (a) cancelar
+só os do estágio de destino, (b) cancelar todos os pendentes automáticos do
+lead em qualquer `moveStage`, (c) nunca cancelar fora do destino.
+
+**Decisão, resolvida sem devolver pro Opus porque `DATABASE.md` já continha a
+resposta:** a seção "Semântica de cancelamento" (mesma tarefa, mesmo arquivo)
+já lista os três gatilhos de cancelamento em massa — `responded_at`, estágio
+`is_won`/`is_lost`, ou "cliente respondeu" manual. Mover para um estágio
+aberto que não é o de destino original **não está na lista**. Logo:
+
+1. Fora de `is_won`/`is_lost`: `regenerateStageFollowups` cancela só os
+   pendentes automáticos cujo `rule_id` pertence às regras do estágio de
+   **destino** (a leitura (a) — implementa literalmente "para aquele
+   estágio"). Pendentes gerados por um estágio anterior que o lead já
+   deixou continuam pendentes até um gatilho de cancelamento real acontecer.
+2. Estágio `is_won`/`is_lost`: cancela **todos** os pendentes automáticos do
+   lead, não só os do destino — é o gatilho documentado, e um lead fechado
+   não pode ter follow-up pendente de nenhum estágio anterior.
+
+**Efeito colateral que virou funcionalidade, não bug:** para que o gatilho
+`is_won`/`is_lost` funcionasse a partir do estágio (e não só de uma ação
+manual futura), `moveStageCore` passou a gravar `leads.status`/`closed_at`
+a partir de `pipeline_stages.is_won`/`is_lost` do destino — documentado em
+`DATABASE.md` → `sales.leads`. Sem isso as duas views desta mesma tarefa
+(`v_today_actions`/`v_leads_without_action`, que filtram `status = 'open'`)
+nunca parariam de mostrar um lead fechado. Não estava no texto literal da
+4.3, mas já estava previsto: o comentário de `lib/validation/leads.ts`
+(tarefa 3.4) já dizia que `status`/`closed_at` "nascem da transição de
+estágio", e `moveStage` é o único caminho de mudança de estágio desde a 3.4.
+
+**Passo já executado não duplica:** todo `rule_id` do estágio de destino com
+uma `activity` `status = 'done'` para o lead entra como `alreadyExecuted:
+true` em `computeFollowupSchedule` (4.2) antes de regerar — sem isso,
+reentrar num estágio depois de já ter concluído o passo 1 geraria um passo 1
+novo.
+
+**Descartado:** leitura (b) (cancelar tudo em qualquer `moveStage`) — cancelaria
+follow-up de um estágio que o lead pode voltar a ocupar (ex.: `negociação` →
+`proposta_enviada` → `negociação` → `proposta_enviada` de novo, uma
+renegociação real), sem gatilho documentado que justifique o cancelamento no
+meio do caminho. Leitura (c) (nunca cancelar fora do destino) — não cumpre a
+idempotência explícita pedida no texto da tarefa (A→B→A duplicaria).
+
+**Achado registrado, não corrigido nesta tarefa:** `belongsToOrg()` (D-020,
+`lib/actions/leads-core.ts`) descarta o `error` da consulta e só olha
+`data !== null` — um erro transitório de rede vira `false` (mesmo formato de
+"não encontrado, não é desta org"), igual ao formato do Achado A da 3.7, mas
+na direção seguramente diferente: lá o erro virava "sem duplicata" e deixava
+gravar dado errado; aqui o erro vira "não encontrado" e **rejeita** a
+escrita — falha segura, não abertura de dado cross-tenant. Descoberto ao
+escrever o teste de "erro de banco não vira sucesso" desta tarefa (o teste
+foi redirecionado para não depender de `belongsToOrg`, ver
+`tests/actions/activities.test.ts`). Não corrigido aqui porque `belongsToOrg`
+é código da 3.4/3.6, já auditado e aprovado no checkpoint da Fase 3, e mudar
+sua assinatura tocaria `leads-core.ts`, `lead-intake-core.ts` e
+`activities-core.ts` de uma vez — fora do escopo estrito da 4.3. Registrado
+como **Q-005** para o Opus decidir se vale a pena.
+
+**Custo aceito:** `moveStageCore` não é transacional — se `regenerateStageFollowups`
+falhar depois do `update` de estágio (ex.: erro ao carregar `followup_rules`),
+o lead já mudou de estágio/status mas os follow-ups não foram gerados/cancelados
+corretamente. O erro é reportado (não vira sucesso — provado por teste com
+client stub), mas a correção fica manual (reenviar `moveStage` resolve, porque
+o passo de cancelamento/geração é idempotente). Postgres/PostgREST não expõe
+transação multi-statement para o client JS sem uma function `security definer`
+dedicada — criar uma agora seria antecipar infraestrutura que nenhuma outra
+action deste projeto usa ainda.
+
+---
+
 ## Questões abertas
 
 Sonnet: adicione aqui o que travar. Opus resolve no próximo checkpoint.
@@ -733,3 +810,15 @@ Sonnet: adicione aqui o que travar. Opus resolve no próximo checkpoint.
   "dono do lead" (`assigned_to`). Adicionar quando existir a primeira PME com 2+
   vendedores. Não antes.
 - ~~**Q-004**~~ — resolvida, ver **D-019**.
+- **Q-005** — `belongsToOrg()` (D-020) descarta o `error` da consulta e trata
+  qualquer falha (rede, timeout) como "não pertence à org", rejeitando a
+  escrita. Fail-safe (não abre dado cross-tenant), mas a mensagem de erro
+  fica enganosa ("Contato não encontrado" numa falha transitória de rede) e
+  o padrão diverge do resto do projeto desde D-018/D-016 (tratar erro de
+  banco explicitamente, não conflar com ausência). Achado real da tarefa
+  4.3, não corrigido por tocar 3 arquivos (`leads-core.ts`,
+  `lead-intake-core.ts`, `activities-core.ts`) de uma vez — fora do escopo
+  de uma tarefa que não é sobre `belongsToOrg`. Avaliar se vale abrir uma
+  tarefa dedicada (mudar `belongsToOrg` para devolver `{ exists, error }` em
+  vez de `boolean`) ou se o custo de mudar os ~7 call sites não compensa o
+  ganho de uma mensagem de erro mais precisa numa falha rara.
