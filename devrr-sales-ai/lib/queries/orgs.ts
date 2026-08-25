@@ -1,5 +1,6 @@
 import 'server-only'
 
+import { cache } from 'react'
 import { cookies } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
 
@@ -16,8 +17,18 @@ export interface CurrentOrg {
  *
  * RLS já restringe a consulta às organizações do usuário
  * (`sales.current_org_ids()`); nenhum filtro extra é necessário aqui.
+ *
+ * `cache()` do React memoiza por request/render (achado do checkpoint da
+ * Fase 3: `/leads` chamava isto 4 vezes no mesmo render, uma por
+ * `requireOrgId()` em `listStages`/`listSources`/`listLeadsForDisplay`/
+ * `listLeads`, sempre com o mesmo resultado). É o mecanismo documentado do
+ * Next.js para deduplicar chamada não-`fetch` dentro do mesmo request —
+ * escopado pelo `AsyncLocalStorage` da própria request, não é módulo
+ * singleton: uma request nova sempre recalcula, nada fica preso entre
+ * usuários nem entre requests. Não muda RLS/sessão nem introduz estado
+ * novo — mesma consulta, mesma assinatura, só deixa de repetir.
  */
-export async function getCurrentOrg(): Promise<CurrentOrg | null> {
+export const getCurrentOrg = cache(async (): Promise<CurrentOrg | null> => {
   const supabase = await createClient()
 
   const { data: orgs, error } = await supabase
@@ -40,4 +51,4 @@ export async function getCurrentOrg(): Promise<CurrentOrg | null> {
   const active = activeOrgId ? orgs?.find((org) => org.id === activeOrgId) : undefined
 
   return active ?? firstOrg
-}
+})

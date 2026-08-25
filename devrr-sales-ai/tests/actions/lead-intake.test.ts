@@ -155,6 +155,51 @@ describe('lib/actions/lead-intake-core', () => {
     expect(contacts).toHaveLength(2)
   })
 
+  it('continua devolvendo duplicate depois que "criar mesmo assim" já produziu 2 contatos no mesmo telefone (achado A do checkpoint da Fase 3)', async () => {
+    const phoneRaw = '11955554444'
+    const phoneNormalized = normalizePhoneBR(phoneRaw)!
+
+    // 1) telefone novo — cria o primeiro contato
+    const first = await createLeadIntakeCore(clientA, orgAId, userAId, {
+      full_name: 'Primeiro',
+      phone: phoneRaw,
+      title: 'Lead 1',
+    })
+    expect(first.status).toBe('success')
+
+    // 2) mesmo telefone, usuário escolhe "criar contato novo mesmo assim" —
+    // estado legítimo por D-022/D-023, e é ele que expunha o bug: antes da
+    // correção, .maybeSingle() sem .limit(1) contra 2+ linhas devolvia
+    // erro, o error era descartado, e todo cadastro seguinte no mesmo
+    // telefone virava 'success' em silêncio, sem nunca mais avisar.
+    const second = await createLeadIntakeCore(clientA, orgAId, userAId, {
+      full_name: 'Segundo',
+      phone: phoneRaw,
+      title: 'Lead 2',
+      force_new_contact: 'true',
+    })
+    expect(second.status).toBe('success')
+
+    const { data: contactsAfterTwo } = await clientA.from('contacts').select('id').eq('phone', phoneNormalized)
+    expect(contactsAfterTwo).toHaveLength(2)
+
+    // 3) terceiro cadastro no mesmo telefone, SEM force — precisa continuar
+    // avisando duplicata, não criar um terceiro contato em silêncio.
+    const third = await createLeadIntakeCore(clientA, orgAId, userAId, {
+      full_name: 'Terceiro',
+      phone: phoneRaw,
+      title: 'Lead 3',
+    })
+    expect(third.status).toBe('duplicate')
+    expect(third.leadId).toBeUndefined()
+
+    const { data: contactsAfterThree } = await clientA.from('contacts').select('id').eq('phone', phoneNormalized)
+    expect(contactsAfterThree).toHaveLength(2)
+
+    const { data: leadsWithTitle3 } = await clientA.from('leads').select('id').eq('title', 'Lead 3')
+    expect(leadsWithTitle3).toEqual([])
+  })
+
   it('rejeita payload inválido — título vazio', async () => {
     const result = await createLeadIntakeCore(clientA, orgAId, userAId, {
       full_name: 'Nome Válido',

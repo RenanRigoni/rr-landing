@@ -55,12 +55,26 @@ export async function createLeadIntakeCore(
     }
 
     if (phone && !parsed.data.force_new_contact) {
-      const { data: existing } = await supabase
+      // .limit(1) é obrigatório antes de .maybeSingle(): o telefone não é
+      // único (D-022 permite 2+ contatos no mesmo número — o próprio botão
+      // "criar contato novo mesmo assim" produz esse estado). Sem o limit,
+      // 2+ linhas fazem .maybeSingle() devolver erro (PGRST116) em vez de
+      // dado — achado real do checkpoint da Fase 3: o `error` era
+      // descartado, `existing` virava `null`, e o código lia isso como "sem
+      // duplicata", criando mais um contato em silêncio a partir do
+      // segundo. Erro na consulta nunca vira "sem duplicata" — falha
+      // visível, não decisão errada por baixo dos panos.
+      const { data: existing, error: dedupeError } = await supabase
         .from('contacts')
         .select('id, full_name, phone')
         .eq('org_id', orgId)
         .eq('phone', phone)
+        .limit(1)
         .maybeSingle()
+
+      if (dedupeError) {
+        return { status: 'error', error: 'Não foi possível verificar contatos existentes com esse telefone.' }
+      }
 
       if (existing) {
         return {

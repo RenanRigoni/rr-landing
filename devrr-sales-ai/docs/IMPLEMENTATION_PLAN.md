@@ -1523,6 +1523,72 @@ tenant, caminho único para `stage_id`, camadas respeitadas, migrations replayá
 **Antes de iniciar a 4.1, executar a tarefa 3.7** (Achados A e B). São correções
 pequenas e localizadas, e as duas ficam mais caras se a Fase 4 começar antes.
 
+### [x] 3.7 Correções do checkpoint da Fase 3
+
+> feito: **Achado A** — `lib/actions/lead-intake-core.ts`, busca do contato
+> duplicado ganhou `.limit(1)` antes de `.maybeSingle()` (mesmo padrão já
+> correto em `lib/supabase/middleware.ts`) e o `error` da consulta passou a
+> ser checado explicitamente: em falha, devolve `status: 'error'` visível,
+> nunca mais interpreta erro como "sem duplicata". Antes da correção, 2+
+> contatos no mesmo telefone (estado legítimo — é exatamente o que o botão
+> "Criar contato novo mesmo assim" produz, D-022/D-023) fazia
+> `.maybeSingle()` devolver `PGRST116`; com o `error` descartado, `existing`
+> virava `null` e todo cadastro seguinte naquele telefone criava mais um
+> contato em silêncio, sem nunca mais avisar.
+>
+> **Achado B** — `lib/queries/orgs.ts`, `getCurrentOrg` envolvida em
+> `cache()` do React. Assinatura, corpo e comportamento (inclusive a leitura
+> de `active_org_id`) intactos — só deixou de repetir a mesma consulta
+> dentro do mesmo request. `requireOrgId()` e todo chamador seguem iguais,
+> zero mudança de contrato.
+>
+> **Teste novo** — `tests/actions/lead-intake.test.ts` ganhou o caso que
+> reproduz exatamente a sequência provada no checkpoint: cadastro com
+> telefone novo (`success`) → mesmo telefone + `force_new_contact` (2
+> contatos, `success`) → **terceiro cadastro no mesmo telefone, sem force,
+> continua devolvendo `duplicate`** (antes da correção, esse terceiro caso
+> devolvia `success` e criava um 3º contato — reproduzido com teste
+> descartável durante o checkpoint, removido depois).
+>
+> **Medição real do Achado B, não leitura de código** — instrumentação
+> temporária (`console.log` dentro de `getCurrentOrg`, removida antes do
+> commit) + `next dev` + Playwright, login real como `rls-test-a`, org de QA
+> criada pelo onboarding:
+> - 1ª request a `/leads` (4 pontos de chamada: `listStages`, `listSources`,
+>   `listLeadsForDisplay` e o `listLeads` que ela chama): **1 execução**,
+>   contra 4 antes da correção.
+> - 2ª request, independente, a `/leads/new`: **1 execução com timestamp
+>   novo** — prova que a memoização não vaza de uma request para a
+>   seguinte (o `cache()` do React é escopado pelo `AsyncLocalStorage` da
+>   própria request do Next.js, não é singleton de módulo).
+>
+> Dado de QA removido depois (`organizations=0`). Instrumentação removida
+> antes do commit — `git diff` de `orgs.ts` mostra só `cache()` e o
+> comentário, nenhum `console.log`.
+>
+> **Validado, não só assumido:**
+> - `npm run test:rls`: **75/75** (74 preservados + 1 novo), rodado duas
+>   vezes seguidas, zero organização/contato/lead residual entre execuções.
+> - `npm run test`: continua **44/44** — nenhuma mudança em `lib/domain/`.
+> - `typecheck`/`lint`/`build` limpos. Build gera `/leads`,
+>   `/leads/[leadId]`, `/leads/new` como dinâmicas, igual antes.
+> - Grep: zero `service_role` fora de `lib/env.server.ts`/`lib/supabase/admin.ts`;
+>   zero componente importando `@/lib/supabase`/`createClient`; wrapper
+>   `'use server'` de `lib/actions/lead-intake.ts` intacto, `-core.ts`
+>   continua sem `'use server'`/`next/headers` (D-020 preservada).
+> - Nenhuma migration nesta tarefa — `0001`-`0005` intactos.
+>
+> Nenhuma decisão permanente nova para `DECISIONS.md` — as duas correções
+> são aplicação direta do que já estava especificado no checkpoint (Achados
+> A e B), sem trade-off novo sendo introduzido.
+>
+> Um commit.
+>
+> **Não avançado para a Fase 4** — aguardando nova instrução.
+
+<details>
+<summary>Texto original da tarefa (referência)</summary>
+
 ### [ ] 3.7 Correções do checkpoint da Fase 3
 
 Sem migration — as duas correções são de código de aplicação. `0001`–`0005` não
@@ -1550,6 +1616,8 @@ são tocadas.
 **Pronto quando:** `test:rls` verde com o teste novo (75/75), `typecheck`/`lint`/
 `test`/`build` limpos, e a contagem de queries de `/leads` confirmada por medição —
 não por leitura do código.
+
+</details>
 
 ---
 
