@@ -2231,6 +2231,250 @@ ponta a ponta. → **Checkpoint Opus.**
 
 ---
 
+## ⛔ Checkpoint Opus — fim da Fase 4 (2026-08-26) — **NÃO APROVADO até a 4.6**
+
+Revisão de 4.1 → 4.5: migrations 0006/0007/0008, `sales.activities`,
+`sales.followup_rules`, as duas views, `seed_org_defaults`, `lib/domain/followup.ts`,
+`today.ts`, `date.ts`, toda a camada de actions de follow-up, `lib/queries/today.ts`/
+`activities.ts`, a tela Hoje, a timeline do lead, e as suítes de teste. Commits
+`19f171d`, `5c84e61`, `39b8255`, `877998a`, `bb586c4`, `c60f1de`, `f36160c`.
+
+**A modelagem está certa e o isolamento multi-tenant continua provado.** O que
+reprova o checkpoint é uma regra de produto declarada inegociável que para de
+valer no segundo ciclo de vida do lead.
+
+### Revalidado do zero neste checkpoint (não só lido)
+
+- **Replay real, na ordem, direto dos arquivos:** `drop schema sales cascade` →
+  0001 → 0002 → 0003 → 0004 → 0005 → 0006 → 0007 → 0008. Resultado: 8 tabelas,
+  2 views, 13 policies, 5 funções, 6 enums, 21 índices, 6 triggers — bate
+  **exatamente** com o estado vivo pré-replay. Sem drift.
+- **`npm run test:rls` contra o schema recém-replayado: 124/124 passam**, e
+  124/124 também na rodada anterior contra o schema antigo — duas execuções,
+  mesmo resultado, zero linha residual depois (`organizations`/`org_members`/
+  `contacts`/`leads`/`activities`/`followup_rules` todos em `0`). Determinismo
+  confirmado.
+- `npm run test`: **69/69**. `typecheck` / `lint` / `build` limpos (build gera
+  `/`, `/login`, `/onboarding`, `/leads`, `/leads/new`, `/leads/[leadId]`,
+  `/today` + proxy).
+- **`get_advisors(security)`:** no schema `sales`, só os 3 WARN já documentados em
+  **D-013** (`authenticated` executa `security definer`: `create_organization`,
+  `current_org_ids`, `current_org_role`). Nenhum alerta novo — as duas views não
+  geram nenhum. Todo o resto da lista é de `public`, de outros projetos no mesmo
+  Supabase.
+- **`security_invoker = true` confirmado no catálogo** (`pg_class.reloptions`) nas
+  duas views, e **o isolamento provado por execução**, não só pela flag:
+  simulação SQL com os dois usuários reais de teste — A (dono) enxerga
+  `v_today_actions = 1` / `v_leads_without_action = 1`; B, de outro tenant,
+  enxerga `0` / `0`. Dado de prova removido depois, contagens conferidas em `0`.
+- **`anon` sem nada:** `has_schema_privilege('anon','sales','usage') = false`,
+  zero grant de tabela no schema, `execute = false` nas três RPC, `select = false`
+  nas duas views. `seed_org_defaults` continua não executável por `authenticated`
+  mesmo depois dos dois `create or replace` que a 0004 e a 0007 fizeram nela.
+- **Camadas intactas:** `grep` em `components/` por `@/lib/supabase` e
+  `@/lib/env.server` → zero. `select('*')` em qualquer `.ts`/`.tsx` → zero.
+  `createAdminClient()` continua existindo só em `lib/supabase/admin.ts`, sem
+  nenhum chamador no app; `service_role` só aparece em `lib/env.server.ts`,
+  `admin.ts` e nas fixtures de teste. `lib/domain/followup.ts` e `today.ts` não
+  importam `supabase` nem `next`.
+- **Cache (`next_action_at`/`last_contact_at`) sem caminho paralelo:** os seis
+  pontos que escrevem em `activities` — `createActivityCore`,
+  `completeActivityCore`, `cancelActivityCore`, `rescheduleActivityCore`,
+  `moveStageCore` e `markRespondedCore` — todos terminam em
+  `recalculateLeadCache`, e ela é o único lugar que grava as duas colunas.
+  `resolveNextAction` (4.2) é a única fonte de "qual é a próxima ação", usada
+  tanto pelo cache quanto pela tela. Nenhum fluxo deixa cache stale.
+- **`computeFollowupSchedule` é fonte única de agenda:** dois chamadores em
+  produção (`regenerateStageFollowups` e `suggestNextFollowupDueAt`), ambos
+  passando `timezone`/`business_hours` reais da organização. O único cálculo de
+  data fora dela é o `+24h` do botão "Adiar 1 dia", documentado no componente e
+  conceitualmente distinto (adiamento manual pontual, não cronograma de regra).
+
+### Achado A — BLOQUEANTE · "Cliente respondeu" vira no-op silencioso a partir do segundo ciclo
+
+`markRespondedCore` grava `responded_at` com `.is('responded_at', null)` e faz o
+cancelamento em massa **dentro** dessa guarda. Nenhum caminho do produto devolve
+`responded_at` para `null`.
+
+**Provado por execução**, com os dois usuários reais de teste (probe descartável,
+criada e removida nesta revisão, nunca commitada):
+
+| passo | esperado | obtido |
+|---|---|---|
+| entra em `proposta_enviada` | 3 automáticos pendentes | 3 ✓ |
+| `markResponded` (1ª vez) | 0 pendentes | 0 ✓ |
+| sai e volta para `proposta_enviada` (proposta revisada) | — | **3 automáticos regerados, com `responded_at` preenchido** |
+| `markResponded` (2ª vez) | 0 pendentes | **`error: null` e os 3 continuam pendentes** |
+
+`next_action_at` do lead continuou apontando para o dia seguinte depois do
+segundo "Cliente respondeu".
+
+**Risco concreto:** é violação direta da regra 3 de `PRODUCT_SPEC.md` — o usuário
+clica "Cliente respondeu" na tela Hoje, não recebe erro nenhum, a lista atualiza,
+e o sistema continua mandando ele cobrar um cliente que já respondeu. Na tela do
+lead é pior: `MarkRespondedButton` fica desabilitado para sempre com o texto
+"Cliente já respondeu", então nem existe o clique. O cenário é o comum do ICP
+(`PRODUCT_SPEC.md` → Para quem), não caso de borda: cliente responde à primeira
+proposta, a negociação anda, uma proposta revisada é enviada, o cliente responde
+de novo. E a Fase 6.5 é uso real com dados reais da DevRR — as mensagens saem
+para clientes de verdade.
+
+**Correção mínima:** decisão de contrato em **D-027**, implementação na tarefa 4.6
+abaixo. Duas mudanças pequenas em `lib/actions/leads-core.ts`, nenhuma migration.
+
+### Achado B — IMPORTANTE · `Enter` num botão da linha conclui **e** navega para outra página
+
+`components/today/TodayActionsList.tsx` → `handleKeyDown` está no `<div>` da linha
+e não filtra a origem do evento (`event.target !== event.currentTarget`). Os
+botões `Concluir` / `Adiar 1 dia` / `Cliente respondeu` são descendentes desse
+div, então o `keydown` de `Enter` que aciona o botão **borbulha** até o handler,
+que executa `router.push('/leads/…')`.
+
+**Efeito:** usuário de teclado chega em `Concluir` com Tab, aperta `Enter` — a
+activity é concluída e a página navega para o lead ao mesmo tempo. O
+`FollowupPrompt` da 4.5, que é o objeto inteiro da tarefa, nunca chega a
+aparecer. `ArrowUp`/`ArrowDown` de dentro de um botão têm o problema simétrico:
+mexem no `activeIndex` e o efeito rouba o foco para outra linha.
+
+Não foi pego na QA da 4.4 porque o teste de teclado de lá exercitou `ArrowDown` e
+`Enter` com o foco **na linha**, nunca com o foco dentro de um botão — o único
+caminho em que o bug aparece. Correção mínima: uma guarda de uma linha no
+`handleKeyDown`.
+
+### Achado C — IMPORTANTE · as duas views da 4.3 não têm um único teste
+
+`grep` por `v_today_actions`/`v_leads_without_action` em `tests/`: **zero
+ocorrências**. `security_invoker = true` está no catálogo e o isolamento foi
+provado por execução *neste checkpoint*, então **não há buraco aberto hoje** — é
+lacuna de cobertura, não vulnerabilidade viva.
+
+**Por que importa mesmo assim:** `ARCHITECTURE.md` → Views registra que view sem
+`security_invoker` foi achado real na Fase 4 do CRM-RR, e a doutrina da 2.4 é
+literal ("não é escrever RLS, é **provar que ela funciona**"). Qualquer migration
+futura que recrie uma dessas views — Fase 5 (`ai_run_id` no join), Fase 9
+(Kanban), Fase 11 (dashboard) — perde a opção em silêncio, e a suíte continua
+verde. É o tipo de regressão que só um teste pega.
+
+### Achado D — MELHORIA FUTURA · `shouldCancelFollowups` é código morto
+
+Exportada de `lib/domain/followup.ts`, com 5 testes unitários, e **zero
+chamadores em produção**. A decisão de cancelar está escrita à mão em
+`moveStageCore` (`stage.is_won || stage.is_lost`) e em `markRespondedCore`. É
+exatamente a "lógica paralela" que este checkpoint foi verificar: para
+*cronograma* existe uma fonte só (`computeFollowupSchedule`); para *cancelamento*
+a função de domínio é ignorada, e o Achado A é a consequência visível — a função
+pura afirma "`respondedAt !== null` → cancelar" e o caminho real regenera.
+Resolver junto do Achado A: depois de D-027 o estado gravado volta a bater com o
+que ela afirma. Chamar ou apagar é decisão da 4.6.
+
+### Achado E — MELHORIA FUTURA · desempate de ordenação da timeline
+
+`listActivitiesForLead` ordena só por `created_at desc`. Os 3 passos de uma
+sequência nascem no mesmo `insert`, com `created_at` praticamente idêntico — a
+ordem entre eles é instável entre carregamentos. Cosmético; um
+`.order('step_number')` ou `.order('id')` de desempate resolve.
+
+### Parecer sobre D-026 / `now()` como referência (item 11 do checkpoint)
+
+**Permanece como trade-off. Não precisa ser corrigido antes da Fase 5.** O risco
+concreto de sugerir data errada é baixo e limitado: a pergunta só aparece quando
+não sobrou nenhuma pendência, a data sugerida é apenas o valor inicial de um
+`<input type="datetime-local">` que o usuário edita antes de confirmar, e o erro
+possível ("delay a partir de agora" em vez de "a partir da entrada no estágio")
+é de dias, não de fuso — cadência, não bug de cálculo. Criar `stage_entered_at`
+agora seria migration para melhorar uma sugestão opcional. **Nota para o futuro,
+não tarefa:** quando a Fase 7 (agenda) ou a 6.3 (reconciliação) precisar de
+"quanto tempo neste estágio", `stage_entered_at` passa a ser necessário por outro
+motivo, e aí a sugestão passa a usá-la de graça.
+
+### Q-005 — decidida
+
+**Corrigir agora, na 4.6.** Não é urgência de segurança (`belongsToOrg` é
+fail-safe: erro de banco vira "não encontrado" e **rejeita** a escrita). O que
+decide é custo relativo: a Fase 5 acrescenta call sites novos do mesmo padrão
+(`prompt_id`/`ai_run_id` em 5.1/5.4) e cada um herda a divergência de
+D-016/D-018. Sete call sites mecânicos com os testes cross-tenant existentes como
+rede é barato; dez depois não fica mais barato. Registrada em `DECISIONS.md` →
+Questões abertas.
+
+### [ ] 4.6 Correções do checkpoint da Fase 4
+
+Nenhuma migration. Nenhuma mudança de schema. Não avance para a Fase 5 sem
+fechar esta tarefa.
+
+**1. Achado A — `responded_at` como estado da cadência corrente (D-027):**
+
+- `lib/actions/leads-core.ts` → `regenerateStageFollowups`: zerar
+  `responded_at` do lead no mesmo passo em que os follow-ups do estágio de
+  destino são gerados — e **só** aí. O early return de "estágio sem regras"
+  acontece antes, de propósito: mover para `negociação`/`qualificado` não abre
+  cadência nenhuma e não pode apagar o registro.
+- `lib/actions/leads-core.ts` → `markRespondedCore`: tirar o `update` de
+  cancelamento em massa de dentro da guarda `.is('responded_at', null)`. Ele
+  passa a rodar sempre; a gravação do timestamp e a activity de histórico
+  "Cliente respondeu" continuam idempotentes (é isso que os testes da 4.3
+  afirmam, e eles têm que continuar passando sem alteração).
+- **Não** mexer em `MarkRespondedButton`: com o item acima o botão volta a
+  habilitar sozinho quando uma cadência nova começa, e continuar desabilitado
+  dentro da mesma cadência está correto (não há nada para cancelar).
+
+Testes obrigatórios em `tests/actions/leads-followup.test.ts` (a sequência exata
+da tabela do Achado A, que hoje passa reprovando o produto):
+- reentrar num estágio com regras depois de `markResponded` zera `responded_at`;
+- `markResponded` **de novo**, depois da reentrada, cancela os automáticos
+  regerados (0 pendentes) — este é o teste que prova o Achado A fechado;
+- mover para estágio **sem** regras (`negociacao`) **não** zera `responded_at`;
+- regressão: os 3 casos de idempotência já existentes de `markRespondedCore`
+  continuam passando sem edição (timestamp preservado, histórico não duplicado).
+
+**2. Achado B — teclado:**
+
+- `components/today/TodayActionsList.tsx` → `handleKeyDown`: ignorar eventos que
+  não vieram do próprio contêiner da linha (`if (event.target !==
+  event.currentTarget) return`), para `Enter`/`ArrowUp`/`ArrowDown` disparados de
+  dentro de um botão não navegarem nem roubarem o foco.
+- Validar no browser real com teclado, não só por leitura: Tab até `Concluir`,
+  `Enter` → a activity conclui, a página **não** navega, e o `FollowupPrompt`
+  aparece quando tem que aparecer. `ArrowDown` com foco na linha continua
+  andando entre linhas (regressão da 4.4).
+
+**3. Achado C — cobertura das views:**
+
+Estender `tests/rls.test.ts` (describe própria, org e usuários isolados dos
+blocos anteriores — mesmo padrão da 2.5/4.1):
+- A enxerga a própria activity pendente em `v_today_actions`; B enxerga `0`;
+- A enxerga o próprio lead sem ação em `v_leads_without_action`; B enxerga `0`;
+- lead fechado (`status != 'open'`) some das duas views;
+- activity `done`/`cancelled` some de `v_today_actions`;
+- `anon` não lê nenhuma das duas.
+
+**4. Achado D — `shouldCancelFollowups`:**
+
+Depois do item 1, decidir entre usar a função no ponto de decisão de
+`moveStageCore` ou removê-la de `lib/domain/followup.ts` (com os testes dela).
+**Não inventar um terceiro caminho.** Se for mantida sem chamador, registrar o
+porquê em `DECISIONS.md` — código de domínio sem uso é dívida, não neutro.
+
+**5. Q-005 — `belongsToOrg`:**
+
+`lib/actions/leads-core.ts` → `belongsToOrg` devolve
+`{ exists: boolean; error: string | null }` em vez de `boolean`. Atualizar os
+call sites em `leads-core.ts`, `lead-intake-core.ts` e `activities-core.ts`:
+erro de banco vira erro reportado, ausência continua sendo "não encontrado".
+Todos os testes cross-tenant existentes têm que continuar passando **sem
+edição** — é essa a rede de segurança da mudança. Um caso novo com
+`stubTableError` provando que erro de banco não vira "não encontrado".
+
+**6. Achado E:** desempate na ordenação de `listActivitiesForLead`.
+
+**Pronto quando:** a sequência completa da tabela do Achado A roda com o
+resultado esperado (0 pendentes no segundo "Cliente respondeu"), provada por
+teste **e** no browser real; `npm run test`, `npm run test:rls`, `typecheck`,
+`lint` e `build` limpos; `DATABASE.md` (já atualizado neste checkpoint) bate com
+o comportamento implementado. → **Reauditoria Opus**, depois Fase 5.
+
+---
+
 # FASE 5 — IA
 
 ### [ ] 5.1 Infra de IA

@@ -516,6 +516,20 @@ Disparada quando: o lead recebe `responded_at`, muda para estágio `is_won`/`is_
 ou o usuário marca "cliente respondeu". Follow-up **manual** (`is_auto = false`)
 nunca é cancelado automaticamente — se o usuário agendou à mão, ele decide.
 
+**`leads.responded_at` é estado da cadência corrente, não arquivo histórico**
+(D-027, corrigido no checkpoint da Fase 4, implementado na tarefa 4.6): quando o
+lead reentra num estágio que tem regras ativas e uma cadência nova é gerada,
+`responded_at` volta a `null` — proposta nova é pergunta nova, o cliente não
+respondeu *a esta*. Sem isso, um lead que já respondeu uma vez recebe follow-ups
+automáticos novos e "Cliente respondeu" vira no-op silencioso (provado por
+execução no checkpoint). O histórico de "o cliente respondeu" continua existindo
+onde deve: na activity `'Cliente respondeu'` gravada por `markRespondedCore`, que
+nunca é apagada (D-005). Mover para um estágio **sem** regras (`negociação`,
+`qualificado`) não mexe em `responded_at` — nenhuma cadência começou ali.
+`markRespondedCore` também cancela os automáticos pendentes **sempre**, mesmo
+quando `responded_at` já estava preenchido; só a gravação do timestamp e a
+activity de histórico é que são idempotentes.
+
 **`leads.status`/`closed_at` seguem o estágio de destino** (tarefa 4.3,
 `lib/actions/leads-core.ts` → `moveStageCore`): `status = 'won'` se
 `stage.is_won`, `'lost'` se `stage.is_lost`, senão `'open'`; `closed_at` some

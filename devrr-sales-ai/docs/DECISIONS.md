@@ -871,6 +871,73 @@ schema novo pra um ganho de precisão pequeno.
 
 ---
 
+## D-027 — `responded_at` significa "respondeu à cadência atual", não "respondeu alguma vez na vida"
+
+**Data:** 2026-08-26 · **Status:** decidido no checkpoint da Fase 4 · **Corrige:** Achado A do checkpoint · **Implementa:** tarefa 4.6 · **Aplica a:** `lib/actions/leads-core.ts` → `moveStageCore`/`regenerateStageFollowups`/`markRespondedCore`
+
+`markRespondedCore` (4.3) grava `responded_at` com `.is('responded_at', null)` e faz
+o cancelamento em massa **dentro** dessa guarda de idempotência. Nenhum caminho
+do produto volta `responded_at` para `null`. A consequência não é hipótese —
+**provada por execução** neste checkpoint, com os dois usuários reais de teste:
+
+| passo | esperado | obtido |
+|---|---|---|
+| entra em `proposta_enviada` | 3 automáticos pendentes | 3 ✓ |
+| `markResponded` (1ª vez) | 0 pendentes, `responded_at` gravado | 0 ✓ |
+| sai e volta para `proposta_enviada` (proposta nova) | — | **3 automáticos regerados, com `responded_at` preenchido** |
+| `markResponded` (2ª vez) | 0 pendentes | **`error: null` e os 3 continuam pendentes** |
+
+O segundo clique em "Cliente respondeu" **reporta sucesso e não cancela nada** —
+violação direta da regra 3 de `PRODUCT_SPEC.md` ("cliente respondeu = todo
+follow-up automático futuro daquele lead é cancelado... nada é mais destruidor de
+confiança do que o sistema cobrar um cliente que já respondeu"). Na tela do lead é
+pior: `MarkRespondedButton` fica desabilitado para sempre, então nem existe o
+clique. O cenário é o normal do ICP, não um caso de borda: cliente responde à
+primeira proposta, a negociação anda, uma proposta revisada é enviada
+(`moveStage` de volta), o cliente responde de novo.
+
+**Decisão, em duas partes:**
+
+1. **`responded_at` volta a `null` quando uma cadência nova começa.**
+   `regenerateStageFollowups` zera `responded_at` no mesmo passo em que gera os
+   follow-ups do estágio de destino — e **só** aí (o early return de "estágio sem
+   regras" acontece antes, então mover para `negociação` não mexe em nada). Uma
+   proposta nova é uma pergunta nova: o cliente não respondeu *a esta*.
+2. **O cancelamento em massa sai de dentro da guarda de idempotência.**
+   `markRespondedCore` passa a cancelar os automáticos pendentes sempre, mesmo
+   quando `responded_at` já estava preenchido. A idempotência que a 4.3 garantiu
+   continua intacta no que importa — o timestamp não é reescrito e a activity de
+   histórico "Cliente respondeu" não duplica; só o cancelamento sai da guarda, e
+   ele já é idempotente por construção (`status = 'pending'` no filtro).
+
+Com (1), o botão da tela do lead volta a habilitar sozinho — não é preciso mexer
+no componente. (2) é defesa em profundidade para o botão da linha de ação, que
+nunca fica desabilitado, e para qualquer linha que já tenha nascido no estado
+inconsistente.
+
+**Por que isso também fecha a lógica paralela:** `shouldCancelFollowups`
+(`lib/domain/followup.ts`, 4.2) tem 5 testes unitários e **zero chamadores em
+produção** — a decisão de cancelar está escrita à mão em `moveStageCore`
+(`stage.is_won || stage.is_lost`) e em `markRespondedCore`. É exatamente a
+divergência que o Achado A expõe: a função pura diz "`respondedAt !== null` →
+cancelar", e o caminho real regenera. Depois de (1), o estado gravado volta a
+bater com o que a função pura afirma.
+
+**Descartado:** deixar `responded_at` imutável e só tirar o cancelamento da
+guarda — resolveria o clique, mas manteria um lead marcado como "respondeu" com
+cobrança automática pendente, um estado que a própria função de domínio declara
+impossível. Descartado também zerar `responded_at` em todo `moveStage` — mover
+para `negociação` ou `qualificado` não envia proposta nenhuma, não abre cadência
+nenhuma, e apagaria o registro sem motivo.
+
+**Custo aceito:** `responded_at` deixa de servir como "a primeira vez que este
+cliente respondeu". Esse histórico não se perde: a activity "Cliente respondeu"
+gravada por `markRespondedCore` fica na timeline para sempre (D-005), que é o
+lugar certo dele — `responded_at` é estado operacional da cadença corrente, não
+arquivo histórico.
+
+---
+
 ## Questões abertas
 
 Sonnet: adicione aqui o que travar. Opus resolve no próximo checkpoint.
@@ -882,15 +949,14 @@ Sonnet: adicione aqui o que travar. Opus resolve no próximo checkpoint.
   "dono do lead" (`assigned_to`). Adicionar quando existir a primeira PME com 2+
   vendedores. Não antes.
 - ~~**Q-004**~~ — resolvida, ver **D-019**.
-- **Q-005** — `belongsToOrg()` (D-020) descarta o `error` da consulta e trata
-  qualquer falha (rede, timeout) como "não pertence à org", rejeitando a
-  escrita. Fail-safe (não abre dado cross-tenant), mas a mensagem de erro
-  fica enganosa ("Contato não encontrado" numa falha transitória de rede) e
-  o padrão diverge do resto do projeto desde D-018/D-016 (tratar erro de
-  banco explicitamente, não conflar com ausência). Achado real da tarefa
-  4.3, não corrigido por tocar 3 arquivos (`leads-core.ts`,
-  `lead-intake-core.ts`, `activities-core.ts`) de uma vez — fora do escopo
-  de uma tarefa que não é sobre `belongsToOrg`. Avaliar se vale abrir uma
-  tarefa dedicada (mudar `belongsToOrg` para devolver `{ exists, error }` em
-  vez de `boolean`) ou se o custo de mudar os ~7 call sites não compensa o
-  ganho de uma mensagem de erro mais precisa numa falha rara.
+- ~~**Q-005**~~ — **resolvida no checkpoint da Fase 4: corrigir agora, na tarefa
+  4.6.** O comportamento atual é fail-safe (erro de banco vira "não encontrado" e
+  **rejeita** a escrita, nunca abre dado cross-tenant), então não é urgência de
+  segurança — o que decide é o custo relativo: a Fase 5 acrescenta call sites
+  novos do mesmo padrão (`prompt_id` e `ai_run_id` em `ai_prompts`/`ai_runs`,
+  5.1/5.4), e cada um herda a divergência de D-016/D-018 ("tratar erro de banco
+  explicitamente, nunca conflar com ausência"). Mudar os ~7 call sites de hoje é
+  mecânico e tem os testes cross-tenant existentes como rede de segurança;
+  mudar 10+ depois não fica mais barato. Forma: `belongsToOrg` devolve
+  `{ exists: boolean; error: string | null }` em vez de `boolean`, e cada
+  chamador reporta erro de banco como erro, não como "não encontrado".
