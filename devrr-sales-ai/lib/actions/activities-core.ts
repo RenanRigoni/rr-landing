@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { z } from 'zod'
 import { createActivitySchema, rescheduleActivitySchema, completeActivitySchema } from '@/lib/validation/activities'
-import { belongsToOrg, recalculateLeadCache, parseBusinessHours, type StageActionResult } from '@/lib/actions/leads-core'
+import { checkBelongsToOrg, recalculateLeadCache, parseBusinessHours, type StageActionResult } from '@/lib/actions/leads-core'
 import { computeFollowupSchedule } from '@/lib/domain/followup'
 import type { Database } from '@/lib/types/database.types'
 
@@ -29,11 +29,15 @@ export async function createActivityCore(
     return { error: parsed.error.issues[0]?.message ?? 'Dados inválidos' }
   }
 
-  if (!(await belongsToOrg(supabase, 'leads', parsed.data.lead_id, orgId))) {
-    return { error: 'Lead não encontrado.' }
+  const leadError = await checkBelongsToOrg(supabase, 'leads', parsed.data.lead_id, orgId, 'Lead não encontrado.')
+  if (leadError) {
+    return { error: leadError }
   }
-  if (parsed.data.contact_id && !(await belongsToOrg(supabase, 'contacts', parsed.data.contact_id, orgId))) {
-    return { error: 'Contato não encontrado.' }
+  if (parsed.data.contact_id) {
+    const contactError = await checkBelongsToOrg(supabase, 'contacts', parsed.data.contact_id, orgId, 'Contato não encontrado.')
+    if (contactError) {
+      return { error: contactError }
+    }
   }
 
   const isScheduled = parsed.data.due_at !== null && parsed.data.due_at !== undefined

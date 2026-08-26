@@ -695,3 +695,172 @@ describe('RLS — sales.activities e sales.followup_rules (migration 0006/0007)'
     })
   })
 })
+
+/**
+ * Achado C do checkpoint da Fase 4 (docs/IMPLEMENTATION_PLAN.md → 4.6):
+ * `v_today_actions`/`v_leads_without_action` (migration 0008) não tinham
+ * nenhum teste. `security_invoker = true` foi confirmado no catálogo e por
+ * simulação SQL avulsa no próprio checkpoint, mas sem teste permanente uma
+ * migration futura que recrie a view (Fase 5 acrescenta join com
+ * `ai_run_id`, Fase 9/11 tocam pipeline/dashboard) perde a flag em silêncio
+ * e a suíte continua verde. A prova aqui é comportamental — exatamente o
+ * que a flag garante: sem ela, B enxergaria as linhas de A através da view
+ * mesmo com a tabela base protegida.
+ */
+describe('RLS — sales.v_today_actions e sales.v_leads_without_action (migration 0008)', () => {
+  let userAId: string
+  let userBId: string
+  let clientA: SupabaseClient<Database, 'sales'>
+  let clientB: SupabaseClient<Database, 'sales'>
+  let orgAId: string
+  let leadWithPendingId: string
+  let pendingActivityId: string
+  let leadNoActionId: string
+  let leadOnlyHistoryId: string
+
+  beforeAll(async () => {
+    userAId = await ensureTestUser(TEST_USER_A)
+    userBId = await ensureTestUser(TEST_USER_B)
+    await cleanupOrgsForUser(userAId)
+    await cleanupOrgsForUser(userBId)
+
+    clientA = await signInTestClient(TEST_USER_A)
+    clientB = await signInTestClient(TEST_USER_B)
+
+    const { data: newOrgA, error: orgAError } = await clientA.rpc('create_organization', {
+      p_name: 'RLS Views Org A',
+    })
+    if (orgAError || !newOrgA) throw new Error(`Falha ao criar org A: ${orgAError?.message}`)
+    orgAId = newOrgA
+
+    const { data: stagesA } = await clientA.from('pipeline_stages').select('id, key').eq('org_id', orgAId)
+    const stageNovoA = stagesA!.find((s) => s.key === 'novo')!.id
+    const stageGanhoA = stagesA!.find((s) => s.key === 'ganho')!.id
+
+    const { data: contactA, error: contactAError } = await clientA
+      .from('contacts')
+      .insert({ org_id: orgAId, full_name: 'Contato Base Views A' })
+      .select('id')
+      .single()
+    if (contactAError || !contactA) throw new Error(`Falha ao criar contato A: ${contactAError?.message}`)
+
+    const dueAt = new Date(Date.now() + 3_600_000).toISOString()
+
+    // Lead 1: pendência agendada — aparece em v_today_actions, some de
+    // v_leads_without_action (next_action_at não é nulo).
+    const { data: leadPending, error: leadPendingError } = await clientA
+      .from('leads')
+      .insert({ org_id: orgAId, contact_id: contactA.id, title: 'Lead Com Pendencia', stage_id: stageNovoA })
+      .select('id')
+      .single()
+    if (leadPendingError || !leadPending) throw new Error(`Falha ao criar lead pendente: ${leadPendingError?.message}`)
+    leadWithPendingId = leadPending.id
+
+    const { data: pendingActivity, error: pendingActivityError } = await clientA
+      .from('activities')
+      .insert({ org_id: orgAId, lead_id: leadWithPendingId, type: 'whatsapp', title: 'Pendente View', status: 'pending', due_at: dueAt, is_auto: true })
+      .select('id')
+      .single()
+    if (pendingActivityError || !pendingActivity) throw new Error(`Falha ao criar activity pendente: ${pendingActivityError?.message}`)
+    pendingActivityId = pendingActivity.id
+
+    await clientA.from('leads').update({ next_action_at: dueAt }).eq('id', leadWithPendingId)
+
+    // Lead 2: sem nenhuma activity — next_action_at nulo por padrão, aparece
+    // em v_leads_without_action.
+    const { data: leadNoAction, error: leadNoActionError } = await clientA
+      .from('leads')
+      .insert({ org_id: orgAId, contact_id: contactA.id, title: 'Lead Sem Acao', stage_id: stageNovoA })
+      .select('id')
+      .single()
+    if (leadNoActionError || !leadNoAction) throw new Error(`Falha ao criar lead sem ação: ${leadNoActionError?.message}`)
+    leadNoActionId = leadNoAction.id
+
+    // Lead 3: só tem activity done/cancelled (com due_at preenchido) —
+    // nenhuma delas conta como pendência. next_action_at continua nulo,
+    // aparece em v_leads_without_action; nenhuma das duas activities aparece
+    // em v_today_actions (status != 'pending').
+    const { data: leadOnlyHistory, error: leadOnlyHistoryError } = await clientA
+      .from('leads')
+      .insert({ org_id: orgAId, contact_id: contactA.id, title: 'Lead So Com Historico', stage_id: stageNovoA })
+      .select('id')
+      .single()
+    if (leadOnlyHistoryError || !leadOnlyHistory) throw new Error(`Falha ao criar lead com histórico: ${leadOnlyHistoryError?.message}`)
+    leadOnlyHistoryId = leadOnlyHistory.id
+
+    const { error: historyActivitiesError } = await clientA.from('activities').insert([
+      { org_id: orgAId, lead_id: leadOnlyHistoryId, type: 'note', title: 'Feito', status: 'done', due_at: dueAt, done_at: dueAt, is_auto: false },
+      { org_id: orgAId, lead_id: leadOnlyHistoryId, type: 'task', title: 'Cancelado', status: 'cancelled', due_at: dueAt, is_auto: true },
+    ])
+    if (historyActivitiesError) throw new Error(`Falha ao criar activities de histórico: ${historyActivitiesError.message}`)
+
+    // Lead 4: fechado (won), com pendência automática — some das duas views
+    // por l.status != 'open', mesmo com activity pending de verdade.
+    const { data: leadClosed, error: leadClosedError } = await clientA
+      .from('leads')
+      .insert({
+        org_id: orgAId,
+        contact_id: contactA.id,
+        title: 'Lead Fechado',
+        stage_id: stageGanhoA,
+        status: 'won',
+        closed_at: new Date().toISOString(),
+      })
+      .select('id')
+      .single()
+    if (leadClosedError || !leadClosed) throw new Error(`Falha ao criar lead fechado: ${leadClosedError?.message}`)
+
+    const { error: closedActivityError } = await clientA
+      .from('activities')
+      .insert({ org_id: orgAId, lead_id: leadClosed.id, type: 'whatsapp', title: 'Pendente Em Lead Fechado', status: 'pending', due_at: dueAt, is_auto: true })
+    if (closedActivityError) throw new Error(`Falha ao criar activity do lead fechado: ${closedActivityError.message}`)
+  }, 30_000)
+
+  afterAll(async () => {
+    await cleanupOrgsForUser(userAId)
+    await cleanupOrgsForUser(userBId)
+  })
+
+  describe('v_today_actions', () => {
+    it('A vê só a activity pendente do lead aberto — done/cancelled e lead fechado ficam fora', async () => {
+      const { data, error } = await clientA.from('v_today_actions').select('id, lead_id').eq('org_id', orgAId)
+      expect(error).toBeNull()
+      expect(data).toHaveLength(1)
+      expect(data?.[0]?.id).toBe(pendingActivityId)
+      expect(data?.[0]?.lead_id).toBe(leadWithPendingId)
+    })
+
+    it('B não vê nenhuma linha de A (cross-tenant — prova comportamental de security_invoker)', async () => {
+      const { data, error } = await clientB.from('v_today_actions').select('id').eq('org_id', orgAId)
+      expect(error).toBeNull()
+      expect(data).toEqual([])
+    })
+
+    it('anon não lê v_today_actions', async () => {
+      const { data, error } = await anonClient().from('v_today_actions').select('id')
+      expect(error).not.toBeNull()
+      expect(data).toBeNull()
+    })
+  })
+
+  describe('v_leads_without_action', () => {
+    it('A vê exatamente os leads abertos sem next_action_at — lead com pendência e lead fechado ficam fora', async () => {
+      const { data, error } = await clientA.from('v_leads_without_action').select('id').eq('org_id', orgAId)
+      expect(error).toBeNull()
+      const ids = (data ?? []).map((row) => row.id).sort()
+      expect(ids).toEqual([leadNoActionId, leadOnlyHistoryId].sort())
+    })
+
+    it('B não vê nenhuma linha de A (cross-tenant — prova comportamental de security_invoker)', async () => {
+      const { data, error } = await clientB.from('v_leads_without_action').select('id').eq('org_id', orgAId)
+      expect(error).toBeNull()
+      expect(data).toEqual([])
+    })
+
+    it('anon não lê v_leads_without_action', async () => {
+      const { data, error } = await anonClient().from('v_leads_without_action').select('id')
+      expect(error).not.toBeNull()
+      expect(data).toBeNull()
+    })
+  })
+})

@@ -873,7 +873,7 @@ schema novo pra um ganho de precisão pequeno.
 
 ## D-027 — `responded_at` significa "respondeu à cadência atual", não "respondeu alguma vez na vida"
 
-**Data:** 2026-08-26 · **Status:** decidido no checkpoint da Fase 4 · **Corrige:** Achado A do checkpoint · **Implementa:** tarefa 4.6 · **Aplica a:** `lib/actions/leads-core.ts` → `moveStageCore`/`regenerateStageFollowups`/`markRespondedCore`
+**Data:** 2026-08-26 · **Status:** implementado na tarefa 4.6 · **Corrige:** Achado A do checkpoint · **Aplica a:** `lib/actions/leads-core.ts` → `moveStageCore`/`regenerateStageFollowups`/`markRespondedCore`
 
 `markRespondedCore` (4.3) grava `responded_at` com `.is('responded_at', null)` e faz
 o cancelamento em massa **dentro** dessa guarda de idempotência. Nenhum caminho
@@ -936,6 +936,17 @@ gravada por `markRespondedCore` fica na timeline para sempre (D-005), que é o
 lugar certo dele — `responded_at` é estado operacional da cadença corrente, não
 arquivo histórico.
 
+**Implementado e validado na tarefa 4.6:** a sequência exata da tabela acima
+virou teste permanente (`tests/actions/leads-followup.test.ts`), com uma tarefa
+manual plantada no meio pra provar D-005 nas duas rodadas de cancelamento — e
+passa: 0 pendentes depois do 2º "Cliente respondeu", `responded_at` nulo depois
+da reentrada, 2 activities de histórico (uma por resposta real), tarefa manual
+intacta. Reproduzido também no browser real (dev server + Supabase real) com o
+mesmo par de usuários de teste antes da correção existir, confirmando o defeito,
+e depois dela, confirmando o fechamento. `shouldCancelFollowups` deixou de ser
+código morto: `moveStageCore` passou a chamá-la pra decidir `cancelAllOnClose`
+em vez do `stage.is_won || stage.is_lost` escrito à mão.
+
 ---
 
 ## Questões abertas
@@ -949,14 +960,12 @@ Sonnet: adicione aqui o que travar. Opus resolve no próximo checkpoint.
   "dono do lead" (`assigned_to`). Adicionar quando existir a primeira PME com 2+
   vendedores. Não antes.
 - ~~**Q-004**~~ — resolvida, ver **D-019**.
-- ~~**Q-005**~~ — **resolvida no checkpoint da Fase 4: corrigir agora, na tarefa
-  4.6.** O comportamento atual é fail-safe (erro de banco vira "não encontrado" e
-  **rejeita** a escrita, nunca abre dado cross-tenant), então não é urgência de
-  segurança — o que decide é o custo relativo: a Fase 5 acrescenta call sites
-  novos do mesmo padrão (`prompt_id` e `ai_run_id` em `ai_prompts`/`ai_runs`,
-  5.1/5.4), e cada um herda a divergência de D-016/D-018 ("tratar erro de banco
-  explicitamente, nunca conflar com ausência"). Mudar os ~7 call sites de hoje é
-  mecânico e tem os testes cross-tenant existentes como rede de segurança;
-  mudar 10+ depois não fica mais barato. Forma: `belongsToOrg` devolve
-  `{ exists: boolean; error: string | null }` em vez de `boolean`, e cada
-  chamador reporta erro de banco como erro, não como "não encontrado".
+- ~~**Q-005**~~ — **implementada na tarefa 4.6.** `belongsToOrg`
+  (`lib/actions/leads-core.ts`) passou a devolver `{ exists: boolean; error:
+  string | null }` em vez de `boolean`; novo helper `checkBelongsToOrg` (mesmo
+  arquivo) concentra o padrão "erro de banco vira erro reportado, ausência vira
+  a mensagem de 'não encontrado'" pros 9 call sites (`leads-core.ts` ×5,
+  `lead-intake-core.ts` ×2, `activities-core.ts` ×2). Nenhum teste cross-tenant
+  existente precisou de edição (regressão coberta); teste novo em
+  `tests/actions/activities.test.ts` prova a distinção com `stubTableError` na
+  tabela relacionada, confirmando que o erro não vira `'Lead não encontrado.'`.

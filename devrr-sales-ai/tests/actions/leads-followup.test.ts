@@ -302,6 +302,97 @@ describe('lib/actions/leads-core — follow-up (4.3)', () => {
     })
   })
 
+  describe('markRespondedCore — D-027, reentrada de cadência (Achado A do checkpoint da Fase 4)', () => {
+    it('sequência completa: reentrar no estágio depois de responder zera responded_at, e o 2º "Cliente respondeu" cancela os automáticos regerados', async () => {
+      const leadId = await newLead('Reentrada De Cadencia')
+
+      // 1. Entra em proposta_enviada — 3 automáticos pendentes. Tarefa
+      // manual (is_auto=false) plantada aqui pra provar que sobrevive às
+      // duas rodadas de cancelamento em massa desta sequência (D-005: só
+      // automático é cancelado, manual é decisão do usuário).
+      await moveStageCore(clientA, orgAId, leadId, stagePropostaA)
+      expect(await pendingAutoActivities(leadId)).toHaveLength(3)
+
+      const { data: manualTask } = await clientA
+        .from('activities')
+        .insert({
+          org_id: orgAId,
+          lead_id: leadId,
+          type: 'task',
+          title: 'Ligar de qualquer jeito',
+          status: 'pending',
+          due_at: new Date(Date.now() + 86_400_000).toISOString(),
+          is_auto: false,
+        })
+        .select('id')
+        .single()
+
+      // 2. markResponded (1ª vez): cancela os 3, grava responded_at.
+      const first = await markRespondedCore(clientA, orgAId, leadId, userAId)
+      expect(first.error).toBeNull()
+      expect(await pendingAutoActivities(leadId)).toHaveLength(0)
+
+      const { data: leadAfterFirst } = await clientA.from('leads').select('responded_at').eq('id', leadId).single()
+      expect(leadAfterFirst?.responded_at).not.toBeNull()
+
+      // 3. Sai e volta pro estágio (proposta revisada) — cadência nova gerada.
+      await moveStageCore(clientA, orgAId, leadId, stageNovoA)
+      await moveStageCore(clientA, orgAId, leadId, stagePropostaA)
+      expect(await pendingAutoActivities(leadId)).toHaveLength(3)
+
+      // A reentrada por si só já zera responded_at — a cadência nova é uma
+      // pergunta nova, o cliente ainda não respondeu a ela.
+      const { data: leadAfterReentry } = await clientA.from('leads').select('responded_at').eq('id', leadId).single()
+      expect(leadAfterReentry?.responded_at).toBeNull()
+
+      // 4. markResponded (2ª vez): tem que cancelar os 3 automáticos
+      // regerados. Antes da correção, a guarda de idempotência via
+      // responded_at já preenchido (achado do checkpoint) e devolvia sucesso
+      // sem cancelar nada — este é o teste que prova o achado fechado.
+      const second = await markRespondedCore(clientA, orgAId, leadId, userAId)
+      expect(second.error).toBeNull()
+      expect(await pendingAutoActivities(leadId)).toHaveLength(0)
+
+      // next_action_at NÃO fica nulo aqui: a tarefa manual plantada no passo
+      // 1 nunca é cancelada (D-005), então o cache continua apontando pra
+      // ela mesmo depois dos dois cancelamentos em massa dos automáticos.
+      const { data: leadFinal } = await clientA.from('leads').select('next_action_at').eq('id', leadId).single()
+      expect(leadFinal?.next_action_at).not.toBeNull()
+
+      // Duas respostas reais, duas activities de histórico — não é a mesma
+      // idempotência de "clicar duas vezes na mesma cadência" (isso continua
+      // coberto pelo describe abaixo).
+      const { data: history } = await clientA
+        .from('activities')
+        .select('id')
+        .eq('lead_id', leadId)
+        .eq('title', 'Cliente respondeu')
+      expect(history).toHaveLength(2)
+
+      // Tarefa manual sobrevive às duas rodadas de cancelamento em massa.
+      const { data: manualAfter } = await clientA.from('activities').select('status').eq('id', manualTask!.id).single()
+      expect(manualAfter?.status).toBe('pending')
+    })
+
+    it('mover para estágio sem regras de follow-up (negociação) não zera responded_at', async () => {
+      const leadId = await newLead('Estagio Sem Regras Preserva Responded')
+      const { data: stagesA } = await clientA.from('pipeline_stages').select('id, key').eq('org_id', orgAId)
+      const stageNegociacaoA = stagesA!.find((s) => s.key === 'negociacao')!.id
+
+      await moveStageCore(clientA, orgAId, leadId, stagePropostaA)
+      await markRespondedCore(clientA, orgAId, leadId, userAId)
+
+      const { data: before } = await clientA.from('leads').select('responded_at').eq('id', leadId).single()
+      expect(before?.responded_at).not.toBeNull()
+
+      const result = await moveStageCore(clientA, orgAId, leadId, stageNegociacaoA)
+      expect(result.error).toBeNull()
+
+      const { data: after } = await clientA.from('leads').select('responded_at').eq('id', leadId).single()
+      expect(after?.responded_at).toBe(before?.responded_at)
+    })
+  })
+
   describe('markRespondedCore', () => {
     it('cancela automáticos pendentes, preserva manual, registra histórico e é idempotente', async () => {
       const leadId = await newLead('Cliente Respondeu')

@@ -142,6 +142,19 @@ describe('lib/actions/activities-core', () => {
       const result = await createActivityCore(stubbed, orgAId, userAId, { lead_id: leadA, type: 'note', title: 'Erro De Banco' })
       expect(result.error).not.toBeNull()
     })
+
+    it('erro de banco ao verificar o lead relacionado é distinguível de "não encontrado" (Q-005)', async () => {
+      // stubTableError em 'leads' faz o belongsToOrg() do lead_id falhar por
+      // erro de banco, não por ausência — checkBelongsToOrg() precisa
+      // reportar a mensagem genérica de erro, nunca "Lead não encontrado.",
+      // que é reservada pro caso em que a consulta respondeu e não achou a
+      // linha. Antes de Q-005 ser corrigido, os dois caminhos produziam a
+      // mesma mensagem — este teste falha se a distinção regredir.
+      const stubbed = stubTableError(clientA, 'leads')
+      const result = await createActivityCore(stubbed, orgAId, userAId, { lead_id: leadA, type: 'note', title: 'Erro De Banco No Lead' })
+      expect(result.error).not.toBeNull()
+      expect(result.error).not.toBe('Lead não encontrado.')
+    })
   })
 
   describe('completeActivityCore / cancelActivityCore', () => {

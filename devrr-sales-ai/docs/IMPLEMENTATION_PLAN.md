@@ -2397,6 +2397,99 @@ D-016/D-018. Sete call sites mecânicos com os testes cross-tenant existentes co
 rede é barato; dez depois não fica mais barato. Registrada em `DECISIONS.md` →
 Questões abertas.
 
+### [x] 4.6 Correções do checkpoint da Fase 4
+
+> feito: os 6 achados do checkpoint fechados, todos em `lib/actions/leads-core.ts`
+> + `lib/actions/activities-core.ts` + `lib/actions/lead-intake-core.ts` +
+> `components/today/TodayActionsList.tsx` + `lib/queries/activities.ts`. Nenhuma
+> migration, nenhuma mudança de schema — como previsto.
+>
+> **Achado A / D-027:** `regenerateStageFollowups` agora zera `leads.responded_at`
+> no mesmo passo em que insere os follow-ups do estágio de destino (só quando o
+> `insert` de fato acontece — o early return de "sem regras"/"nada pra gerar"
+> continua intocado, então mover para `negociação`/`qualificado` não mexe em
+> nada). `markRespondedCore` tirou o cancelamento em massa de dentro da guarda
+> `.is('responded_at', null)` — ele roda sempre agora; só a gravação do
+> timestamp e a activity de histórico "Cliente respondeu" continuam atrás da
+> guarda (idempotentes por cadência, não duplicam). `MarkRespondedButton` não
+> foi tocado, conforme previsto — com o reset em (1) ele volta a habilitar
+> sozinho quando uma cadência nova começa.
+>
+> **Achado B:** `TodayActionsList.tsx` → `handleKeyDown` ganhou a guarda
+> `if (event.target !== event.currentTarget) return` logo na entrada — evento
+> de teclado nascido num botão/link descendente da linha não navega nem mexe
+> no `activeIndex` mais.
+>
+> **Achado C:** novo describe em `tests/rls.test.ts` — `RLS —
+> sales.v_today_actions e sales.v_leads_without_action (migration 0008)`, com
+> setup próprio (4 leads cobrindo pendência real, sem ação, só histórico
+> done/cancelled, e lead fechado com pendência) provando isolamento cross-tenant
+> das duas views, `anon` bloqueado nas duas, lead fechado fora, activity
+> done/cancelled fora de `v_today_actions`, e `next_action_at`/`null` decidindo
+> `v_leads_without_action` corretamente.
+>
+> **Achado D:** `shouldCancelFollowups` (`lib/domain/followup.ts`) ganhou
+> chamador de verdade — `moveStageCore` decide `cancelAllOnClose` chamando a
+> função em vez do `stage.is_won || stage.is_lost` escrito à mão
+> (`respondedAt: null` nesse call site porque ali o gatilho é *estágio*, não
+> *resposta*; esse é decidido inteiro dentro de `markRespondedCore`, que cancela
+> por construção). Função e os 5 testes dela preservados, não removidos.
+>
+> **Q-005:** `belongsToOrg` devolve `{ exists: boolean; error: string | null }`.
+> Novo helper `checkBelongsToOrg` (mesmo arquivo) concentra o padrão nos 9 call
+> sites (`leads-core.ts` ×5, `lead-intake-core.ts` ×2, `activities-core.ts` ×2).
+> Nenhum teste cross-tenant existente precisou de edição.
+>
+> **Achado E:** `listActivitiesForLead` ganhou `.order('id', { ascending: true })`
+> como desempate depois de `created_at desc`.
+>
+> **Testes novos:**
+> - `tests/actions/leads-followup.test.ts` (+2, describe própria): a sequência
+>   completa do Achado A — entra em `proposta_enviada` → `markResponded` (1ª,
+>   cancela 3, grava `responded_at`) → sai e volta pro estágio (3 automáticos
+>   regerados, `responded_at` já `null` pela reentrada) → `markResponded` (2ª,
+>   cancela os 3 regerados) → 2 activities de histórico (uma por resposta real,
+>   não duplicata) → `next_action_at` não nulo porque uma tarefa manual plantada
+>   no meio da sequência sobrevive às duas rodadas de cancelamento (D-005); e
+>   "mover pra estágio sem regras não zera `responded_at`".
+> - `tests/actions/activities.test.ts` (+1): erro de banco no `belongsToOrg` do
+>   `lead_id` (`stubTableError(clientA, 'leads')`) é reportado e é
+>   **diferente** de `'Lead não encontrado.'` — prova a distinção do Q-005.
+> - `tests/rls.test.ts` (+6): as duas views, cross-tenant + anon + filtros.
+>
+> **Validado no browser real** (dev server + Supabase real, usuário de teste
+> real, dados de QA removidos ao final — `organizations`/`leads`/`activities`/
+> `contacts` conferidos em `0`): logado como `rls-test-a`, focei o botão
+> "Concluir" da 1ª linha via `element.focus()` (não clique) e apertei `Enter`
+> de teclado real — a activity concluiu, a URL **não** mudou (`/today`), e o
+> `FollowupPrompt` apareceu ("Follow-up concluído para Lead Teclado Enter.
+> Agendar a próxima ação?"), provando que o fluxo de teclado chega no mesmo
+> resultado do clique de mouse. Dispensei com "Agora não", focei a linha (não
+> um botão) e apertei `ArrowDown` — o foco moveu pra próxima linha
+> (`listitem [active]` na snapshot de acessibilidade), confirmando que a
+> navegação entre linhas da 4.4 não regrediu. Apertei `Enter` com foco na linha
+> — navegou pro lead certo (`/leads/<id>`), igual ao comportamento anterior.
+>
+> **Validado, não só assumido:**
+> - `npm run test`: **69/69**, inalterado (nenhuma mudança em `lib/domain/`).
+> - `npm run test:rls`: **133/133** (124 preservados + 9 novos), rodado duas
+>   vezes seguidas, zero organização/lead/activity residual em ambas.
+> - `typecheck`/`lint`/`build` limpos. Build sem rota nova.
+> - `get_advisors(security)`: mesmos alertas de sempre (3 WARN de D-013 em
+>   `sales`), nada novo — esperado, nenhuma migration nesta tarefa.
+>
+> `docs/DECISIONS.md`: D-027 atualizada de "decidido" pra "implementado", com
+> parágrafo de validação; Q-005 marcada implementada nas Questões abertas.
+> Nenhuma decisão permanente **nova** — tudo aqui já estava decidido pelo
+> checkpoint, esta tarefa executa.
+>
+> Um commit.
+>
+> **Não avançado para a Fase 5** — aguardando reauditoria Opus.
+
+<details>
+<summary>Texto original da tarefa (referência)</summary>
+
 ### [ ] 4.6 Correções do checkpoint da Fase 4
 
 Nenhuma migration. Nenhuma mudança de schema. Não avance para a Fase 5 sem
@@ -2472,6 +2565,8 @@ resultado esperado (0 pendentes no segundo "Cliente respondeu"), provada por
 teste **e** no browser real; `npm run test`, `npm run test:rls`, `typecheck`,
 `lint` e `build` limpos; `DATABASE.md` (já atualizado neste checkpoint) bate com
 o comportamento implementado. → **Reauditoria Opus**, depois Fase 5.
+
+</details>
 
 ---
 

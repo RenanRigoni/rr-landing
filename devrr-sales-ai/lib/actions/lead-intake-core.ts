@@ -2,7 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { leadIntakeSchema } from '@/lib/validation/lead-intake'
 import { normalizePhoneBR } from '@/lib/domain/phone'
 import { reaisToCents } from '@/lib/domain/money'
-import { belongsToOrg } from '@/lib/actions/leads-core'
+import { checkBelongsToOrg } from '@/lib/actions/leads-core'
 import type { Database } from '@/lib/types/database.types'
 
 type SalesClient = SupabaseClient<Database, 'sales'>
@@ -42,8 +42,9 @@ export async function createLeadIntakeCore(
     // contact_id só chega aqui vindo do próprio formulário de confirmação de
     // vínculo (botão "Vincular a este contato") — mesmo assim é id vindo do
     // navegador, não confiável sem checar organização (D-020).
-    if (!(await belongsToOrg(supabase, 'contacts', contactId, orgId))) {
-      return { status: 'error', error: 'Contato não encontrado.' }
+    const contactError = await checkBelongsToOrg(supabase, 'contacts', contactId, orgId, 'Contato não encontrado.')
+    if (contactError) {
+      return { status: 'error', error: contactError }
     }
   } else {
     let phone: string | null = null
@@ -105,8 +106,11 @@ export async function createLeadIntakeCore(
     contactId = newContact.id
   }
 
-  if (parsed.data.source_id && !(await belongsToOrg(supabase, 'lead_sources', parsed.data.source_id, orgId))) {
-    return { status: 'error', error: 'Fonte não encontrada.' }
+  if (parsed.data.source_id) {
+    const sourceError = await checkBelongsToOrg(supabase, 'lead_sources', parsed.data.source_id, orgId, 'Fonte não encontrada.')
+    if (sourceError) {
+      return { status: 'error', error: sourceError }
+    }
   }
 
   // Estágio inicial é sempre 'novo' (docs/IMPLEMENTATION_PLAN.md → 3.6),

@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { z } from 'zod'
 import { createLeadSchema, updateLeadSchema } from '@/lib/validation/leads'
-import { computeFollowupSchedule, resolveNextAction, type BusinessHours, type FollowupRule } from '@/lib/domain/followup'
+import { computeFollowupSchedule, resolveNextAction, shouldCancelFollowups, type BusinessHours, type FollowupRule } from '@/lib/domain/followup'
 import type { Database, Json } from '@/lib/types/database.types'
 
 export interface ActionResult {
@@ -89,9 +89,43 @@ export async function recalculateLeadCache(supabase: SalesClient, orgId: string,
  * filtra só por leads.org_id, e o resultado é uma linha corrompida que
  * vaza estrutura de outra organização através de join.
  */
-export async function belongsToOrg(supabase: SalesClient, table: RelatedTable, id: string, orgId: string): Promise<boolean> {
-  const { data } = await supabase.from(table).select('id').eq('id', id).eq('org_id', orgId).maybeSingle()
-  return data !== null
+export interface BelongsToOrgResult {
+  exists: boolean
+  error: string | null
+}
+
+/**
+ * Devolve `{ exists, error }` em vez de `boolean` (Q-005, corrigido no
+ * checkpoint da Fase 4 — D-025 já registrava o achado). Antes, um erro real
+ * de banco (rede, timeout) virava silenciosamente `exists: false` — o mesmo
+ * formato de "não pertence à org". Fail-safe (a escrita seguinte era
+ * rejeitada de qualquer forma, nunca abriu dado cross-tenant), mas divergia
+ * do padrão de D-016/D-018 de tratar erro de banco explicitamente em vez de
+ * conflar com ausência. Cada chamador agora reporta o erro de banco como
+ * erro de verdade; só usa a mensagem de "não encontrado" quando a consulta
+ * respondeu e de fato não achou a linha.
+ */
+export async function belongsToOrg(supabase: SalesClient, table: RelatedTable, id: string, orgId: string): Promise<BelongsToOrgResult> {
+  const { data, error } = await supabase.from(table).select('id').eq('id', id).eq('org_id', orgId).maybeSingle()
+  if (error) {
+    return { exists: false, error: 'Não foi possível verificar a entidade relacionada.' }
+  }
+  return { exists: data !== null, error: null }
+}
+
+/** Atalho pro padrão repetido em todo call site de `belongsToOrg`: erro de banco vira erro reportado, ausência vira `notFoundMessage`, `null` quando a entidade pertence à org. */
+export async function checkBelongsToOrg(
+  supabase: SalesClient,
+  table: RelatedTable,
+  id: string,
+  orgId: string,
+  notFoundMessage: string,
+): Promise<string | null> {
+  const result = await belongsToOrg(supabase, table, id, orgId)
+  if (result.error) {
+    return result.error
+  }
+  return result.exists ? null : notFoundMessage
 }
 
 export async function createLeadCore(
@@ -105,16 +139,21 @@ export async function createLeadCore(
     return { error: parsed.error.issues[0]?.message ?? 'Dados inválidos' }
   }
 
-  if (!(await belongsToOrg(supabase, 'contacts', parsed.data.contact_id, orgId))) {
-    return { error: 'Contato não encontrado.' }
+  const contactError = await checkBelongsToOrg(supabase, 'contacts', parsed.data.contact_id, orgId, 'Contato não encontrado.')
+  if (contactError) {
+    return { error: contactError }
   }
 
-  if (!(await belongsToOrg(supabase, 'pipeline_stages', parsed.data.stage_id, orgId))) {
-    return { error: 'Estágio não encontrado.' }
+  const stageError = await checkBelongsToOrg(supabase, 'pipeline_stages', parsed.data.stage_id, orgId, 'Estágio não encontrado.')
+  if (stageError) {
+    return { error: stageError }
   }
 
-  if (parsed.data.source_id && !(await belongsToOrg(supabase, 'lead_sources', parsed.data.source_id, orgId))) {
-    return { error: 'Fonte não encontrada.' }
+  if (parsed.data.source_id) {
+    const sourceError = await checkBelongsToOrg(supabase, 'lead_sources', parsed.data.source_id, orgId, 'Fonte não encontrada.')
+    if (sourceError) {
+      return { error: sourceError }
+    }
   }
 
   const { data, error } = await supabase
@@ -164,12 +203,18 @@ export async function updateLeadCore(
     return { error: parsed.error.issues[0]?.message ?? 'Dados inválidos' }
   }
 
-  if (parsed.data.contact_id && !(await belongsToOrg(supabase, 'contacts', parsed.data.contact_id, orgId))) {
-    return { error: 'Contato não encontrado.' }
+  if (parsed.data.contact_id) {
+    const contactError = await checkBelongsToOrg(supabase, 'contacts', parsed.data.contact_id, orgId, 'Contato não encontrado.')
+    if (contactError) {
+      return { error: contactError }
+    }
   }
 
-  if (parsed.data.source_id && !(await belongsToOrg(supabase, 'lead_sources', parsed.data.source_id, orgId))) {
-    return { error: 'Fonte não encontrada.' }
+  if (parsed.data.source_id) {
+    const sourceError = await checkBelongsToOrg(supabase, 'lead_sources', parsed.data.source_id, orgId, 'Fonte não encontrada.')
+    if (sourceError) {
+      return { error: sourceError }
+    }
   }
 
   const updates: Database['sales']['Tables']['leads']['Update'] = { ...parsed.data }
@@ -268,7 +313,20 @@ export async function moveStageCore(supabase: SalesClient, orgId: string, leadId
 
   const lead = moved[0]!
 
-  if (stage.is_won || stage.is_lost) {
+  // Fonte única de "quando cancelar tudo" (achado D do checkpoint da Fase 4:
+  // `shouldCancelFollowups` tinha 5 testes e zero chamador, enquanto esta
+  // mesma regra estava escrita à mão como `stage.is_won || stage.is_lost`).
+  // `respondedAt: null` porque este call site é o gatilho de *estágio*, não
+  // o de *resposta do cliente* — esse é decidido inteiramente dentro de
+  // `markRespondedCore`, que cancela por construção, sem passar por aqui.
+  const cancelAllOnClose = shouldCancelFollowups({
+    leadStatus: nextStatus,
+    respondedAt: null,
+    stageIsWon: stage.is_won,
+    stageIsLost: stage.is_lost,
+  })
+
+  if (cancelAllOnClose) {
     const { error: cancelAllError } = await supabase
       .from('activities')
       .update({ status: 'cancelled' })
@@ -390,19 +448,44 @@ async function regenerateStageFollowups(
     return { error: 'Não foi possível gerar os follow-ups automáticos.' }
   }
 
+  // D-027: uma cadência nova de follow-up começou de verdade (passos
+  // inseridos acima) — proposta nova é pergunta nova, o cliente ainda não
+  // respondeu a esta. Zera `responded_at` aqui, e só aqui: o early return de
+  // "estágio sem regras"/"nada pra gerar" (linhas acima) não chega até este
+  // ponto, então mover para um estágio sem cadência (`negociação`,
+  // `qualificado`) nunca mexe no registro. Sem isto, `markRespondedCore`
+  // (chamado de novo depois desta reentrada) encontrava `responded_at` já
+  // preenchido e não cancelava as pendências recém-geradas — Achado A do
+  // checkpoint da Fase 4, provado por execução.
+  const { error: respondedResetError } = await supabase.from('leads').update({ responded_at: null }).eq('id', leadId).eq('org_id', orgId)
+  if (respondedResetError) {
+    return { error: 'Não foi possível reiniciar o estado de resposta do lead.' }
+  }
+
   return { error: null }
 }
 
 /**
- * "Cliente respondeu": grava `responded_at`, cancela todos os automáticos
- * pendentes (gatilho documentado em `DATABASE.md`) e registra uma activity
- * de histórico — o cancelamento em massa não pode ser silencioso, senão
- * "o sistema ia cobrar mas o cliente respondeu" (a razão de D-005 manter
- * cancelado visível, esmaecido, na timeline em vez de sumir) fica sem prova.
+ * "Cliente respondeu": grava `responded_at` (só na primeira vez de cada
+ * cadência — idempotente), registra a activity de histórico correspondente,
+ * e cancela os automáticos pendentes — o cancelamento em massa não pode ser
+ * silencioso, senão "o sistema ia cobrar mas o cliente respondeu" (a razão
+ * de D-005 manter cancelado visível, esmaecido, na timeline em vez de
+ * sumir) fica sem prova.
  *
- * Idempotente: se `responded_at` já estava preenchido, a segunda chamada não
- * reescreve o timestamp nem duplica a activity de histórico — só o primeiro
- * "cliente respondeu" é o evento real.
+ * **D-027, corrigido no checkpoint da Fase 4:** o cancelamento roda sempre,
+ * mesmo quando `responded_at` já estava preenchido — só `responded_at`/a
+ * activity de histórico são condicionados à guarda de idempotência. Antes,
+ * as três coisas viviam atrás da mesma guarda: um lead que respondeu, teve
+ * uma proposta nova reenviada (`regenerateStageFollowups` zera
+ * `responded_at` nesse momento — ver mais abaixo) e o cliente respondeu de
+ * novo tinha um segundo "Cliente respondeu" que reportava sucesso sem
+ * cancelar nada, porque a guarda barrava tudo. Com o reset em
+ * `regenerateStageFollowups`, o caminho normal já resolve sozinho (o
+ * segundo clique volta a ser tratado como primeira resposta da cadência
+ * nova); tirar o cancelamento da guarda aqui é defesa em profundidade — o
+ * botão nunca deixa de cancelar o que está pendente agora, independente do
+ * valor histórico de `responded_at`.
  */
 export async function markRespondedCore(supabase: SalesClient, orgId: string, leadId: string, userId: string | null): Promise<StageActionResult> {
   const idResult = uuidSchema.safeParse(leadId)
@@ -424,10 +507,15 @@ export async function markRespondedCore(supabase: SalesClient, orgId: string, le
     return { error: 'Não foi possível registrar a resposta do lead.' }
   }
 
-  if (!updated || updated.length === 0) {
+  const isFirstResponseOfCadence = updated !== null && updated.length > 0
+
+  let contactId: string
+  if (isFirstResponseOfCadence) {
+    contactId = updated[0]!.contact_id
+  } else {
     const { data: existing, error: existingError } = await supabase
       .from('leads')
-      .select('id')
+      .select('id, contact_id')
       .eq('id', idResult.data)
       .eq('org_id', orgId)
       .maybeSingle()
@@ -439,12 +527,10 @@ export async function markRespondedCore(supabase: SalesClient, orgId: string, le
       return { error: 'Lead não encontrado.' }
     }
 
-    // Lead existe e já tinha responded_at — chamada repetida, idempotente.
-    return { error: null, leadId: idResult.data }
+    contactId = existing.contact_id
   }
 
-  const lead = updated[0]!
-
+  // Roda sempre — não fica atrás da guarda de idempotência (D-027).
   const { error: cancelError } = await supabase
     .from('activities')
     .update({ status: 'cancelled' })
@@ -457,20 +543,22 @@ export async function markRespondedCore(supabase: SalesClient, orgId: string, le
     return { error: 'Não foi possível cancelar os follow-ups pendentes.' }
   }
 
-  const { error: historyError } = await supabase.from('activities').insert({
-    org_id: orgId,
-    lead_id: idResult.data,
-    contact_id: lead.contact_id,
-    type: 'note',
-    title: 'Cliente respondeu',
-    status: 'done',
-    done_at: respondedAt,
-    is_auto: false,
-    created_by: userId,
-  })
+  if (isFirstResponseOfCadence) {
+    const { error: historyError } = await supabase.from('activities').insert({
+      org_id: orgId,
+      lead_id: idResult.data,
+      contact_id: contactId,
+      type: 'note',
+      title: 'Cliente respondeu',
+      status: 'done',
+      done_at: respondedAt,
+      is_auto: false,
+      created_by: userId,
+    })
 
-  if (historyError) {
-    return { error: 'Não foi possível registrar o histórico da resposta.' }
+    if (historyError) {
+      return { error: 'Não foi possível registrar o histórico da resposta.' }
+    }
   }
 
   const cacheResult = await recalculateLeadCache(supabase, orgId, idResult.data)

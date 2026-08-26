@@ -14,6 +14,13 @@ const ACTIVITY_COLUMNS =
  * canceladas — mais recentes primeiro. Cancelada não é filtrada aqui: D-005
  * documenta que ela fica visível, esmaecida, porque "o sistema ia cobrar mas
  * o cliente respondeu" é justamente o que prova o valor do produto.
+ *
+ * Desempate por `id` (achado E do checkpoint da Fase 4): os passos de uma
+ * mesma cadência nascem no mesmo `insert` (`regenerateStageFollowups`), com
+ * `created_at` praticamente idêntico — sem um segundo critério a ordem entre
+ * eles é instável de um carregamento pro outro. `id` está presente em toda
+ * linha e é sempre distinto; não carrega significado nenhum além de tornar a
+ * ordem determinística.
  */
 export async function listActivitiesForLead(leadId: string): Promise<Activity[]> {
   const orgId = await requireOrgId()
@@ -25,6 +32,7 @@ export async function listActivitiesForLead(leadId: string): Promise<Activity[]>
     .eq('org_id', orgId)
     .eq('lead_id', leadId)
     .order('created_at', { ascending: false })
+    .order('id', { ascending: true })
 
   if (error) {
     throw new Error(`Falha ao carregar histórico do lead: ${error.message}`)

@@ -78,6 +78,18 @@ export function TodayActionsList({ overdue, dueToday, withoutAction, timezone }:
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLDivElement>): void {
+    // Achado B do checkpoint da Fase 4: o evento de teclado de um botão
+    // (Concluir/Adiar/Cliente respondeu) ou do link "Abrir" dentro da linha
+    // borbulha até este handler porque ele está no `<div>` da linha, não só
+    // no próprio elemento. Sem esta guarda, `Enter` num botão concluía a
+    // activity e navegava pro lead ao mesmo tempo — o `FollowupPrompt` (4.5)
+    // nunca chegava a aparecer. Só trata o evento quando ele nasceu no
+    // próprio contêiner da linha (foco real na linha, não em um descendente
+    // focável).
+    if (event.target !== event.currentTarget) {
+      return
+    }
+
     if (event.key === 'ArrowDown') {
       event.preventDefault()
       setActiveIndex((i) => Math.min(i + 1, rows.length - 1))
