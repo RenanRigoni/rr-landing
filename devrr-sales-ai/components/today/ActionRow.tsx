@@ -33,6 +33,7 @@ interface ActionRowProps {
   error?: string
   onComplete: () => void
   onPostpone: () => void
+  onMarkResponded: () => void
 }
 
 // docs/DESIGN_SYSTEM.md → "Linha de ação" — o componente mais importante do
@@ -40,7 +41,20 @@ interface ActionRowProps {
 // lib/queries/ aqui, só props e callbacks — a mutação de verdade mora em
 // components/today/TodayActionsList.tsx (D-020: componente de UI nunca fala
 // com Supabase, sempre via action).
-export function ActionRow({ action, urgency, timezone, rowRef, tabIndex, onFocus, onKeyDown, isPending, error, onComplete, onPostpone }: ActionRowProps) {
+export function ActionRow({
+  action,
+  urgency,
+  timezone,
+  rowRef,
+  tabIndex,
+  onFocus,
+  onKeyDown,
+  isPending,
+  error,
+  onComplete,
+  onPostpone,
+  onMarkResponded,
+}: ActionRowProps) {
   const Icon = TYPE_ICON[action.type]
 
   return (
@@ -89,6 +103,14 @@ export function ActionRow({ action, urgency, timezone, rowRef, tabIndex, onFocus
           className="rounded-md bg-white/[0.04] px-2.5 py-1.5 text-xs font-medium text-content-secondary transition-colors ease-spring hover:bg-white/[0.08] hover:text-content-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 focus-visible:ring-offset-surface disabled:cursor-not-allowed disabled:opacity-60"
         >
           Adiar 1 dia
+        </button>
+        <button
+          type="button"
+          disabled={isPending}
+          onClick={onMarkResponded}
+          className="rounded-md bg-white/[0.04] px-2.5 py-1.5 text-xs font-medium text-content-secondary transition-colors ease-spring hover:bg-white/[0.08] hover:text-content-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 focus-visible:ring-offset-surface disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          Cliente respondeu
         </button>
         <Link
           href={`/leads/${action.lead_id}`}

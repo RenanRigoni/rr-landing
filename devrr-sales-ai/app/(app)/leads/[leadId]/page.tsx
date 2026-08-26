@@ -2,10 +2,13 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { getLeadForDisplay } from '@/lib/queries/leads'
 import { listStages } from '@/lib/queries/catalogs'
+import { listActivitiesForLead } from '@/lib/queries/activities'
 import { formatBRL } from '@/lib/domain/money'
 import { formatRelativeDateBR } from '@/lib/domain/date'
 import { StageBadge } from '@/components/ui/StageBadge'
 import { StageMover } from '@/components/leads/StageMover'
+import { MarkRespondedButton } from '@/components/leads/MarkRespondedButton'
+import { ActivityTimeline } from '@/components/leads/ActivityTimeline'
 import type { Database } from '@/lib/types/database.types'
 
 const STATUS_LABEL: Record<Database['sales']['Enums']['lead_status'], string> = {
@@ -25,6 +28,8 @@ export default async function LeadDetailPage({ params }: LeadDetailPageProps) {
   if (!lead) {
     notFound()
   }
+
+  const activities = await listActivitiesForLead(lead.id)
 
   return (
     <div className="max-w-3xl">
@@ -73,12 +78,18 @@ export default async function LeadDetailPage({ params }: LeadDetailPageProps) {
         ) : null}
       </dl>
 
-      <div className="mt-6 rounded-lg border border-white/[0.08] bg-surface-elevated p-4">
-        <StageMover
-          leadId={lead.id}
-          currentStageId={lead.stage.id}
-          stages={stages.map((stage) => ({ id: stage.id, label: stage.label }))}
-        />
+      <div className="mt-6 flex flex-wrap items-start gap-4">
+        <div className="flex-1 rounded-lg border border-white/[0.08] bg-surface-elevated p-4">
+          <StageMover
+            leadId={lead.id}
+            currentStageId={lead.stage.id}
+            stages={stages.map((stage) => ({ id: stage.id, label: stage.label }))}
+          />
+        </div>
+        <div className="rounded-lg border border-white/[0.08] bg-surface-elevated p-4">
+          <p className="mb-2 text-[10px] uppercase tracking-[0.12em] text-content-muted">Cliente</p>
+          <MarkRespondedButton leadId={lead.id} alreadyResponded={lead.responded_at !== null} />
+        </div>
       </div>
 
       <div className="mt-6 rounded-lg border border-white/[0.08] bg-surface-elevated p-4">
@@ -89,7 +100,9 @@ export default async function LeadDetailPage({ params }: LeadDetailPageProps) {
 
       <div className="mt-6 rounded-lg border border-white/[0.08] bg-surface-elevated p-4">
         <h2 className="text-sm font-semibold text-content-primary">Histórico</h2>
-        <p className="mt-2 text-sm text-content-muted">Histórico de atividades chega na Fase 4.</p>
+        <div className="mt-3">
+          <ActivityTimeline activities={activities} />
+        </div>
       </div>
     </div>
   )

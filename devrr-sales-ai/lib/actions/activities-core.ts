@@ -1,7 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { z } from 'zod'
 import { createActivitySchema, rescheduleActivitySchema, completeActivitySchema } from '@/lib/validation/activities'
-import { belongsToOrg, recalculateLeadCache, type StageActionResult } from '@/lib/actions/leads-core'
+import { belongsToOrg, recalculateLeadCache, parseBusinessHours, type StageActionResult } from '@/lib/actions/leads-core'
+import { computeFollowupSchedule } from '@/lib/domain/followup'
 import type { Database } from '@/lib/types/database.types'
 
 type SalesClient = SupabaseClient<Database, 'sales'>
@@ -70,11 +71,68 @@ export async function createActivityCore(
 }
 
 async function fetchActivity(supabase: SalesClient, orgId: string, activityId: string) {
-  return supabase.from('activities').select('id, lead_id, status').eq('id', activityId).eq('org_id', orgId).maybeSingle()
+  return supabase.from('activities').select('id, lead_id, status, rule_id').eq('id', activityId).eq('org_id', orgId).maybeSingle()
+}
+
+export interface CompleteActivityResult extends StageActionResult {
+  /** Próxima ação do lead depois de recalcular o cache — `null` quando não sobrou nenhuma pendência. */
+  nextActionAt?: string | null
+  /**
+   * Data sugerida pra "agendar a próxima ação" (4.5), só quando `nextActionAt`
+   * é `null` e a activity concluída pertencia a uma sequência de follow-up
+   * (`rule_id`) com um próximo passo ativo configurado. `null` quando não há
+   * regra pra sugerir — o cliente decide a data à mão.
+   */
+  suggestedFollowupDueAt?: string | null
+}
+
+/**
+ * Passo seguinte (mesmo `trigger_stage_id`, `step_number` maior, ativo) da
+ * regra da activity concluída, se existir. Reaproveita
+ * `computeFollowupSchedule` (lib/domain/followup.ts, 4.2) com
+ * `enteredStageAt: now` — não é o mesmo cronograma que `moveStageCore`
+ * já gerou (esse já existe ou não como activity própria; esta é só a
+ * sugestão pro modal de "agendar a próxima" quando não sobrou nada
+ * pendente), então não há schedule duplicado, só a mesma função pura
+ * chamada de novo com uma referência de tempo diferente.
+ */
+async function suggestNextFollowupDueAt(supabase: SalesClient, orgId: string, ruleId: string): Promise<string | null> {
+  const { data: rule } = await supabase.from('followup_rules').select('trigger_stage_id, step_number').eq('id', ruleId).eq('org_id', orgId).maybeSingle()
+  if (!rule) {
+    return null
+  }
+
+  const { data: nextRule } = await supabase
+    .from('followup_rules')
+    .select('step_number, delay_days')
+    .eq('org_id', orgId)
+    .eq('trigger_stage_id', rule.trigger_stage_id)
+    .eq('is_active', true)
+    .gt('step_number', rule.step_number)
+    .order('step_number', { ascending: true })
+    .limit(1)
+    .maybeSingle()
+  if (!nextRule) {
+    return null
+  }
+
+  const { data: org } = await supabase.from('organizations').select('timezone, business_hours').eq('id', orgId).single()
+  if (!org) {
+    return null
+  }
+
+  const schedule = computeFollowupSchedule({
+    enteredStageAt: new Date(),
+    rules: [{ stepNumber: nextRule.step_number, delayDays: nextRule.delay_days, isActive: true }],
+    timezone: org.timezone,
+    businessHours: parseBusinessHours(org.business_hours),
+  })
+
+  return schedule[0] ? schedule[0].dueAt.toISOString() : null
 }
 
 /** Idempotente: concluir uma activity já concluída não reescreve `done_at` nem falha. */
-export async function completeActivityCore(supabase: SalesClient, orgId: string, activityId: string, input: unknown = {}): Promise<StageActionResult> {
+export async function completeActivityCore(supabase: SalesClient, orgId: string, activityId: string, input: unknown = {}): Promise<CompleteActivityResult> {
   const idResult = uuidSchema.safeParse(activityId)
   if (!idResult.success) {
     return { error: 'Atividade inválida' }
@@ -114,10 +172,16 @@ export async function completeActivityCore(supabase: SalesClient, orgId: string,
 
   const cacheResult = await recalculateLeadCache(supabase, orgId, activity.lead_id)
   if (cacheResult.error) {
-    return cacheResult
+    return { error: cacheResult.error }
   }
 
-  return { error: null, leadId: activity.lead_id }
+  if (cacheResult.nextActionAt !== null) {
+    return { error: null, leadId: activity.lead_id, nextActionAt: cacheResult.nextActionAt.toISOString() }
+  }
+
+  const suggestedFollowupDueAt = activity.rule_id ? await suggestNextFollowupDueAt(supabase, orgId, activity.rule_id) : null
+
+  return { error: null, leadId: activity.lead_id, nextActionAt: null, suggestedFollowupDueAt }
 }
 
 /** Idempotente: cancelar uma activity já cancelada não falha nem duplica efeito. */

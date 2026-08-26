@@ -30,9 +30,13 @@ const businessHoursSchema = z.object({
 // sales.organizations).
 const DEFAULT_BUSINESS_HOURS: BusinessHours = { start: '09:00', end: '18:00', days: [1, 2, 3, 4, 5] }
 
-function parseBusinessHours(value: Json): BusinessHours {
+export function parseBusinessHours(value: Json): BusinessHours {
   const parsed = businessHoursSchema.safeParse(value)
   return parsed.success ? parsed.data : DEFAULT_BUSINESS_HOURS
+}
+
+export interface CacheResult extends ActionResult {
+  nextActionAt: Date | null
 }
 
 /**
@@ -40,9 +44,12 @@ function parseBusinessHours(value: Json): BusinessHours {
  * não por trigger (D-006) — toda escrita em `activities` que passa por esta
  * camada recalcula os dois aqui. `next_action_at` usa a mesma
  * `resolveNextAction()` de `lib/domain/followup.ts` (4.2) que decide a tela
- * "Ações de hoje" — um só lugar decide o que é "próxima ação".
+ * "Ações de hoje" — um só lugar decide o que é "próxima ação". Devolve o
+ * valor calculado (não só `error`) porque a 4.5 precisa saber, sem
+ * recalcular de novo, se sobrou alguma próxima ação depois de concluir uma
+ * activity — mesmo valor, uma leitura só, D-006.
  */
-export async function recalculateLeadCache(supabase: SalesClient, orgId: string, leadId: string): Promise<ActionResult> {
+export async function recalculateLeadCache(supabase: SalesClient, orgId: string, leadId: string): Promise<CacheResult> {
   const { data, error } = await supabase
     .from('activities')
     .select('status, due_at, done_at')
@@ -50,7 +57,7 @@ export async function recalculateLeadCache(supabase: SalesClient, orgId: string,
     .eq('lead_id', leadId)
 
   if (error) {
-    return { error: 'Não foi possível recalcular o cache do lead.' }
+    return { error: 'Não foi possível recalcular o cache do lead.', nextActionAt: null }
   }
 
   const rows = data ?? []
@@ -65,10 +72,10 @@ export async function recalculateLeadCache(supabase: SalesClient, orgId: string,
     .eq('org_id', orgId)
 
   if (updateError) {
-    return { error: 'Não foi possível atualizar o cache do lead.' }
+    return { error: 'Não foi possível atualizar o cache do lead.', nextActionAt: null }
   }
 
-  return { error: null }
+  return { error: null, nextActionAt }
 }
 
 /**

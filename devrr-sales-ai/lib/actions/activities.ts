@@ -8,6 +8,7 @@ import {
   completeActivityCore,
   cancelActivityCore,
   rescheduleActivityCore,
+  type CompleteActivityResult,
 } from '@/lib/actions/activities-core'
 import type { StageActionResult } from '@/lib/actions/leads-core'
 
@@ -36,7 +37,7 @@ export async function createActivity(input: unknown): Promise<StageActionResult 
   return result
 }
 
-export async function completeActivity(activityId: string, input: unknown = {}): Promise<StageActionResult> {
+export async function completeActivity(activityId: string, input: unknown = {}): Promise<CompleteActivityResult> {
   const orgId = await requireOrgId()
   const supabase = await createClient()
 

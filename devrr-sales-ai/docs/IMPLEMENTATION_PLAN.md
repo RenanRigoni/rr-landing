@@ -2118,6 +2118,102 @@ ações inline funcionam sem recarregar a página inteira.
 
 </details>
 
+### [x] 4.5 Registrar conclusão e resposta
+
+> feito: `completeActivityCore` (4.3) estendida — `recalculateLeadCache`
+> (`lib/actions/leads-core.ts`) agora devolve `nextActionAt` calculado, não
+> só `error` (D-006, uma leitura só, sem recálculo duplicado). Quando
+> `nextActionAt` fica `null` depois de concluir, `completeActivityCore`
+> também devolve `suggestedFollowupDueAt`: se a activity concluída tinha
+> `rule_id`, busca o próximo passo **ativo** da mesma sequência
+> (`followup_rules`, pulando desativado) e reaproveita
+> `computeFollowupSchedule` (4.2) com `enteredStageAt: now()` — nunca a
+> data real de entrada no estágio, que `leads` não guarda (D-026 registra o
+> porquê e o que foi descartado).
+>
+> `components/today/FollowupPrompt.tsx` (novo, client): aparece em
+> `TodayActionsList.tsx` só quando `nextActionAt` é `null` — pré-preenche a
+> data sugerida quando existe, input `datetime-local` livre quando não.
+> "Agendar" chama `createActivity` (4.3, existente) com o tipo herdado da
+> activity concluída — `is_auto` sempre `false`, nunca aceita `rule_id` do
+> cliente (D-020 preservado). "Agora não" só dispensa. `TodayActionsList`
+> segura `pendingId` até a pergunta ser resolvida, pra linha já concluída
+> no banco não parecer clicável de novo antes do próximo render.
+>
+> `ActionRow.tsx` ganhou o botão `Cliente respondeu` (chama `markResponded`,
+> 4.3, sem lógica nova). `components/leads/MarkRespondedButton.tsx` (novo)
+> — mesmo botão na página do lead, desabilitado com texto "Cliente já
+> respondeu" quando `responded_at` já está preenchido (idempotência visível,
+> não só no banco).
+>
+> `lib/queries/activities.ts` → `listActivitiesForLead()` (novo, sem teste
+> dedicado — mesmo padrão de `lib/queries/leads.ts`/`catalogs.ts`, que
+> também não têm; validado por execução real no browser).
+> `components/leads/ActivityTimeline.tsx` (novo): mais recente primeiro
+> (`created_at desc`), feito/pendente/cancelado com cor semântica
+> (`success`/`warning`/`content-muted`) — cancelado fica `opacity-50` +
+> `line-through`, **não some** (D-005). `app/(app)/leads/[leadId]/page.tsx`
+> troca o placeholder "Histórico de atividades chega na Fase 4." pelo
+> componente de verdade e ganha o botão de resposta ao lado do
+> `StageMover`.
+>
+> **Testes** — `tests/actions/activities-followup-prompt.test.ts` (7 casos,
+> novo): sugere a data do próximo passo ativo (comparada contra
+> `computeFollowupSchedule` chamada em paralelo no teste, tolerância de
+> 10s pelo mesmo motivo de latência de rede já documentado na 4.3); nada
+> sugerido no último passo da sequência; pula passo desativado e sugere o
+> seguinte; nada sugerido quando todos os seguintes estão desativados;
+> nada sugerido pra activity manual (sem `rule_id`); `nextActionAt` não
+> nulo quando sobra outra pendência (sem sugestão nesse caso); `rule_id`
+> de outra organização nunca vaza pra sugestão (lookup filtrado por
+> `org_id` falha seguro).
+>
+> **Validado no browser real, ponta a ponta** (dev server + Supabase real,
+> dados de QA removidos ao final — `organizations`/`contacts`/`leads`/
+> `activities` conferidos em `0`): mover lead pra `proposta_enviada` via
+> `StageMover` de verdade gerou os 3 passos reais; concluir passo 1 e 2 (com
+> pendência sobrando) não mostrou pergunta nenhuma; concluir o passo 3 (o
+> último) mostrou a pergunta sem sugestão de data (não há passo 4);
+> preencher `2026-09-05T10:00` e confirmar criou a activity com o tipo
+> herdado (`whatsapp`), `is_auto=false`, `due_at` exatamente
+> `2026-09-05T13:00:00Z` (UTC-3 → UTC, conferido direto no banco); em outro
+> lead, mesmo fluxo terminando em "Agora não" devolveu o lead pra "Sem
+> próxima ação" sem criar nada; `Cliente respondeu` na tela Hoje cancelou o
+> follow-up automático da linha mas preservou uma tarefa manual pendente do
+> mesmo lead intacta (D-005, confirmado ao vivo); a timeline do lead
+> mostrou a nota "Cliente respondeu" (feito), a tarefa manual (pendente) e
+> o passo cancelado esmaecido riscado, todos os 3 passos originais como
+> "Feito"; botão do lead ficou "Cliente já respondeu" desabilitado depois.
+> Console do browser: só o 404 de favicon já documentado (achado E,
+> checkpoint da Fase 1).
+>
+> **Achado corrigido durante a própria tarefa:** duas etiquetas "auto"
+> (`ActionRow.tsx`, já existia; `ActivityTimeline.tsx`, nova) usavam
+> `margin-left` pra separar da palavra anterior — cria espaço visual mas
+> concatena o texto na árvore de acessibilidade ("Novoatrasado",
+> "passo 1auto"), pego ao inspecionar o accessibility snapshot real no
+> Playwright, não só por leitura de código. Corrigido pra separador
+> `· ` explícito no texto.
+>
+> **Validado, não só assumido:**
+> - `npm run test`: **69/69** — nenhuma mudança em `lib/domain/` nesta
+>   tarefa (reaproveita `computeFollowupSchedule`/`resolveNextAction`
+>   existentes, não duplica).
+> - `npm run test:rls`: **124/124** (117 preservados + 7 novos).
+> - `typecheck`/`lint`/`build` limpos. Build sem rota nova — `/leads/[leadId]`
+>   e `/today` já existiam, só ganharam componentes.
+>
+> Nenhuma migration (nada de schema mudou) — `advisors` não roda. Uma
+> decisão permanente nova: **D-026**.
+>
+> Um commit.
+>
+> **Não avançado para a Fase 5** — aguardando checkpoint Opus (fim da Fase 4,
+> conforme `CLAUDE.md`).
+
+<details>
+<summary>Texto original da tarefa (referência)</summary>
+
 ### [ ] 4.5 Registrar conclusão e resposta
 
 - `Concluir` marca `status='done'`, grava `done_at`, atualiza `last_contact_at`, e
@@ -2130,6 +2226,8 @@ ações inline funcionam sem recarregar a página inteira.
 
 **Pronto quando:** o fluxo completo do `PRODUCT_SPEC.md` → Definição de pronto roda
 ponta a ponta. → **Checkpoint Opus.**
+
+</details>
 
 ---
 

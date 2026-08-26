@@ -799,6 +799,78 @@ action deste projeto usa ainda.
 
 ---
 
+## D-026 — "Agendar a próxima ação" só pergunta quando não sobra nenhuma pendência; sugestão de data usa `computeFollowupSchedule` com `now()`, nunca a data original de entrada no estágio
+
+**Data:** 2026-08-26 · **Status:** decidido, tarefa 4.5 · **Aplica a:** `lib/actions/activities-core.ts` → `completeActivityCore`/`suggestNextFollowupDueAt`, `components/today/FollowupPrompt.tsx`
+
+O texto da tarefa é literal até certo ponto: "`Concluir`... pergunta se
+quer agendar a próxima (sugerindo a data do próximo passo da regra)". Não
+diz **quando** perguntar nem **como** calcular a data sugerida — e as duas
+respostas óbvias colidem com o que já existe.
+
+**Quando perguntar — só quando `next_action_at` fica `null` depois do
+recálculo do cache.** `moveStageCore` (4.3) já gera de uma vez todos os
+passos ativos e ainda não executados de uma sequência ao entrar no estágio
+— então, no caminho normal, quando o usuário conclui o passo 1, o passo 2
+**já existe** como activity própria, pendente, com data própria. Perguntar
+"quer agendar o passo 2?" nesse momento seria perguntar por algo que já
+está agendado — o `nextActionAt` que `recalculateLeadCache` (D-006, agora
+devolvendo o valor calculado em vez de só `error`) já contém a resposta.
+A pergunta só faz sentido no estado exato que justifica o bloco "Sem
+próxima ação" existir (4.4): nenhuma pendência sobrou pra este lead.
+
+**Como calcular a data sugerida — `computeFollowupSchedule` (4.2) com
+`enteredStageAt: new Date()`, nunca o instante em que o lead entrou no
+estágio de verdade.** `leads` não tem (e esta tarefa não criou) uma coluna
+`stage_entered_at` — recalcular "delay a partir da entrada real no
+estágio" dias depois exigiria uma migration nova só pra isso, fora do
+escopo de uma tarefa que é sobre UI de conclusão, não sobre schema. Usar
+"agora" como referência é também semanticamente defensável por si: o
+usuário está confirmando o próximo passo no momento em que acabou de fazer
+o anterior, então "delay_days a partir de agora" é uma leitura de cadência
+tão válida quanto "a partir da entrada no estágio" — só que sem inventar
+dado que o schema não guarda.
+
+**"Próximo passo" pula regra desativada e devolve o próximo passo ativo
+(`step_number` maior, `is_active = true`), não o `step_number + 1`
+literal.** Testado nos dois sentidos: pula um passo desativado e sugere o
+seguinte; não sugere nada quando todos os passos seguintes estão
+desativados. Sem isso, desativar um passo no meio da sequência (recurso já
+existente em `followup_rules.is_active`, usado por `moveStageCore` desde a
+4.3) faria a sugestão sumir de vez em vez de simplesmente pular pro próximo
+que ainda vale.
+
+**A resposta "sim" cria uma activity manual de verdade (`createActivity`,
+4.3), nunca escreve `rule_id`.** Reaproveita a action existente — não é um
+caminho paralelo de criação — e o resultado é deliberadamente `is_auto =
+false`: é uma confirmação humana pontual, não a regra regenerando sozinha
+(D-020/mass assignment já garante isso: `createActivityCore` nunca aceita
+`rule_id`/`is_auto` do chamador).
+
+**Descartado:** perguntar sempre que qualquer activity é concluída, mesmo
+com outra pendência sobrando — geraria pergunta óbvia e ruído; recalcular
+a data a partir de uma coluna nova de "entrada no estágio" — exigiria
+migration fora do escopo desta tarefa só pra uma sugestão de UI que já é
+opcional (o campo de data continua editável); sugerir sempre o
+`step_number + 1` sem checar `is_active` — quebraria o caso real de regra
+desativada no meio.
+
+**Validado no browser real, não só por teste:** sequência completa
+(mover lead pra `proposta_enviada` → 3 passos gerados de verdade →
+concluir passo 1 e 2 sem pergunta nenhuma, porque sempre sobrava pendência
+→ concluir o passo 3, o último, e a pergunta aparecer sem sugestão de data
+(não há passo 4) → preencher data manual e confirmar → activity nova
+criada com o tipo herdado da concluída, `is_auto = false`, data exata
+digitada; em outro lead, mesmo fluxo terminando em "Agora não" → lead volta
+pra "Sem próxima ação" sem criar nada.
+
+**Custo aceito:** a sugestão de data é uma aproximação ("a partir de
+agora", não "a partir da entrada real no estágio") — aceitável porque o
+campo continua editável antes de confirmar, e o alternativa exigiria
+schema novo pra um ganho de precisão pequeno.
+
+---
+
 ## Questões abertas
 
 Sonnet: adicione aqui o que travar. Opus resolve no próximo checkpoint.

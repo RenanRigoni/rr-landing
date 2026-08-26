@@ -2,11 +2,14 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition, type KeyboardEvent, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
-import { completeActivity, rescheduleActivity } from '@/lib/actions/activities'
+import { completeActivity, rescheduleActivity, createActivity } from '@/lib/actions/activities'
+import { markResponded } from '@/lib/actions/leads'
 import { ActionRow } from '@/components/today/ActionRow'
 import { LeadWithoutActionRow } from '@/components/today/LeadWithoutActionRow'
 import { TodayEmptyState } from '@/components/today/TodayEmptyState'
+import { FollowupPrompt } from '@/components/today/FollowupPrompt'
 import type { TodayActionRow as TodayActionRowData, LeadWithoutActionRow as LeadWithoutActionRowData } from '@/lib/queries/today'
+import type { Database } from '@/lib/types/database.types'
 
 interface TodayActionsListProps {
   overdue: TodayActionRowData[]
@@ -16,6 +19,13 @@ interface TodayActionsListProps {
 }
 
 type FocusableRow = { key: string; leadId: string }
+
+interface FollowupPromptState {
+  leadId: string
+  leadTitle: string
+  activityType: Database['sales']['Enums']['activity_type']
+  suggestedDueAt: string | null
+}
 
 /**
  * Único componente cliente da 4.4 — precisa de estado local (foco ativo,
@@ -31,6 +41,9 @@ export function TodayActionsList({ overdue, dueToday, withoutAction, timezone }:
   const [pendingId, setPendingId] = useState<string | null>(null)
   const [rowErrors, setRowErrors] = useState<Record<string, string>>({})
   const [activeIndex, setActiveIndex] = useState(0)
+  const [followupPrompt, setFollowupPrompt] = useState<FollowupPromptState | null>(null)
+  const [followupPromptError, setFollowupPromptError] = useState<string | null>(null)
+  const [followupPromptPending, setFollowupPromptPending] = useState(false)
   const rowRefs = useRef<Array<HTMLDivElement | null>>([])
 
   const rows: FocusableRow[] = useMemo(
@@ -77,11 +90,44 @@ export function TodayActionsList({ overdue, dueToday, withoutAction, timezone }:
     }
   }
 
-  function handleComplete(activityId: string): void {
+  function handleComplete(activityId: string, leadTitle: string, action: TodayActionRowData): void {
     setPendingId(activityId)
     setRowErrors((prev) => ({ ...prev, [activityId]: '' }))
     startTransition(async () => {
       const result = await completeActivity(activityId)
+      if (result.error) {
+        setPendingId(null)
+        setRowErrors((prev) => ({ ...prev, [activityId]: result.error! }))
+        return
+      }
+
+      // Só sobra pergunta se não sobrou nenhuma próxima ação pro lead — se
+      // já existe pendência (ex.: o passo seguinte da regra, gerado pelo
+      // moveStageCore na entrada do estágio), refresh direto, sem perguntar
+      // o óbvio. `pendingId` continua preenchido até a pergunta ser
+      // resolvida (agendar ou dispensar) — a linha já concluída no banco
+      // fica desabilitada em vez de parecer clicável de novo antes do
+      // refresh trazer a lista atualizada.
+      if (result.nextActionAt === null) {
+        setFollowupPrompt({
+          leadId: action.lead_id,
+          leadTitle,
+          activityType: action.type,
+          suggestedDueAt: result.suggestedFollowupDueAt ?? null,
+        })
+        return
+      }
+
+      setPendingId(null)
+      router.refresh()
+    })
+  }
+
+  function handleMarkResponded(activityId: string, leadId: string): void {
+    setPendingId(activityId)
+    setRowErrors((prev) => ({ ...prev, [activityId]: '' }))
+    startTransition(async () => {
+      const result = await markResponded(leadId)
       setPendingId(null)
       if (result.error) {
         setRowErrors((prev) => ({ ...prev, [activityId]: result.error! }))
@@ -89,6 +135,32 @@ export function TodayActionsList({ overdue, dueToday, withoutAction, timezone }:
       }
       router.refresh()
     })
+  }
+
+  function handleScheduleFollowup(dueAt: string): void {
+    if (!followupPrompt) {
+      return
+    }
+    setFollowupPromptPending(true)
+    setFollowupPromptError(null)
+    startTransition(async () => {
+      const result = await createActivity({ lead_id: followupPrompt.leadId, type: followupPrompt.activityType, title: 'Follow-up', due_at: dueAt })
+      setFollowupPromptPending(false)
+      if (result.error) {
+        setFollowupPromptError(result.error)
+        return
+      }
+      setFollowupPrompt(null)
+      setPendingId(null)
+      router.refresh()
+    })
+  }
+
+  function handleDismissFollowupPrompt(): void {
+    setFollowupPrompt(null)
+    setFollowupPromptError(null)
+    setPendingId(null)
+    router.refresh()
   }
 
   function handlePostpone(activityId: string, currentDueAt: string): void {
@@ -117,6 +189,17 @@ export function TodayActionsList({ overdue, dueToday, withoutAction, timezone }:
 
   return (
     <div className="space-y-8">
+      {followupPrompt ? (
+        <FollowupPrompt
+          leadTitle={followupPrompt.leadTitle}
+          suggestedDueAt={followupPrompt.suggestedDueAt}
+          isPending={followupPromptPending}
+          error={followupPromptError}
+          onConfirm={handleScheduleFollowup}
+          onDismiss={handleDismissFollowupPrompt}
+        />
+      ) : null}
+
       <TodaySection label="Atrasado" count={overdue.length}>
         {overdue.map((action) => {
           const rowIndex = indexByKey.get(`action:${action.id}`)!
@@ -132,8 +215,9 @@ export function TodayActionsList({ overdue, dueToday, withoutAction, timezone }:
               onKeyDown={handleKeyDown}
               isPending={pendingId === action.id}
               error={rowErrors[action.id]}
-              onComplete={() => handleComplete(action.id)}
+              onComplete={() => handleComplete(action.id, action.lead_title, action)}
               onPostpone={() => handlePostpone(action.id, action.due_at!)}
+              onMarkResponded={() => handleMarkResponded(action.id, action.lead_id)}
             />
           )
         })}
@@ -154,8 +238,9 @@ export function TodayActionsList({ overdue, dueToday, withoutAction, timezone }:
               onKeyDown={handleKeyDown}
               isPending={pendingId === action.id}
               error={rowErrors[action.id]}
-              onComplete={() => handleComplete(action.id)}
+              onComplete={() => handleComplete(action.id, action.lead_title, action)}
               onPostpone={() => handlePostpone(action.id, action.due_at!)}
+              onMarkResponded={() => handleMarkResponded(action.id, action.lead_id)}
             />
           )
         })}
