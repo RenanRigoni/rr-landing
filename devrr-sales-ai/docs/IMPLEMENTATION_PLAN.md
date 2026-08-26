@@ -2233,6 +2233,9 @@ ponta a ponta. → **Checkpoint Opus.**
 
 ## ⛔ Checkpoint Opus — fim da Fase 4 (2026-08-26) — **NÃO APROVADO até a 4.6**
 
+> Preservado como estava quando reprovou. A reprovação valeu até a tarefa 4.6
+> ser executada — o fechamento está na reauditoria, no fim desta seção.
+
 Revisão de 4.1 → 4.5: migrations 0006/0007/0008, `sales.activities`,
 `sales.followup_rules`, as duas views, `seed_org_defaults`, `lib/domain/followup.ts`,
 `today.ts`, `date.ts`, toda a camada de actions de follow-up, `lib/queries/today.ts`/
@@ -2567,6 +2570,78 @@ teste **e** no browser real; `npm run test`, `npm run test:rls`, `typecheck`,
 o comportamento implementado. → **Reauditoria Opus**, depois Fase 5.
 
 </details>
+
+## ✅ Reauditoria Opus da 4.6 (2026-08-26) — **FASE 4 FECHADA**
+
+Revisão restrita aos 10 arquivos do commit `30a8eb1`. Nenhum BLOQUEANTE,
+nenhum IMPORTANTE restante. Confirmado **por execução**, não por leitura:
+
+1. **Sequência completa do Achado A, inclusive o 2º `markResponded`** —
+   `test:rls` 133/133. Mais que rodar verde: o teste foi submetido a
+   **mutação**. Neutralizar o reset de `responded_at` (o `.eq('id', leadId)`
+   do `update` em `regenerateStageFollowups` apontado para um uuid
+   inexistente) deixa a suíte vermelha em
+   `tests/actions/leads-followup.test.ts:346` —
+   `expected '2026-08-26T17:08:15.812+00:00' to be null`. O teste é guarda de
+   regressão de verdade, não teste que passa por acaso. Código restaurado com
+   `git checkout --` logo em seguida; árvore limpa conferida.
+2. **Tarefa manual sobrevive** — asserção explícita no mesmo teste
+   (`manualAfter.status === 'pending'` depois das **duas** rodadas de
+   cancelamento em massa). D-005 preservado.
+3. **`responded_at` só zera quando follow-up novo é realmente gerado** — os
+   dois early returns de `regenerateStageFollowups` (`rules.length === 0` e
+   `schedule.length === 0`) acontecem antes do `update`, e o teste "mover pra
+   estágio sem regras não zera `responded_at`" cobre o primeiro caso.
+4. **Teclado, no browser real** (dev server + Supabase real, usuário
+   `rls-test-a`, org de QA criada e removida): foquei `Concluir` da 1ª linha
+   com `element.focus()` — não clique, pra ser o caminho puro de teclado — e
+   apertei `Enter`: activity concluída, URL **continua** `/today`, e o
+   `FollowupPrompt` apareceu ("Follow-up concluído para QA Linha Um. Agendar
+   a próxima ação?"). Depois, foco na **linha** (`div[tabindex]`): `ArrowDown`
+   moveu o foco pra linha seguinte (4.4 sem regressão) e `Enter` navegou pra
+   `/leads/4d920191-…`, exatamente o lead da linha focada.
+5. **As duas views têm teste que detectaria perda de `security_invoker`** — a
+   prova é comportamental: B consulta a view filtrando por `org_id` de A e
+   espera `[]`. Sem `security_invoker`, a view rodaria como dona, ignoraria a
+   RLS das tabelas base e devolveria as linhas de A — o teste ficaria
+   vermelho. `pg_class.reloptions` continua `security_invoker=true` nas duas.
+6. **Erro de banco ≠ entidade inexistente** — `checkBelongsToOrg` só devolve
+   `notFoundMessage` quando a consulta respondeu; teste com `stubTableError`
+   afirma `not.toBe('Lead não encontrado.')`. Proteção cross-tenant intacta
+   (o filtro `.eq('org_id', orgId)` não mudou) e nenhum `service_role` novo.
+7. **`shouldCancelFollowups` é a fonte usada** — chamada em `moveStageCore`, e
+   equivalente ao `stage.is_won || stage.is_lost` que substituiu:
+   `nextStatus !== 'open'` ⟺ `is_won || is_lost` por construção da linha
+   acima, e `respondedAt: null` neutraliza o único termo restante. Sem
+   terceiro caminho, sem função de domínio órfã.
+8. **Ordenação da timeline é determinística** — provado com o caso exato do
+   Achado E: 3 activities inseridas num único `insert` ficaram com
+   `created_at` idêntico ao microssegundo (`17:11:10.975345+00` nas três), e a
+   página do lead devolveu a mesma ordem nos dois carregamentos.
+9. **`typecheck` / `lint` / `test` (69/69) / `test:rls` (133/133) / `build`
+   verdes**, e `get_advisors(security)` no schema `sales` com só os 3 WARN de
+   **D-013**. Dados de QA removidos: `organizations`/`leads`/`activities`/
+   `contacts`/`org_members` todos em `0`.
+
+**Duas observações de MELHORIA FUTURA — nenhuma bloqueia a Fase 5, nenhuma
+vira tarefa agora:**
+
+- O cancelamento incondicional de `markRespondedCore` (a metade "defesa em
+  profundidade" de D-027) **não tem cobertura**: pôr o cancelamento de volta
+  atrás da guarda de idempotência mantém a suíte inteira verde (verificado por
+  mutação). Não é defeito — com o reset de (1) o estado "`responded_at`
+  preenchido **e** automático pendente" é inalcançável pelos fluxos atuais, e
+  é justamente por isso que não há teste possível sem forjar o estado à mão.
+  Passa a importar se a Fase 5 introduzir um segundo gerador de automáticos
+  que não passe por `regenerateStageFollowups`.
+- O desempate por `id` torna a ordem **estável**, não **semântica**: os 3
+  passos do teste do item 8 aparecem como "Passo 2, Passo 1, Passo 3" — igual
+  nos dois carregamentos, que é o que o Achado E pedia, mas fora da ordem de
+  `step_number`. `.order('step_number')` daria as duas coisas. Cosmético; se
+  a Fase 5 mexer em `listActivitiesForLead` pro join de `ai_run_id`, trocar
+  ali sai de graça.
+
+**Veredito: Fase 4 fechada. Liberado para a Fase 5.**
 
 ---
 
