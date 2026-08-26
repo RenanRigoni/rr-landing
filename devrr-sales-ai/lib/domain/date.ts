@@ -14,3 +14,14 @@ import { ptBR } from 'date-fns/locale'
 export function formatRelativeDateBR(iso: string, now: Date = new Date()): string {
   return formatDistance(new Date(iso), now, { addSuffix: true, locale: ptBR })
 }
+
+/**
+ * "09:00" — horário local da organização, não do navegador/servidor. Usa
+ * `Intl.DateTimeFormat` com `timeZone` explícito em vez de `@date-fns/tz`
+ * (D-024): aqui é só formatação de exibição, não aritmética de data — não
+ * há `setHours`/`addDays` para preservar, então a API nativa do runtime já
+ * resolve sem precisar da classe `TZDate`.
+ */
+export function formatTimeBR(iso: string, timezone: string): string {
+  return new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: timezone }).format(new Date(iso))
+}

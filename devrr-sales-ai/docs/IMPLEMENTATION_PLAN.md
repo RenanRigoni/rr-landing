@@ -2010,6 +2010,96 @@ supabase/next no arquivo.
 
 </details>
 
+### [x] 4.4 Tela "Ações de hoje"
+
+> feito: `lib/domain/today.ts` — `getOrgDayWindow(timezone, now?)`, pura,
+> testada, calcula início/fim do dia de hoje no fuso da organização com
+> `@date-fns/tz` (mesma disciplina de D-024) — nunca `Date.now()` do
+> servidor direto. `lib/domain/date.ts` ganhou `formatTimeBR(iso, timezone)`
+> (mesmo motivo: hora exibida na linha de ação é a da org, não a de quem
+> hospeda o servidor).
+>
+> `lib/queries/today.ts` → `getTodayActions()`: lê `v_today_actions`
+> (filtrando `due_at <= fim do dia de hoje no fuso da org` — a própria
+> `DATABASE.md` já dizia que esse filtro fica na query, não na view, porque
+> depende do timezone) e `v_leads_without_action`, corta o resultado em
+> `overdue`/`dueToday` com `getOrgDayWindow()`. `org_id` sempre resolvido no
+> servidor via `requireOrgId()`/`getCurrentOrg()` (cacheada, D-014), nunca do
+> cliente.
+>
+> `app/(app)/today/page.tsx` (Server Component) busca os dados e renderiza
+> `components/today/TodayActionsList.tsx` (único Client Component da
+> tarefa — estado de foco/pendência/erro, mesmo padrão de
+> `components/leads/StageMover.tsx`: chama as actions da 4.3
+> (`completeActivity`/`rescheduleActivity`), nunca fala com Supabase direto).
+> `ActionRow.tsx`/`LeadWithoutActionRow.tsx` são puramente apresentacionais
+> ("Linha de ação" do `DESIGN_SYSTEM.md`: faixa de urgência `red-400`/
+> `amber-400`/`brand-400`, `font-mono` em valor e hora, ícone por
+> `activity_type` via Phosphor). Navegação por teclado ↑↓/Enter implementada
+> como roving tabindex sobre a lista achatada dos três blocos (foco real de
+> DOM via `ref` + `.focus()`, não só destaque visual — testado no browser).
+> `app/(app)/today/loading.tsx` (skeleton) e `error.tsx` (com `reset()`)
+> novos — nenhum dos dois existia antes em `/today`.
+>
+> **"Adiar 1 dia" soma 24h ao `due_at` atual, sem passar por
+> `computeFollowupSchedule`** (lib/domain/followup.ts, 4.2) — essa função
+> resolve o cronograma de uma *regra* de follow-up completa (fuso + horário
+> comercial), não um adiamento manual pontual de uma activity já existente;
+> reaproveitá-la aqui misturaria dois conceitos atrás do mesmo botão. Não
+> duplica lógica: é um único `+ 24h` inline, documentado no componente.
+>
+> **Validado no browser real** (dev server + Supabase real, dois usuários de
+> teste, dados de QA removidos ao final — `organizations`/`contacts`/
+> `leads`/`activities` conferidos em `0` depois):
+> - Fluxo positivo: org com 1 activity atrasada, 1 vencendo hoje e 1 lead sem
+>   ação → os três blocos aparecem com contadores corretos, valores em
+>   `font-mono` BRL, hora no fuso da org (`America/Sao_Paulo`, confirmado
+>   diferente de UTC).
+> - Isolamento cross-tenant: logado como usuário B (org própria, 1 lead sem
+>   ação), a tela mostra só o lead de B — nenhum dado do usuário A aparece.
+> - `Concluir`: activity vira `done`, `next_action_at` recalculado (cache
+>   central da 4.3, nenhum caminho paralelo), bloco "Hoje" some (ficou
+>   vazio) e o lead reaparece em "Sem próxima ação" — sem reload de página
+>   (`router.refresh()`).
+> - `Adiar 1 dia`: `due_at` avança exatamente 24h (conferido direto no
+>   banco), lead atrasado continua atrasado (delay de 1 dia não bastou pra
+>   sair do bloco) — comportamento correto, não um bug.
+> - Estado vazio: lead fechado (`status='won'`) some da tela, "Nenhuma ação
+>   para hoje." aparece (exemplo literal do `DESIGN_SYSTEM.md`).
+> - Navegação por teclado: `ArrowDown` move o foco real de DOM pra próxima
+>   linha (confirmado via accessibility snapshot, não só CSS), `Enter` abre
+>   exatamente o lead da linha focada.
+> - Console do browser: só o 404 de favicon já documentado (achado E do
+>   checkpoint da Fase 1, fora de escopo aqui).
+>
+> **Não validado ao vivo, por limitação de ambiente, não por lacuna de
+> código:** `loading.tsx` — servidor local resolve rápido demais pra
+> observar o fallback do Suspense sem atraso artificial; `error.tsx` —
+> forçar um erro real exigiria quebrar RLS/grants no mesmo projeto Supabase
+> compartilhado com dados reais, risco desproporcional pro que provaria.
+> Os dois seguem o mesmo padrão já em produção (`TodayEmptyState`/
+> `LeadsEmptyState`), revisados por leitura.
+>
+> **Validado, não só assumido:**
+> - `npm run test`: **69/69** (63 preservados + 4 de `getOrgDayWindow` + 2 de
+>   `formatTimeBR`), valores conferidos rodando as funções de verdade antes
+>   de virar `expect(...)`.
+> - `npm run test:rls`: **117/117** — suíte inalterada continua verde
+>   (nenhuma migration, nenhuma policy, nenhuma action tocada nesta tarefa;
+>   só leitura nova sobre RLS/views já existentes).
+> - `typecheck`/`lint`/`build` limpos. Build reconhece `/today` continua
+>   dinâmica, nenhuma rota nova.
+>
+> Nenhuma migration (views já existiam desde a 4.3) — `advisors` não roda,
+> nada de banco mudou. Nenhuma decisão permanente nova para `DECISIONS.md`.
+>
+> Um commit.
+>
+> **Não avançado para a 4.5** — aguardando nova instrução.
+
+<details>
+<summary>Texto original da tarefa (referência)</summary>
+
 ### [ ] 4.4 Tela "Ações de hoje"
 
 `app/(app)/today/page.tsx` — a tela que o usuário abre de manhã. Três blocos:
@@ -2025,6 +2115,8 @@ Navegação por teclado ↑↓/Enter.
 
 **Pronto quando:** com 10 leads de teste, a tela mostra os três blocos corretos e as
 ações inline funcionam sem recarregar a página inteira.
+
+</details>
 
 ### [ ] 4.5 Registrar conclusão e resposta
 

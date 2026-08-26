@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { formatRelativeDateBR } from '@/lib/domain/date'
+import { formatRelativeDateBR, formatTimeBR } from '@/lib/domain/date'
 
 // Todo valor esperado abaixo foi conferido rodando date-fns de verdade antes
 // de escrever a asserção (mesmo cuidado do achado do NBSP em formatBRL,
@@ -56,5 +56,15 @@ describe('formatRelativeDateBR', () => {
     const result = formatRelativeDateBR(new Date().toISOString())
     expect(typeof result).toBe('string')
     expect(result.length).toBeGreaterThan(0)
+  })
+})
+
+describe('formatTimeBR', () => {
+  it('formata no fuso da organização, não em UTC', () => {
+    expect(formatTimeBR('2026-08-25T12:05:00.000Z', 'America/Sao_Paulo')).toBe('09:05')
+  })
+
+  it('mesmo instante em fuso diferente (America/Manaus, UTC-4) dá hora diferente — prova que não é o fuso do servidor', () => {
+    expect(formatTimeBR('2026-08-25T12:05:00.000Z', 'America/Manaus')).toBe('08:05')
   })
 })
