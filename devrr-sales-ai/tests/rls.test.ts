@@ -584,6 +584,36 @@ describe('RLS — sales.activities e sales.followup_rules (migration 0006/0007)'
       expect(rules?.every((r) => r.prompt_slug === 'followup_proposta')).toBe(true)
       expect(rules?.every((r) => r.is_active === true)).toBe(true)
     })
+
+    it('org nova recebe o prompt followup_proposta v1 ativo, com o slug que as followup_rules referenciam (migration 0010)', async () => {
+      const { data: prompts, error } = await clientA
+        .from('ai_prompts')
+        .select('slug, version, model, temperature, is_active, system_prompt, user_prompt_template')
+        .eq('org_id', orgAId)
+        .eq('slug', 'followup_proposta')
+
+      expect(error).toBeNull()
+      expect(prompts).toHaveLength(1)
+
+      const prompt = prompts![0]!
+      expect(prompt.version).toBe(1)
+      expect(prompt.is_active).toBe(true)
+      expect(prompt.model).toBe('anthropic/claude-sonnet-5')
+      expect(Number(prompt.temperature)).toBe(0.7)
+      // O template de usuário carrega as variáveis (renderTemplate só interpola
+      // user_prompt_template); o system_prompt não tem placeholder pendente.
+      expect(prompt.user_prompt_template).toContain('{{empresa}}')
+      expect(prompt.user_prompt_template).toContain('{{passo_followup}}')
+      expect(prompt.system_prompt).not.toContain('{{')
+
+      // Coerência do seed: a regra de follow-up aponta para um prompt que existe.
+      const { data: rules } = await clientA
+        .from('followup_rules')
+        .select('prompt_slug')
+        .eq('org_id', orgAId)
+        .not('prompt_slug', 'is', null)
+      expect(rules!.every((r) => r.prompt_slug === prompt.slug)).toBe(true)
+    })
   })
 
   describe('isolamento entre organizações — activities', () => {

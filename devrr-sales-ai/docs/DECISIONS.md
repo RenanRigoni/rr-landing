@@ -1004,6 +1004,48 @@ nasce na tarefa 5.2, que é quem de fato precisa dele.
 
 ---
 
+## D-029 — Seed do prompt `followup_proposta` (5.2): migration própria `0010`; `{{empresa}}` no template de usuário, `gateway.ts` intocado
+
+**Data:** 2026-08-26 · **Status:** decidido, tarefa 5.2 · **Aplica a:** `sales.seed_org_defaults`, `lib/ai/gateway.ts`, numeração de migrations
+
+Dois pontos da 5.2 que não estavam fechados nos docs.
+
+**1. Migration própria, não edição da 0009.** A 0009 (5.1) criou `ai_prompts`
+vazia e já está aplicada no remoto. A regra dura do `CLAUDE.md` ("toda migration
+é um arquivo versionado, commitado antes de aplicar" + "nunca aplique SQL direto
+sem o arquivo") combinada com "não altere migrations anteriores" força o seed do
+prompt para um arquivo novo: `0010_seed_followup_proposta_prompt.sql`, que faz
+`create or replace function sales.seed_org_defaults` reproduzindo o corpo de
+0004+0007 e só acrescentando o `insert into sales.ai_prompts`. Consequência: o
+`0010_audit.sql` que o `IMPLEMENTATION_PLAN.md` reservava para a 5.4 vira
+`0011_audit.sql` — ajustado na tabela de ordem do `DATABASE.md` e na linha da 5.4
+do plano. A numeração segue ordem de aplicação (já era assim desde a 4.3), então
+renumerar a reserva não quebra nada.
+
+**2. `{{empresa}}` fica no `user_prompt_template`; `gateway.ts` não muda.** O
+contrato da 5.2 escreve "em nome de {{empresa}}" no bloco **System**. Mas
+`runAiPrompt` (5.1, D-028) só passa `system_prompt` cru para `generateText` —
+`renderTemplate` roda apenas no `user_prompt_template`. Honrar o placeholder no
+system exigiria `renderTemplate(promptRow.system_prompt, vars)` também, mudança de
+comportamento na função portada do CRM-RR, contra "preserve wrapper/core".
+
+**Decisão:** as 9 variáveis do contrato (`{{empresa}}` inclusive) vivem no
+`user_prompt_template`; o `system_prompt` descreve a empresa como "a empresa
+identificada na mensagem abaixo". Nenhum placeholder pendente no `system_prompt`
+(teste cobre isso). É a leitura que entrega o contrato sem tocar a 5.1.
+
+**Aberto para o Opus:** se o comportamento desejado for `gateway.ts` renderizar os
+dois templates com o mesmo `vars`, é 1 linha, retrocompatível com todos os testes
+da 5.1 (nenhum `system_prompt` de teste tem placeholder), e o `system_prompt` do
+seed poderia então usar `{{empresa}}` direto. Fica para um checkpoint — não foi
+feito na 5.2 para não ampliar escopo.
+
+**Custo aceito:** o `system_prompt` fala da empresa de forma indireta em vez de
+nomeá-la no cabeçalho. Irrelevante para a qualidade da geração (o nome aparece na
+primeira linha do user prompt), reversível a qualquer momento.
+
+---
+
 ## Questões abertas
 
 Sonnet: adicione aqui o que travar. Opus resolve no próximo checkpoint.

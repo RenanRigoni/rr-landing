@@ -2688,7 +2688,7 @@ cross-tenant de `leadId`/`contactId` passados a `runAiPrompt` é
 responsabilidade do chamador (D-028), a ser exercida quando a action da 5.4
 existir.
 
-### [ ] 5.2 Prompt de follow-up
+### [x] 5.2 Prompt de follow-up
 
 Seed do prompt `followup_proposta` v1 em `seed_org_defaults`. Contrato:
 
@@ -2704,6 +2704,41 @@ Seed do prompt `followup_proposta` v1 em `seed_org_defaults`. Contrato:
   `reasoning` é para o usuário entender a escolha, não é enviado ao cliente.
 - Passo 1 = lembrete leve. Passo 2 = oferecer ajuda/ajuste. Passo 3 = pergunta de
   encerramento respeitosa ("faz sentido seguir ou prefere retomar mais pra frente?").
+
+**Feito:** migration `0010_seed_followup_proposta_prompt.sql` — `create or replace
+function sales.seed_org_defaults` reproduzindo o corpo de 0004+0007 na íntegra e
+acrescentando só o `insert into sales.ai_prompts` do `followup_proposta` v1
+(`model` default `anthropic/claude-sonnet-5`, `temperature` 0.7, `is_active`).
+Migration nova, não edição da 0009 (já aplicada — "nova mudança de banco = nova
+migration"); o `0010_audit.sql` reservado para a 5.4 passa a `0011_audit.sql` na
+tabela de ordem do `DATABASE.md`. Commitada antes de aplicar; aplicada no projeto
+real; `get_advisors(security)` sem alerta novo atribuível a `sales` (a lista de
+WARNs é a herança conhecida de `public` + `create_organization`/`current_org_ids`
+já aceitos nas Fases 2/3).
+
+`renderTemplate` (`lib/ai/gateway.ts`, 5.1) só interpola `user_prompt_template` —
+**o wrapper/core da 5.1 não foi tocado.** Por isso `{{empresa}}` e as demais 9
+variáveis do contrato vivem no template de usuário; o `system_prompt` as referencia
+como "a empresa identificada na mensagem". O texto do contrato acima diz "em nome de
+{{empresa}}" no bloco **System**, mas colocar placeholder ali seria interpolação de
+`system_prompt`, mudança na função portada — registrado em `DECISIONS.md` **D-029**
+para o Opus decidir se quer o comportamento (`gateway.ts` renderizar os dois
+templates) num checkpoint futuro.
+
+Schema Zod de saída em `lib/ai/schemas.ts` (`followupPropostaOutputSchema` =
+`{ message: string, tone: 'direto'|'consultivo'|'leve', reasoning: string }` +
+`FollowupPropostaOutput`) — arquivo novo, não portado (D-028: "cada schema nasce na
+tarefa que precisa dele"). Ainda sem call site: a action da 5.4 é quem vai passar
+`schema` para `runAiPrompt`.
+
+Testes: `tests/ai/followup-proposta-schema.test.ts` (4, puro — enum, campo
+faltando, tipo errado) e um `it` novo no bloco `seed_org_defaults` de
+`tests/rls.test.ts` (org nova recebe 1 `followup_proposta` ativo v1, modelo/temp
+corretos, variáveis no template de usuário, `system_prompt` sem `{{` pendente, e
+coerência: as `followup_rules` semeadas apontam para o slug que existe).
+`typecheck`/`lint`/`test` (77/77 — +4 do schema; o "77" citado na 5.1 era
+contagem furada, o real pós-5.1 era 73)/`test:rls` (139/139 — +1 do `it` do
+seed)/`build` verdes.
 
 ### [ ] 5.3 Contexto real do lead
 
@@ -2723,7 +2758,7 @@ escrever bobagem sobre preço. Regra da `PRODUCT_SPEC.md` #1 aplicada na prátic
   como `reviewed`. `Descartar` marca `discarded`.
 - `Copiar` copia para a área de transferência com feedback visual. **Nada é enviado
   automaticamente no MVP.**
-- `0010_audit.sql` + `lib/actions/audit.ts` portado do CRM-RR: registrar
+- `0011_audit.sql` + `lib/actions/audit.ts` portado do CRM-RR: registrar
   `create`/`update`/`stage_change`/`cancel_followups`/`ai_used`.
 
 **Pronto quando:** dá pra gerar mensagem para um lead real, editar, copiar, colar no

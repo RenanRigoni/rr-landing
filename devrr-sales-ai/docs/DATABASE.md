@@ -314,10 +314,13 @@ lê `label`.
 
 ### `sales.seed_org_defaults(p_org_id uuid)`
 
-Semeia as 6 fontes e os 7 estágios padrão de uma organização nova. `security definer`
-porque roda dentro de `create_organization`, antes de a membership existir (a policy
-`tenant_isolation` de `lead_sources`/`pipeline_stages` bloquearia o próprio insert de
-seed sem isso).
+Semeia os defaults de uma organização nova: 6 fontes e 7 estágios (0004), a sequência
+de 3 passos de follow-up em `proposta_enviada` (0007) e o prompt de IA
+`followup_proposta` v1 (0010 — tarefa 5.2). `security definer` porque roda dentro de
+`create_organization`, antes de a membership existir (a policy `tenant_isolation` de
+`lead_sources`/`pipeline_stages`/`followup_rules`/`ai_prompts` bloquearia o próprio
+insert de seed sem isso). Cada migration que estende a função faz `create or replace`
+reproduzindo o corpo anterior na íntegra e só acrescentando o novo bloco.
 
 **Não é chamável direto pelo cliente** — `revoke all ... from public` e
 `revoke execute ... from authenticated` logo após a definição, único caminho é via
@@ -672,17 +675,21 @@ alter view sales.v_leads_without_action set (security_invoker = true);
 | `0006_activities.sql` | `activities`, índices, RLS | 4.1 |
 | `0007_followup_rules.sql` | `followup_rules` + seed | 4.1 |
 | `0008_views.sql` | `v_today_actions`, `v_leads_without_action` + `security_invoker` | 4.3 |
-| `0009_ai.sql` | `ai_prompts`, `ai_runs` + seed de prompts | 5.1 |
-| `0010_audit.sql` | `audit_logs` | 5.4 |
+| `0009_ai.sql` | `ai_prompts`, `ai_runs` (tabelas vazias) + FK de `activities.ai_run_id` | 5.1 |
+| `0010_seed_followup_proposta_prompt.sql` | estende `seed_org_defaults` com o prompt `followup_proposta` v1 | 5.2 |
+| `0011_audit.sql` | `audit_logs` | 5.4 |
 
 A numeração segue a **ordem de aplicação**, não a ordem das fases. Esta tabela foi
 corrigida na tarefa 4.3: o texto desta seção já dizia "as views entram antes da
 auditoria, então são `0008`, não `0009`" desde o checkpoint da Fase 1, mas a própria
 tabela ainda numerava a IA (5.1) como `0008` e as views (4.3) como `0009` — resquício
 de antes de `activities`/`followup_rules` (4.1) ocuparem `0006`/`0007`, o que empurrou
-tudo depois em duas posições sem a tabela ser reajustada. `0009_ai.sql`/`0010_audit.sql`
-são reserva de numeração para quando as tarefas 5.1/5.4 forem executadas, não arquivos
-que já existem. Replay do zero precisa funcionar lendo os arquivos em ordem alfabética.
+tudo depois em duas posições sem a tabela ser reajustada. O `0010` reservado para a
+auditoria virou `0011` na tarefa 5.2: a 5.1 deixou `ai_prompts` vazia e a 5.2 semeia
+o prompt padrão numa migration própria (`0009` já aplicada, "nova mudança de banco =
+nova migration"), consumindo o slot `0010`. `0011_audit.sql` é reserva de numeração
+para a tarefa 5.4, não um arquivo que já existe. Replay do zero precisa funcionar
+lendo os arquivos em ordem alfabética.
 
 Cada migration: arquivo commitado → aplicado → `get_advisors(type:'security')` sem
 alerta novo → esta doc atualizada → `npm run typecheck` com types regerados.
