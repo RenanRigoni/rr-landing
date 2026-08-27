@@ -54,7 +54,8 @@ UI (Server/Client Components)
 
 - `lib/domain/` não importa `@/lib/supabase`, não importa `next`, não importa `ai`.
 - Componente de UI não importa `@/lib/supabase`. Fala com `actions`/`queries`.
-- `lib/supabase/admin.ts` só é importado de arquivo com `import 'server-only'`.
+- `lib/supabase/admin.ts` só é importado de arquivo com `import 'server-only'` **e**
+  só dentro da lista fechada de usos de `service_role` (ver Segurança, D-034).
 
 Por que domain isolado: a regra de "quando cancelar follow-up", "qual a próxima data",
 "esse lead está esquecido?" é o coração do produto. Ela precisa de teste unitário
@@ -224,6 +225,27 @@ decorativa. Copie o padrão, não necessariamente o arquivo.
 - Service role key só em `server-only`. Browser recebe apenas a publishable key.
 - Toda entrada por Zod antes do banco.
 - Rota de cron protegida por `CRON_SECRET` comparado em tempo constante.
+
+### `service_role` — lista fechada de usos (D-034)
+
+`server-only` é condição necessária, não suficiente: um route handler também é
+server-only, e nem por isso pode bypassar RLS. O critério real é **"a identidade do
+chamador decide o que a query alcança?"**. Se decide, `service_role` destrói a RLS
+e está proibido. Usos permitidos, e só estes:
+
+| Uso | Onde | Por que não há sessão |
+|---|---|---|
+| Seed/purge de dados demo | `supabase/seed/*` | script de CLI, roda fora de request |
+| Fixtures de teste de RLS | `tests/helpers/rls-fixtures.ts` | provisiona os usuários que o teste depois usa |
+| Job administrativo interno cross-tenant | `app/api/cron/*` | Vercel Cron autentica por header, não por cookie — não existe `auth.uid()` |
+
+Proibido em qualquer outro lugar — em especial em Server Action acionada por request
+de usuário e em rota cujo escopo dependa de entrada do cliente.
+
+Toda rota de `app/api/cron/*` herda o contrato inteiro de D-034: segredo comparado
+em tempo constante **antes** de construir o client privilegiado; só `GET`; zero
+entrada do cliente influenciando escopo; write set declarado e mínimo; resposta sem
+identificador de tenant; e exclusão explícita do matcher do `proxy.ts` (D-012).
 - Sem segredo hardcoded. Tudo por env var, validada no boot.
 - Auditoria: toda escrita relevante grava em `sales.audit_logs` com `org_id`,
   `user_id`, entidade, ação e diff.

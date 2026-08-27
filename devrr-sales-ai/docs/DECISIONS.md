@@ -1267,6 +1267,98 @@ novos em `tests/domain/` (99 → 117).
 
 ---
 
+## D-034 — Job administrativo interno cross-tenant roda com `service_role` na própria rota, atrás de `CRON_SECRET`; sem `security definer` nova e sem `pg_cron`
+
+**Data:** 2026-08-27 · **Status:** decidido no checkpoint da Fase 6, resolve **Q-007**,
+libera a tarefa 6.3 · **Aplica a:** `app/api/cron/*`, `lib/supabase/admin.ts`,
+`proxy.ts`, `CLAUDE.md` → Regras duras, `ARCHITECTURE.md` → Segurança
+
+O conflito de Q-007 é real e não tem saída sem elevação de privilégio: a
+reconciliação recalcula cache de leads de **todas** as organizações, disparada por
+um Cron da Vercel — request sem cookie, sem `auth.uid()`, logo
+`org_id in (select sales.current_org_ids())` devolve conjunto vazio e o client
+normal enxerga zero linha. A pergunta não é "dá pra evitar privilégio?", é "onde o
+privilégio fica menos perigoso e mais testável?".
+
+**Decidido: `createAdminClient()` (service_role) dentro do route handler, criado
+somente depois de o `CRON_SECRET` bater.** A rota continua sendo Vercel Cron, como o
+plano especifica.
+
+**A regra de `service_role` deixa de ser "só seed/test" e passa a ser uma lista
+fechada** (`CLAUDE.md` / `ARCHITECTURE.md` atualizados junto desta decisão):
+
+1. scripts de seed/purge (`supabase/seed/*`);
+2. fixtures de teste (`tests/helpers/rls-fixtures.ts`);
+3. **jobs administrativos internos cross-tenant** em `app/api/cron/*`, que não têm
+   sessão por natureza.
+
+Fora dessa lista continua proibido — em especial: **nenhuma Server Action acionada
+por request de usuário** e **nenhuma rota que receba parâmetro do cliente
+influenciando escopo** pode tocar `admin.ts`. A distinção que importa não é
+"server-only ou não" (route handler sempre é server-only, e por isso
+`ARCHITECTURE.md` linha 57 nunca proibiu isto de fato); é **"a identidade do
+chamador decide o que a query alcança?"**. Em Server Action decide — e usar
+`service_role` ali destrói a RLS. Num cron não existe chamador com identidade, e o
+escopo é constante, escrito no código, não derivado de entrada.
+
+**Descartado (b) — `sales.reconcile_lead_caches()` `security definer` nova.**
+Perde nos dois eixos ao mesmo tempo:
+- **não elimina o `service_role`**: invocar a RPC via PostgREST ainda exige uma
+  identidade. `anon` está fora (`DATABASE.md`: "não conceder nada a `anon`", e uma
+  função que reescreve tabela alcançável por `anon` é vetor de abuso mesmo com
+  `CRON_SECRET` na rota, porque a RPC continua chamável direto, sem passar pela
+  rota); `authenticated` não existe sem sessão. Sobra `service_role` de novo — só
+  que agora **mais** uma superfície privilegiada permanente no banco;
+- **duplica a regra de negócio em SQL.** `resolveNextAction()` (`lib/domain/followup.ts`)
+  é a definição única de "qual é a próxima ação" — a mesma que a tela "Ações de hoje"
+  usa. Reescrevê-la em PL/pgSQL cria uma segunda implementação, sem teste vitest,
+  que corrigiria o cache para um valor possivelmente diferente do que a aplicação
+  grava. O job existe justamente para detectar divergência; implementá-lo com uma
+  segunda definição da regra transforma o detector em fonte de divergência. É
+  exatamente o motivo pelo qual **D-006** recusou trigger.
+
+**Descartado (c) — `pg_cron` dentro do Postgres.** Herda o defeito fatal de (b)
+(lógica em SQL, fora do vitest, segunda definição da regra) e ainda: some do log da
+Vercel, não é disparável à mão para investigar, e contraria a especificação da 6.3
+(`app/api/cron/reconcile/route.ts` + Vercel Cron). Sem ganho que pague nada disso.
+
+**Guardas obrigatórias da rota** (sem elas a decisão não vale — a rota fica fora do
+`proxy.ts`, então o segredo é a **única** autenticação):
+
+- comparação de `CRON_SECRET` em **tempo constante** (`timingSafeEqual` sobre
+  `sha256` dos dois lados, nunca sobre os bytes crus: `timingSafeEqual` lança quando
+  os buffers têm tamanhos diferentes, e o próprio lançar já é canal lateral de
+  comprimento);
+- `createAdminClient()` só é chamado **depois** do 401 — request não autenticada
+  nunca chega a construir client privilegiado;
+- só `GET` (é o que o Vercel Cron emite); qualquer outro método é 405;
+- **zero entrada do cliente**: nenhum query param, header ou body influencia escopo,
+  filtro ou limite. O escopo é constante no código;
+- **write set provado e mínimo**: a rota só escreve `leads.next_action_at` e
+  `leads.last_contact_at`, com valores derivados exclusivamente das `activities`
+  **daquele mesmo lead**. Nunca `delete`, nunca outra tabela (exceto `insert` em
+  `audit_logs`). Consequência: mesmo no pior caso — segredo vazado — o atacante
+  consegue *disparar um recálculo idempotente que converge para o valor correto*,
+  não exfiltrar nem destruir dado;
+- **a resposta não carrega dado de tenant**: só contadores agregados. Nada de
+  `org_id`, nome de organização, id ou título de lead no corpo nem em mensagem de
+  erro.
+
+**Custo aceito:** existe um endpoint público (não coberto pelo `proxy.ts`) cuja única
+autenticação é um segredo compartilhado, e que roda com privilégio de bypass de RLS.
+Mitigado pelas guardas acima e pelo write set fechado. `CRON_SECRET` passa a ser
+segredo de rotação obrigatória se vazar — sobe de `min(1)` para `min(32)` em
+`lib/env.server.ts` na 6.3, já que deixou de ser "um header a mais" e virou a
+fronteira de autenticação inteira daquela rota.
+
+**Consequência de longo prazo:** toda rota nova em `app/api/cron/*` herda este
+contrato inteiro (segredo em tempo constante antes do privilégio, sem entrada do
+cliente, write set declarado, resposta sem dado de tenant) **e** a exclusão do
+matcher do `proxy.ts` (D-012). Rota de cron que não cumpra os seis itens não é
+exceção legítima da regra de `service_role`.
+
+---
+
 ## Questões abertas
 
 Sonnet: adicione aqui o que travar. Opus resolve no próximo checkpoint.
@@ -1284,28 +1376,17 @@ Sonnet: adicione aqui o que travar. Opus resolve no próximo checkpoint.
   de fases anteriores — vale a pena fazer antes da Fase 6.4 (que revalida RLS de
   `audit_logs`) ou junto dela? Também aberto: endurecer a RLS de `audit_logs` para
   append-only (sem `update`/`delete`).
-- **Q-007** — **A 6.3 (`app/api/cron/reconcile`) precisa de acesso privilegiado ao
-  banco e a regra da tarefa proíbe `service_role` fora de seed/test.** A rota
-  recalcula `next_action_at`/`last_contact_at` de **todos** os leads abertos, de
-  **todos** os tenants, a partir de um Cron da Vercel — request sem cookie, sem
-  `auth.uid()`, então a RLS (`org_id in current_org_ids()`) devolve vazio. Não há
-  como reconciliar cross-tenant sem elevação. Opções, todas decisão de arquitetura:
-  **(a)** `service_role` na rota (contradiz a regra "`service_role` apenas em
-  seed/test fixture"; `ARCHITECTURE.md` linha 57 permite `admin.ts` em código
-  `server-only`, e route handler é server-only — mas os checkpoints das Fases 1–2
-  registraram `createAdminClient()` como "só para os seeds da 6.x");
-  **(b)** migration nova com `sales.reconcile_lead_caches()` `security definer`
-  (bypassa RLS por dentro), invocada pela rota — mas invocar via PostgREST ainda
-  exige uma identidade: `anon` está fora (`DATABASE.md` linha 115: "não conceder
-  nada a `anon`"; e função que reescreve tabela exposta a `anon` é vetor de abuso
-  mesmo com guarda de `CRON_SECRET` na rota, porque a RPC continua alcançável
-  direto), `authenticated` não existe sem sessão → sobra `service_role` de novo;
-  **(c)** `pg_cron` dentro do Postgres, sem rota HTTP — mas o plano especifica
-  `app/api/cron/reconcile/route.ts` + "Roda diário" (Vercel Cron).
-  Precisa também de: `vercel.json`/`vercel.ts` com o `crons` (não existe hoje),
-  e decidir se a reconciliação **só loga** divergência ou **corrige** o cache.
-  Nada foi implementado; `proxy.ts` não foi tocado (o fix do matcher — D-012 —
-  entra junto da rota). **Devolvido pro Opus.**
+- ~~**Q-007**~~ — **resolvida no checkpoint da Fase 6, ver D-034.** Decidido:
+  `createAdminClient()` (`service_role`) dentro do próprio route handler de
+  `app/api/cron/reconcile`, construído só depois de `CRON_SECRET` bater em
+  comparação de tempo constante. Descartadas a função `security definer` nova
+  (não elimina o `service_role` e duplica `resolveNextAction` em SQL, sem
+  vitest — o oposto do que D-006 decidiu) e o `pg_cron` (mesmo defeito, mais
+  perda de log e de disparo manual). A regra de `service_role` virou lista
+  fechada — seed/purge, fixtures de teste e jobs administrativos internos
+  cross-tenant em `app/api/cron/*` — com as seis guardas obrigatórias de D-034.
+  A 6.3 está **liberada** e especificada por inteiro no plano (rota, segredo,
+  matcher do `proxy.ts`, `vercel.json`, correção + log, testes).
 - ~~**Q-005**~~ — **implementada na tarefa 4.6.** `belongsToOrg`
   (`lib/actions/leads-core.ts`) passou a devolver `{ exists: boolean; error:
   string | null }` em vez de `boolean`; novo helper `checkBelongsToOrg` (mesmo

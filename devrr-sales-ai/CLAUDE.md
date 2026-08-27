@@ -62,7 +62,15 @@ fim da Fase 2 (multiempresa + RLS), fim da Fase 4 (follow-up completo), fim da F
 - Componente de UI nunca fala direto com Supabase. Sempre via `lib/actions/` (escrita)
   ou `lib/queries/` (leitura).
 - Toda entrada de usuário passa por Zod (`lib/validation/`) antes de tocar o banco.
-- Service role key (`lib/supabase/admin.ts`) só em código `server-only`. Nunca no browser.
+- Service role key (`lib/supabase/admin.ts`) só em código `server-only`, e mesmo lá
+  só numa **lista fechada** de usos (D-034): (1) scripts de seed/purge em
+  `supabase/seed/`; (2) fixtures de teste (`tests/helpers/rls-fixtures.ts`);
+  (3) jobs administrativos internos cross-tenant em `app/api/cron/*`, que não têm
+  sessão por natureza e são protegidos por `CRON_SECRET` comparado em tempo
+  constante. **Nunca** em Server Action acionada por request de usuário, nunca em
+  rota cujo escopo dependa de entrada do cliente, nunca no browser. O critério é
+  "a identidade do chamador decide o que a query alcança?" — se decide,
+  `service_role` destrói a RLS.
 - Arquivos: 200-400 linhas típico, 800 máximo. Muitos arquivos pequenos > poucos grandes.
 
 ### IA

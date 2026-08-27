@@ -415,7 +415,19 @@ mantidos pela camada de `lib/actions/`, não por trigger. Motivo: a regra de qua
 atividade conta como "próxima ação" é lógica de produto que precisa de teste unitário
 (`lib/domain/next-action.ts`), e trigger em SQL não é testável com vitest. Custo:
 disciplina — toda escrita em `activities` recalcula os caches do lead. Um job de
-reconciliação valida a consistência (tarefa 6.4).
+reconciliação valida a consistência (**tarefa 6.3**, `app/api/cron/reconcile`).
+
+O job é a rede de segurança dessa disciplina: roda diário, recalcula os dois campos
+de todo lead `open` de **todas** as organizações a partir das `activities` do próprio
+lead, e **corrige** o que estiver divergente (não só loga). Corrige porque o cache
+não é só otimização: `sales.v_leads_without_action` filtra por
+`l.next_action_at is null`, então um `next_action_at` obsoleto e não-nulo **esconde
+da tela um lead esquecido** — falha silenciosa, exatamente o que o produto existe
+para evitar. Usa `resolveNextAction()`/`resolveLastContact()` de
+`lib/domain/followup.ts`, as mesmas funções de `lib/actions/`: uma definição só de
+"qual é a próxima ação", nunca uma segunda em SQL (é o mesmo motivo de não ser
+trigger). Precisa de acesso cross-tenant sem sessão — ver **D-034** para a decisão
+de privilégio e as guardas da rota.
 
 **`contact_id`/`source_id`/`stage_id` não garantem organização por FK.** A FK só
 prova que a linha referenciada existe em algum lugar, não que existe na mesma

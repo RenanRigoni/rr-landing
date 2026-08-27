@@ -2952,26 +2952,214 @@ WhatsApp e marcar como enviada — e o `ai_run` fica registrado com tokens e lat
 
 ### [ ] 6.3 Reconciliação de caches
 
-**Antes de escrever a rota (achado B do checkpoint da Fase 1):** excluir `api/cron` do
-matcher do `proxy.ts`. Como está, `updateSession` redireciona qualquer request sem
-cookie de sessão para `/login` — e a request do Cron da Vercel se autentica por header,
-não por cookie. O resultado seria `307` e nenhuma execução, sem erro nenhum no log. O
-CRM-RR tem esse defeito hoje. Ver `DECISIONS.md` D-012.
+> ✅ **DESBLOQUEADA** no checkpoint da Fase 6. **Q-007 resolvida por D-034**:
+> `createAdminClient()` (`service_role`) dentro do próprio route handler, construído
+> **somente depois** de `CRON_SECRET` bater em comparação de tempo constante.
+> Descartadas a função `security definer` nova e o `pg_cron` — leia D-034 antes de
+> começar; a justificativa e as guardas obrigatórias estão lá e **não** são
+> renegociáveis nesta tarefa.
 
-`app/api/cron/reconcile/route.ts`, protegido por `CRON_SECRET` comparado em tempo
-constante. Recalcula `next_action_at` e `last_contact_at` de todos os leads abertos e
-loga divergências. Roda diário. É a rede de segurança do cache denormalizado
-(`DATABASE.md` → nota sobre caches).
+Rede de segurança do cache denormalizado `leads.next_action_at` / `leads.last_contact_at`
+(`DATABASE.md` → "Sobre os caches denormalizados", D-006). Roda diário, cross-tenant,
+**corrige** o que estiver divergente e registra o que corrigiu.
 
-> ⛔ **BLOQUEADO — aguardando Opus. Ver `DECISIONS.md` → Q-007.** A rota
-> reconcilia "todos os leads abertos" **cross-tenant**, sem sessão. O único
-> caminho que faz isso é acesso privilegiado ao banco (`service_role` na rota,
-> ou uma função `security definer` nova + `service_role` para invocá-la, ou
-> `pg_cron` sem rota HTTP). As três são decisão de arquitetura, e a regra desta
-> tarefa é "`service_role` apenas em seed/test fixture". `proxy.ts` **não** foi
-> tocado (o fix do matcher só faz sentido junto da rota — D-012).
-> Inconsistência à parte: `DATABASE.md` (linha ~418) ainda diz que o job de
-> reconciliação é "tarefa 6.4"; o plano diz 6.3.
+**Por que corrigir e não só logar:** `sales.v_leads_without_action` filtra
+`l.next_action_at is null`. Um `next_action_at` obsoleto e não-nulo **esconde da tela
+um lead esquecido** — a falha silenciosa que o produto existe para evitar
+(`PRODUCT_SPEC.md`). Um cache sabidamente errado e deixado errado é pior que não ter
+cache. A correção é idempotente e converge: recalcula do zero a partir das
+`activities` do próprio lead.
+
+Sem migration, sem DDL — `advisors`/`replay` não se aplicam.
+
+---
+
+#### 6.3.1 `proxy.ts` — excluir `/api/cron` do matcher (achado B do checkpoint da Fase 1, D-012)
+
+**Fazer isto primeiro.** Como está, `updateSession` redireciona toda request sem
+cookie de sessão para `/login`; a request do Vercel Cron se autentica por header.
+Resultado seria `307` e nenhuma execução, **sem um único erro no log**. O CRM-RR tem
+esse defeito hoje.
+
+```
+'/((?!api/cron|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'
+```
+
+Excluir **`api/cron`**, não `api` inteiro: rota de API nova continua nascendo
+protegida por default (é a regra de D-012 — o default seguro vale mais que a
+granularidade).
+
+#### 6.3.2 `lib/env.server.ts` — endurecer `CRON_SECRET`
+
+`CRON_SECRET` deixou de ser "um header a mais" e virou a **única** autenticação de uma
+rota privilegiada fora do `proxy.ts`. Subir de `.min(1)` para `.min(32)` com mensagem
+própria. Atualizar o comentário de `.env.example` dizendo que o valor precisa ser
+aleatório de ≥32 caracteres e que **a Vercel injeta `Authorization: Bearer $CRON_SECRET`
+automaticamente** nas requests de Cron quando a env var existe no projeto.
+
+#### 6.3.3 `lib/domain/` — uma definição só da regra, testável
+
+Entra no gate de cobertura de 100% (`vitest.config.ts` → `coverage.include`, D-033).
+
+1. **`lib/domain/followup.ts`** — extrair `resolveLastContact(activities): Date | null`
+   (= maior `done_at`, `null` sem nenhum). Hoje essa regra está **inline** dentro de
+   `recalculateLeadCache` (`lib/actions/leads-core.ts`, o `doneAts.reduce`). Extrair é
+   obrigatório, não cosmético: se o reconciliador reimplementar a regra, ele passa a
+   "corrigir" o cache para um valor que a aplicação não escreveria — o detector vira
+   fonte de divergência. Estender `ActivityLike` com `done_at: string | Date | null`.
+2. **`lib/actions/leads-core.ts`** — `recalculateLeadCache` passa a chamar
+   `resolveLastContact`. Refactor de comportamento idêntico; os testes existentes de
+   `tests/actions/` são a regressão.
+3. **`lib/domain/reconcile.ts`** (novo, puro) —
+   `computeLeadCacheFixes(leads, activitiesByLead)` devolve **só os leads divergentes**,
+   com valor esperado e valor atual (`before`/`after`, para o `diff` da auditoria).
+
+**Comparação por epoch, nunca por string.** A aplicação grava `toISOString()`
+(`...Z`); o PostgREST devolve timestamptz como `...+00:00`. Comparar as strings cruas
+marcaria **todo lead como divergente em toda execução** e reescreveria a tabela
+inteira todo dia. Comparar `getTime()`; `null` × `null` é igual; `null` × valor é
+divergência.
+
+#### 6.3.4 `lib/actions/reconcile-core.ts` (novo) — o lote
+
+Padrão `*-core` de D-020: **recebe o client como parâmetro**, não constrói nenhum.
+Não importa `lib/supabase/admin.ts` (tem `import 'server-only'`, que lança sob
+vitest — mesma razão de `tests/helpers/rls-fixtures.ts` e de `audit.ts`).
+
+```ts
+export interface ReconcileRunResult {
+  orgs: number
+  leadsChecked: number
+  leadsFixed: number
+  errors: string[]   // mensagens genéricas, sem identificador de tenant
+}
+export async function reconcileAllOrgs(supabase: SalesClient): Promise<ReconcileRunResult>
+export async function reconcileOrg(supabase: SalesClient, orgId: string): Promise<ReconcileOrgResult>
+```
+
+- **Escopo:** todo lead com `status = 'open'`, de toda organização. Leads `won`/`lost`
+  ficam de fora — as duas views (`v_today_actions`, `v_leads_without_action`) filtram
+  `l.status = 'open'`, então cache obsoleto em lead fechado é inerte. Se alguma view
+  futura deixar de filtrar por status, esta decisão volta à mesa. Leads `is_demo`
+  **não** são excluídos (dado demo inconsistente também engana).
+- **Paginação obrigatória.** O PostgREST corta em 1000 linhas por default, em
+  silêncio: sem `.range()` o job reconciliaria só a primeira página e reportaria
+  sucesso. Páginas de 500, laço enquanto a página vier cheia — tanto para `leads`
+  quanto para `activities`.
+- **Uma organização que falha não derruba o lote.** Erro por org é capturado,
+  acumulado em `errors` e o laço segue para a próxima.
+- **Só grava lead divergente.** `leads` tem trigger `leads_set_updated_at` (0005):
+  um `update` incondicional carimbaria `updated_at` de toda a base todo dia e
+  destruiria o sinal de "mexido recentemente". Um `update` por lead divergente,
+  filtrando `.eq('id', leadId).eq('org_id', orgId)` — o `org_id` fica no filtro mesmo
+  sob `service_role`, como declaração do write set.
+- **Write set fechado (D-034):** `leads.next_action_at`, `leads.last_contact_at` e
+  `insert` em `audit_logs`. Nada mais. Nunca `delete`.
+
+**Auditoria.** Por lead corrigido: `entity: 'lead'`, `entity_id: leadId`,
+`action: 'cache_reconciled'`, `user_id: null` (sistema), `diff: { before, after }`.
+Por organização **que teve pelo menos uma correção**: `entity: 'organization'`,
+`entity_id: orgId`, `action: 'cache_reconcile_run'`, `diff: { leads_checked, leads_fixed }`
+— org sem divergência não gera linha nenhuma (senão a tabela cresce todo dia sem
+informação). Inserir as linhas da org **em um único `insert` de array**, não uma
+chamada de `logAudit` por lead: `logAudit` é uma linha por round-trip, o que num job
+de lote é N+1. Mantém a semântica best-effort de `lib/actions/audit.ts` — falha ao
+gravar auditoria **não** derruba a reconciliação nem invalida a correção já feita.
+
+#### 6.3.5 `lib/api/cron-auth.ts` (novo) — o segredo, em tempo constante
+
+```ts
+export function isAuthorizedCronRequest(authorizationHeader: string | null, secret: string): boolean
+```
+
+Aceita **só** `Authorization: Bearer <secret>` (é o que o Vercel Cron emite).
+Comparação: `timingSafeEqual` sobre o **`sha256` dos dois lados**, nunca sobre os
+bytes crus — `timingSafeEqual` lança quando os buffers têm tamanhos diferentes, e o
+próprio lançar já é canal lateral de comprimento. Header ausente ou malformado →
+`false`, sem lançar. Sem `import 'server-only'` (o segredo chega por parâmetro), para
+ser testável direto.
+
+#### 6.3.6 `app/api/cron/reconcile/route.ts` (novo) — fino
+
+```ts
+export const dynamic = 'force-dynamic'
+export const maxDuration = 60
+export async function GET(request: Request) { ... }
+```
+
+Ordem exata, e ela é a decisão de segurança (D-034):
+
+1. `isAuthorizedCronRequest(request.headers.get('authorization'), serverEnv.CRON_SECRET)`;
+2. falhou → `401` com corpo genérico (`{ error: 'unauthorized' }`), **sem** ter
+   chamado `createAdminClient()`. Request não autenticada nunca constrói client
+   privilegiado;
+3. passou → `createAdminClient()` → `reconcileAllOrgs(supabase)`.
+
+- Só `GET` é exportado; qualquer outro método vira `405` pelo próprio Next.
+- **Zero entrada do cliente:** nenhum query param, header ou body influencia escopo,
+  filtro ou limite.
+- **Resposta sem dado de tenant:** só contadores (`orgs`, `leadsChecked`,
+  `leadsFixed`, `durationMs`, `errors: number`). Nunca `org_id`, nome de organização,
+  id ou título de lead — nem no corpo de sucesso, nem em mensagem de erro.
+- `errors.length > 0` → responder **500** com os mesmos contadores, para o run
+  aparecer como falho no histórico de Cron da Vercel em vez de passar batido.
+- **Resumo da execução no log:** uma linha estruturada
+  (`console.log(JSON.stringify({ job: 'reconcile', ... }))`). O log da Vercel é do
+  operador, não é resposta HTTP — ali `org_id` pode aparecer no detalhe por org. O
+  segredo nunca é logado.
+
+#### 6.3.7 `vercel.json` (novo, em `devrr-sales-ai/`)
+
+```json
+{ "crons": [{ "path": "/api/cron/reconcile", "schedule": "0 9 * * *" }] }
+```
+
+`0 9 * * *` UTC = **06:00 BRT**, antes do início do expediente default (09:00 local),
+para a tela "Ações de hoje" já nascer correta no começo do dia. Schedules da Vercel
+são sempre UTC e Cron **só roda em deploy de Production**.
+
+`vercel.ts` seria a forma recomendada hoje, mas exige a dependência `@vercel/config`
+para uma entrada de cron — a stack é pinada de propósito (`CLAUDE.md` → Stack fixada)
+e o ganho não paga a devDep. `vercel.json` é estático, zero dep.
+
+Conferir no painel da Vercel (projeto `devrr-sales-ai`) que `CRON_SECRET` existe em
+**Production** — sem a env var a Vercel não injeta o `Authorization`, e a rota
+responde `401` a cada execução agendada.
+
+#### 6.3.8 Testes
+
+| Arquivo | Suíte | Prova |
+|---|---|---|
+| `tests/domain/reconcile.test.ts` | `test` | sem divergência → nada; `next_action_at` obsoleto não-nulo sem pendente → corrige para `null` (o caso que esconde lead da tela); cache `null` com pendente → menor `due_at`; `last_contact_at` = maior `done_at`, `null` sem `done_at`; lead sem activity → os dois `null`; **mesmo instante em `...Z` e `+00:00` não é divergência** |
+| `tests/domain/followup.test.ts` | `test` | `resolveLastContact` extraída (mantém 100% do gate de `lib/domain/`) |
+| `tests/api/cron-auth.test.ts` | `test` | segredo certo → `true`; segredo errado de mesmo tamanho → `false`; de tamanho diferente → `false` **sem lançar**; header ausente / sem `Bearer` / token vazio → `false` |
+| `tests/api/cron-reconcile.test.ts` | `test` | sem header → `401`; segredo errado → `401`; **e `createAdminClient` não foi chamado** em nenhum dos dois (é a asserção de segurança central); segredo certo → `200` e chamou `reconcileAllOrgs`; `errors` não vazio → `500`; nenhum corpo de resposta contém `org_id`/id de lead |
+| `tests/actions/reconcile.test.ts` | `test:rls` | Supabase real, duas orgs: planta divergência em cada uma (corrompe `leads.next_action_at` direto pelo client admin), roda `reconcileAllOrgs`, **as duas** são corrigidas (prova o cross-tenant); lead já correto **não** tem `updated_at` alterado; `audit_logs` ganha as linhas na org certa; **segunda execução corrige 0** (idempotência) |
+| `tests/proxy-matcher.test.ts` | `test` | regex de `config.matcher`: `/api/cron/reconcile` **não** casa; `/today`, `/login` e `/api/qualquer-outra` casam (regressão de 6.3.1) |
+
+`tests/api/**` cai na suíte default (`vitest.config.ts` inclui `tests/**/*.test.ts` e
+só exclui `rls.test.ts` + `tests/actions/**`). O teste da rota roda sem rede:
+`vi.mock('server-only', () => ({}))` + mocks de `@/lib/env.server`,
+`@/lib/supabase/admin` e `@/lib/actions/reconcile-core`, com `await import()` da rota
+depois dos mocks.
+
+`tests/helpers/rls-fixtures.ts` precisa **exportar** o `testAdminClient` que hoje é
+privado (o teste de `test:rls` precisa de um client de `service_role`).
+
+#### 6.3.9 Docs a atualizar junto
+
+- `lib/supabase/admin.ts` — o docstring ainda diz "Só para scripts server-only
+  (seed/purge de dados demo)". Trocar pela lista fechada de D-034.
+- `IMPLEMENTATION_PLAN.md` — marcar `[x]` e escrever o "o que mudou", como sempre.
+
+**Pronto quando:** `typecheck`/`lint`/`test`/`test:coverage` (`lib/domain/` segue em
+100%)/`test:rls`/`build` verdes; `vercel.json` commitado; `CRON_SECRET` (≥32) presente
+em Production; e uma chamada manual à rota em Production com o header correto devolve
+`200` com contadores, e sem o header devolve `401` (não `307` — é a prova de que
+6.3.1 funcionou).
+
+**Fora do escopo:** instrumentar `audit_logs` nas actions das Fases 3–4 (é Q-006);
+reconciliar leads fechados; qualquer segunda rota de cron.
 
 ### [ ] 6.4 Validar RLS de novo, com tudo pronto
 
