@@ -12,6 +12,8 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:rls": "vitest run --config vitest.rls.config.ts",
+    "gen:types": "node scripts/gen-types.mjs",
+    "types:check": "node scripts/check-types.mjs",
     "seed:demo": "tsx supabase/seed/run.ts",
     "seed:purge": "tsx supabase/seed/purge.ts"
   },

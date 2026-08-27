@@ -3368,7 +3368,47 @@ WhatsApp, atendimento comercial, Cliente Oculto. Não implementar nada disso aqu
 
 ---
 
-### [ ] 7.0 Gerador de types + guarda de drift — **antes da 7.1**
+### [x] 7.0 Gerador de types + guarda de drift — **antes da 7.1**
+
+> feito: `scripts/gen-types.mjs` (gerador) + `scripts/check-types.mjs` (guarda),
+> scripts `gen:types`/`types:check` no `package.json`. O gerador dá `fetch` no
+> endpoint da Management API
+> (`/v1/projects/{ref}/types/typescript?included_schemas=sales`), lê o campo
+> `types` do JSON e escreve `lib/types/database.types.ts` — carrega `.env.local`
+> sozinho via `loadEnv` do `vite` (mesmo padrão de `tests/setup/load-env.ts`),
+> ref do projeto extraído de `NEXT_PUBLIC_SUPABASE_URL` (ou `SUPABASE_PROJECT_REF`).
+> Falha explícita e nunca parcial: sem token → exit 1 com instrução; HTTP != 200
+> → imprime status + corpo e exit 1; arquivo só é escrito depois do conteúdo
+> inteiro em memória. `types:check` reusa `generateSalesTypes()`, compara com o
+> commitado, imprime a primeira divergência e sai != 0; sem `SUPABASE_ACCESS_TOKEN`
+> no ambiente, pula com aviso e sai 0 (opt-in, igual a `test:rls`).
+>
+> **Arquivo gerado adotado** (924 linhas: 8 de cabeçalho "não editar à mão" +
+> 916 do endpoint) — substitui o `database.types.ts` escrito à mão desde a 2.1.
+> Diferenças de forma absorvidas sem ação (enum por alias `Database["sales"]["Enums"][...]`,
+> `Database` como `type` + `__InternalSupabase`, helpers `Tables`/`TablesInsert`/`Constants`).
+>
+> **Drift real das views tratado explicitamente, sem `!`/`as`** (era o ponto da
+> tarefa): o Postgres tipa toda coluna de view como nullable. `lib/queries/today.ts`
+> ganhou tipos estreitados (`TodayActionRow`/`LeadWithoutActionRow`) e mappers
+> (`toTodayActionRow`/`toLeadWithoutActionRow`) que validam coluna a coluna as
+> garantidas não-nulas pelas junções internas + filtro `due_at is not null`
+> (`0008_views.sql`), com `requireColumn()` lançando erro claro se vier nulo —
+> nunca um `null` propagando três camadas acima. Colunas de fato opcionais
+> (`body`, `step_number`, `contact_phone`, `last_contact_at`) seguem nullable.
+> `components/today/ActionRow.tsx` e `TodayActionsList.tsx`: removidos os
+> `action.due_at!` agora redundantes (o tipo estreitado já é `string`). Nenhum
+> outro consumidor de view no código. Passada pequena, coube na camada de
+> `queries` — não precisou parar e reportar.
+>
+> `CLAUDE.md` (regra de banco), `README.md` (nova seção "Types do banco") e
+> `.env.example` (`SUPABASE_ACCESS_TOKEN` como ferramenta dev-only) atualizados.
+> `docs/DATABASE.md` → checklist e `DECISIONS.md` → D-042 já vinham da spec do Opus.
+>
+> Validação: `npm run gen:types` produz o arquivo; `typecheck` verde com a saída
+> do gerador e os nulos das views tratados; `types:check` verde (exit 0);
+> `lint` limpo; `test` 144/144; `test:coverage` `lib/domain/` 100%; `test:rls`
+> 201/201; `build` verde (8 rotas + Proxy). Não avancei para a 7.1.
 
 **O problema que esta tarefa fecha.** `lib/types/database.types.ts` é escrito à mão
 desde a 2.1 (a ferramenta MCP `generate_typescript_types` só introspecta `public`).

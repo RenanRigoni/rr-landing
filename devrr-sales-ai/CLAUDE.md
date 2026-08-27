@@ -56,9 +56,13 @@ fim da Fase 2 (multiempresa + RLS), fim da Fase 4 (follow-up completo), fim da F
   e confirmar zero alerta novo.
 - Nunca `select *` em query de produção. Liste as colunas.
 - **Depois de toda migration: `npm run gen:types` e `npm run types:check` verde.**
-  `lib/types/database.types.ts` é gerado pelo Supabase CLI, nunca editado à mão —
+  `lib/types/database.types.ts` é gerado por `npm run gen:types` (script próprio sobre
+  a Management API do Supabase — `scripts/gen-types.mjs`), nunca editado à mão —
   `typecheck` valida o código contra o arquivo de tipos, não contra o banco, então
-  types desatualizados são falha silenciosa (D-042).
+  types desatualizados são falha silenciosa (D-042). O script lê `SUPABASE_ACCESS_TOKEN`
+  de `.env.local` (dev-only, fora de `lib/env.server.ts` e da Vercel). `types:check`
+  regenera e falha se divergir do commitado; sem o token no ambiente, pula com aviso
+  (opt-in, igual a `test:rls`).
 
 ### Código
 - Regra de dependência: `lib/domain/` NUNCA importa `supabase` ou `next`. É lógica

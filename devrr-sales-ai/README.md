@@ -21,8 +21,9 @@ Projeto Vercel próprio, **separado** do `rr-landing` (raiz do repo) e do
 - **Root Directory:** `devrr-sales-ai/` (o repo é `RR`; este projeto vive numa
   subpasta).
 - **Framework preset:** Next.js. Build/Install padrão.
-- **Environment Variables** (todas as 5 de `.env.example`, em **Production** e
-  **Preview**):
+- **Environment Variables** (as 5 de aplicação abaixo, em **Production** e
+  **Preview** — as demais linhas de `.env.example`, `SEED_DEMO_OWNER_EMAIL` e
+  `SUPABASE_ACCESS_TOKEN`, são dev-only e **não** vão para a Vercel):
   - `NEXT_PUBLIC_SUPABASE_URL`
   - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
   - `SUPABASE_SERVICE_ROLE_KEY` — server-only, nunca exposta ao browser
@@ -49,6 +50,32 @@ curl -sS -o /dev/null -w '%{http_code}\n' https://<prod-url>/api/cron/reconcile
 Deploy é disparado por push (o repo já usa esse fluxo). Migrations do Supabase
 **não** são aplicadas pela Vercel — rodam à parte contra o projeto
 `fvgbbixxcapltudonxqx` (`CLAUDE.md` → Banco).
+
+## Types do banco (`npm run gen:types` / `npm run types:check`)
+
+`lib/types/database.types.ts` é **gerado**, nunca editado à mão (D-042). Fonte:
+o endpoint oficial da Management API do Supabase
+(`/v1/projects/{ref}/types/typescript?included_schemas=sales`), o mesmo que o
+`supabase gen types` usa por baixo — `scripts/gen-types.mjs` (`fetch` + escrita,
+zero dependência nova).
+
+```bash
+npm run gen:types      # regenera lib/types/database.types.ts a partir do schema sales
+npm run types:check    # regenera para memória e falha se divergir do arquivo commitado
+```
+
+- **Depois de toda migration:** `npm run gen:types` e commitar o resultado no
+  mesmo passo (entra no checklist de `docs/DATABASE.md` → "Checklist obrigatório
+  por migration"). `typecheck` valida o código contra o **arquivo**, não contra o
+  banco — arquivo desatualizado é falha silenciosa.
+- **Credencial:** `SUPABASE_ACCESS_TOKEN` (personal access token `sbp_...`,
+  gerado em <https://supabase.com/dashboard/account/tokens>), em `.env.local`.
+  É **dev-only**: não vai para a Vercel, não entra em `lib/env.server.ts`, nenhum
+  código de runtime a lê, não é `service_role` (D-034 intacto). O ref do projeto
+  sai de `NEXT_PUBLIC_SUPABASE_URL` (ou defina `SUPABASE_PROJECT_REF`).
+- **`types:check` é opt-in quanto ao token**, igual a `test:rls`: sem
+  `SUPABASE_ACCESS_TOKEN` no ambiente, pula com aviso e sai 0 (CI sem o segredo
+  não dá falso vermelho). Com o token presente, divergência é erro.
 
 ## Seed de demonstração (`supabase/seed/`)
 

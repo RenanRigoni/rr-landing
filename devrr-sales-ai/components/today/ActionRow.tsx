@@ -93,7 +93,7 @@ export function ActionRow({
 
       <div className="flex shrink-0 items-center gap-3">
         <span className="font-mono text-sm text-content-primary">{formatBRL(action.value_cents)}</span>
-        <span className="font-mono text-xs text-content-muted">{formatTimeBR(action.due_at!, timezone)}</span>
+        <span className="font-mono text-xs text-content-muted">{formatTimeBR(action.due_at, timezone)}</span>
 
         <button
           type="button"

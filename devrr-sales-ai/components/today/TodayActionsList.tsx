@@ -228,7 +228,7 @@ export function TodayActionsList({ overdue, dueToday, withoutAction, timezone }:
               isPending={pendingId === action.id}
               error={rowErrors[action.id]}
               onComplete={() => handleComplete(action.id, action.lead_title, action)}
-              onPostpone={() => handlePostpone(action.id, action.due_at!)}
+              onPostpone={() => handlePostpone(action.id, action.due_at)}
               onMarkResponded={() => handleMarkResponded(action.id, action.lead_id)}
             />
           )
@@ -251,7 +251,7 @@ export function TodayActionsList({ overdue, dueToday, withoutAction, timezone }:
               isPending={pendingId === action.id}
               error={rowErrors[action.id]}
               onComplete={() => handleComplete(action.id, action.lead_title, action)}
-              onPostpone={() => handlePostpone(action.id, action.due_at!)}
+              onPostpone={() => handlePostpone(action.id, action.due_at)}
               onMarkResponded={() => handleMarkResponded(action.id, action.lead_id)}
             />
           )
