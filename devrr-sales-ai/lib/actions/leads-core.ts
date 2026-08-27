@@ -13,7 +13,7 @@ export interface StageActionResult extends ActionResult {
 }
 
 type SalesClient = SupabaseClient<Database, 'sales'>
-type RelatedTable = 'contacts' | 'pipeline_stages' | 'lead_sources' | 'leads'
+type RelatedTable = 'contacts' | 'pipeline_stages' | 'lead_sources' | 'leads' | 'lead_digital_audits'
 
 const uuidSchema = z.string().uuid()
 

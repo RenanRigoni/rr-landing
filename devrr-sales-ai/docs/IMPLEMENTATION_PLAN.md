@@ -3812,7 +3812,69 @@ pelo cliente é ignorado.
 
 ---
 
-### [ ] 7.4 `lib/actions/digital-audit-core.ts` + wrapper `digital-audit.ts`
+### [x] 7.4 `lib/actions/digital-audit-core.ts` + wrapper `digital-audit.ts`
+
+> feito: `lib/actions/digital-audit-core.ts` (`saveDigitalAuditCore(supabase,
+> orgId, userId, input)`) + wrapper `lib/actions/digital-audit.ts`
+> (`saveDigitalAudit`, `'use server'`). `lib/actions/leads-core.ts`: `RelatedTable`
+> ganhou `'lead_digital_audits'` para reusar `checkBelongsToOrg` (o plano manda
+> usar essa função) — 1 token, sem mudança de comportamento.
+>
+> **Fluxo do core:** `digitalAuditSchema.safeParse(input)` (fronteira única de
+> validação; erro → primeira issue) → `readAuditId(input)` extrai `audit_id`
+> **de fora do schema** (não é coluna de formulário), só se for uuid; malformado
+> → `'Auditoria inválida.'` → `checkBelongsToOrg(supabase, 'leads',
+> parsed.data.lead_id, orgId, 'Lead não encontrado.')` (D-020) → se `audit_id`,
+> `checkBelongsToOrg(supabase, 'lead_digital_audits', auditId, orgId,
+> 'Auditoria não encontrada.')` → `computeDigitalScore(toScoreInput(parsed.data))`
+> → `buildPayload` → `insert` (auditoria nova, 1:N — nunca sobrescreve) **ou**
+> `update` com `.eq('id', auditId).eq('org_id', orgId)` → `logAudit(supabase,
+> orgId, userId, 'lead_digital_audit', id, 'create'|'update', diff)`.
+>
+> **Tenant/lead:** `org_id` só de `requireOrgId()` no wrapper — o core recebe
+> pronto e nunca lê `org_id` do `input` (a chave nem existe em
+> `digitalAuditSchema`). `lead_id` e `audit_id` são uuids do cliente:
+> `checkBelongsToOrg` (erro de banco → erro reportado; ausência → "não
+> encontrado" — Q-005) antes de qualquer escrita. `created_by = userId`
+> resolvido no servidor, só no `insert`.
+>
+> **Score protegido (D-038):** `digitalAuditSchema` descarta
+> `digital_score`/`digital_score_completeness` do input (7.3); `buildPayload`
+> seta essas duas colunas **exclusivamente** a partir do retorno de
+> `computeDigitalScore`. `toScoreInput` coalesce `undefined`→`null` nos 46
+> campos do score (mesmo significado: "não avaliado", D-037). Provado por teste:
+> input com `digital_score: '999'` grava o valor calculado, não 999.
+>
+> **Datas do Zod:** `researched_at` (`date`, `not null default current_date`) só
+> é gravado quando o usuário informa (`instanceof Date` → `toISOString().slice(0,
+> 10)`); ausente/nulo → omitido, o Postgres aplica o default.
+> `instagram_last_post_date` → `'YYYY-MM-DD'`; `pagespeed_analyzed_at`
+> (`timestamptz`) → ISO 8601. Nulo preservado como nulo.
+>
+> **`null` preservado:** campo ausente/limpo entra como `null` na linha (via
+> spread de `parsed.data` + colunas opcionais do `Insert` gerado). Auditoria
+> parcial (só `lead_id`) grava normalmente: `digital_score = null`,
+> `digital_score_completeness = 0`, `digital_opportunities = []`.
+>
+> **Wrapper:** resolve org/sessão, monta `raw` com
+> `digital_opportunities: formData.getAll(...)` (multi-valor), chama o core,
+> `revalidatePath('/leads/[leadId]', 'page')`, sem `redirect` (preenchimento
+> incremental).
+>
+> Testes: `tests/actions/digital-audit.test.ts` (14, suíte `test:rls`, com
+> `stub-client.ts`) — criação mínima; parcial com `null` preservado; score
+> calculado no servidor batendo com `computeDigitalScore`; score do cliente
+> ignorado; lead de outra org / inexistente rejeitados; histórico 1:N (2 linhas,
+> `update` não cria terceira, vizinha intacta); datas `date`/`timestamptz` +
+> default de `researched_at`; erro de banco na tabela relacionada ≠ "não
+> encontrado" e erro no `insert` → mensagem de save; tipos da linha batendo com
+> `database.types.ts`; `audit_id` de outra org e malformado rejeitados;
+> `audit_logs` recebe `entity 'lead_digital_audit'`; payload inválido não grava.
+>
+> Validação: `typecheck` / `lint` / `test` (234/234) / `test:rls` (215/215, +14)
+> / `build` verdes. Sem migration/DDL/types (nenhum gate de `gen:types`/
+> `get_advisors` aplicável); a suíte `test:rls` é o gate de banco/RLS das
+> actions e passou.
 
 Mesmo padrão de `lead-intake-core.ts` (D-020): core recebe `supabase`/`orgId`/`userId`
 prontos, sem `'use server'`, sem `next/headers`.
