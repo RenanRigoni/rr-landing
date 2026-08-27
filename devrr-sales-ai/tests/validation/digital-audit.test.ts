@@ -242,12 +242,74 @@ describe('digitalAuditSchema — estados contraditórios', () => {
   })
 })
 
-describe('digitalAuditSchema — datas e payload completo', () => {
-  it('researched_at opcional; string ISO é coagida para Date', () => {
+describe('digitalAuditSchema — datas de calendário (date) não passam por fuso', () => {
+  it('researched_at fica exatamente a string AAAA-MM-DD, sem virar Date', () => {
     const result = parse({ researched_at: '2026-08-27' })
     expect(result.success).toBe(true)
-    if (result.success) expect(result.data.researched_at).toBeInstanceOf(Date)
+    if (result.success) {
+      expect(result.data.researched_at).toBe('2026-08-27')
+      expect(result.data.researched_at).not.toBeInstanceOf(Date)
+    }
   })
+
+  it('instagram_last_post_date também fica string exata', () => {
+    const result = parse({ instagram_last_post_date: '2026-07-15' })
+    expect(result.success).toBe(true)
+    if (result.success) expect(result.data.instagram_last_post_date).toBe('2026-07-15')
+  })
+
+  it('rejeita data inexistente no calendário em vez de normalizar em silêncio', () => {
+    // z.coerce.date() aceitava '2026-02-31' e devolvia 2026-03-03.
+    expect(parse({ researched_at: '2026-02-31' }).success).toBe(false)
+    expect(parse({ researched_at: '2026-13-01' }).success).toBe(false)
+    expect(parse({ instagram_last_post_date: '2026-04-31' }).success).toBe(false)
+  })
+
+  it('aceita 29 de fevereiro em ano bissexto e rejeita em ano comum', () => {
+    expect(parse({ researched_at: '2028-02-29' }).success).toBe(true)
+    expect(parse({ researched_at: '2026-02-29' }).success).toBe(false)
+  })
+
+  it('rejeita datetime com fuso num campo de calendário (era o que deslocava o dia)', () => {
+    // '2026-08-27T23:00:00-03:00' virava '2026-08-28' ao passar por UTC.
+    expect(parse({ researched_at: '2026-08-27T23:00:00-03:00' }).success).toBe(false)
+    expect(parse({ researched_at: '27/08/2026' }).success).toBe(false)
+  })
+
+  it('data vazia continua virando null', () => {
+    const result = parse({ researched_at: '', instagram_last_post_date: '' })
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.data.researched_at).toBeNull()
+      expect(result.data.instagram_last_post_date).toBeNull()
+    }
+  })
+})
+
+describe('digitalAuditSchema — pagespeed_analyzed_at é instante (timestamptz)', () => {
+  it('continua sendo Date, preservando o instante com fuso', () => {
+    const result = parse({ pagespeed_analyzed_at: '2026-08-27T10:30:00.000Z' })
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.data.pagespeed_analyzed_at).toBeInstanceOf(Date)
+      expect(result.data.pagespeed_analyzed_at?.toISOString()).toBe('2026-08-27T10:30:00.000Z')
+    }
+  })
+
+  it('aceita offset explícito e normaliza para o mesmo instante em UTC', () => {
+    const result = parse({ pagespeed_analyzed_at: '2026-08-27T23:00:00-03:00' })
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.data.pagespeed_analyzed_at?.toISOString()).toBe('2026-08-28T02:00:00.000Z')
+    }
+  })
+
+  it('rejeita instante inválido', () => {
+    expect(parse({ pagespeed_analyzed_at: 'ontem' }).success).toBe(false)
+  })
+})
+
+describe('digitalAuditSchema — payload completo', () => {
 
   it('payload coerente e rico passa inteiro', () => {
     const result = parse({

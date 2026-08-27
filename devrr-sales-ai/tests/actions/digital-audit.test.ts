@@ -107,6 +107,9 @@ describe('lib/actions/digital-audit-core', () => {
   let orgAId: string
   let orgBId: string
   let leadAId: string
+  /** Segundo lead da MESMA organização — prova que o vínculo audit→lead não
+   * depende só do isolamento por tenant. */
+  let leadA2Id: string
   let leadBId: string
 
   beforeAll(async () => {
@@ -132,6 +135,13 @@ describe('lib/actions/digital-audit-core', () => {
     })
     if (leadA.status !== 'success' || !leadA.leadId) throw new Error('Falha ao criar lead A')
     leadAId = leadA.leadId
+
+    const leadA2 = await createLeadIntakeCore(clientA, orgAId, userAId, {
+      full_name: 'Segundo Lead da Org A',
+      title: 'Prospecção A2',
+    })
+    if (leadA2.status !== 'success' || !leadA2.leadId) throw new Error('Falha ao criar lead A2')
+    leadA2Id = leadA2.leadId
 
     const leadB = await createLeadIntakeCore(clientB, orgBId, userBId, {
       full_name: 'Lead do Dossiê B',
@@ -414,6 +424,386 @@ describe('lib/actions/digital-audit-core', () => {
     const result = await saveDigitalAuditCore(clientA, orgAId, userAId, { lead_id: leadAId, google_rating: '5.1' })
     expect(result.error).not.toBeNull()
     expect(result.auditId).toBeUndefined()
+  })
+
+  // --- Revisão corretiva da 7.4 ---
+
+  describe('A · vínculo auditoria → lead é imutável', () => {
+    it('update com lead_id de OUTRO lead da mesma org é rejeitado e não altera nada', async () => {
+      const created = await saveDigitalAuditCore(clientA, orgAId, userAId, {
+        lead_id: leadAId,
+        researched_at: '2026-08-10',
+        google_business_profile: 'sim',
+        google_rating: '4.5',
+        website_exists: 'sim',
+        website_notes: 'estado original',
+      })
+      expect(created.error).toBeNull()
+
+      const SNAPSHOT =
+        'lead_id, researched_at, google_business_profile, google_rating, website_exists, website_notes, digital_score, digital_score_completeness'
+      const { data: before } = await clientA
+        .from('lead_digital_audits')
+        .select(SNAPSHOT)
+        .eq('id', created.auditId ?? '')
+        .single()
+
+      // Os dois leads são da MESMA organização e ambos existem: só a checagem
+      // de tenant não pegaria isso.
+      const moved = await saveDigitalAuditCore(clientA, orgAId, userAId, {
+        lead_id: leadA2Id,
+        audit_id: created.auditId,
+        google_business_profile: 'nao',
+        website_notes: 'tentativa de sequestro',
+      })
+      expect(moved.error).toBe('Esta auditoria pertence a outro lead.')
+
+      const { data: after } = await clientA
+        .from('lead_digital_audits')
+        .select(SNAPSHOT)
+        .eq('id', created.auditId ?? '')
+        .single()
+
+      expect(after?.lead_id).toBe(leadAId)
+      expect(after).toEqual(before) // nenhum outro campo tocado
+    })
+
+    it('o lead de destino não recebe a auditoria', async () => {
+      const { data: rows } = await clientA
+        .from('lead_digital_audits')
+        .select('id')
+        .eq('lead_id', leadA2Id)
+        .eq('org_id', orgAId)
+      expect(rows).toEqual([])
+    })
+
+    it('update com o MESMO lead_id continua funcionando', async () => {
+      const created = await saveDigitalAuditCore(clientA, orgAId, userAId, {
+        lead_id: leadAId,
+        google_has_photos: 'sim',
+      })
+      const updated = await saveDigitalAuditCore(clientA, orgAId, userAId, {
+        lead_id: leadAId,
+        audit_id: created.auditId,
+        google_has_photos: 'nao',
+      })
+      expect(updated.error).toBeNull()
+      expect(updated.auditId).toBe(created.auditId)
+
+      const { data: row } = await clientA
+        .from('lead_digital_audits')
+        .select('lead_id, google_has_photos')
+        .eq('id', created.auditId ?? '')
+        .single()
+      expect(row?.lead_id).toBe(leadAId)
+      expect(row?.google_has_photos).toBe('nao')
+    })
+  })
+
+  describe('B · score no update parcial reflete o estado final persistido', () => {
+    it('patch de um campo só recalcula sobre estado completo, não sobre o patch', async () => {
+      const initialFields: DigitalAuditFields = {
+        ...emptyScoreFields(),
+        google_business_profile: 'sim',
+        google_rating: 4.5,
+        google_reviews_count: 30,
+        website_exists: 'sim',
+        website_https: 'sim',
+        website_has_clear_cta: 'sim',
+        instagram_exists: 'sim',
+        instagram_has_bio_link: 'sim',
+      }
+      const created = await saveDigitalAuditCore(clientA, orgAId, userAId, {
+        lead_id: leadAId,
+        google_business_profile: 'sim',
+        google_rating: '4.5',
+        google_reviews_count: '30',
+        website_exists: 'sim',
+        website_https: 'sim',
+        website_has_clear_cta: 'sim',
+        instagram_exists: 'sim',
+        instagram_has_bio_link: 'sim',
+      })
+      expect(created.error).toBeNull()
+
+      const initialExpected = computeDigitalScore(initialFields)
+      expect(created.digitalScore).toBe(initialExpected.score)
+      expect(created.completeness).toBe(initialExpected.completeness)
+
+      // Patch de UM campo. O score do patch isolado seria completude 2
+      // (só `website_has_clear_cta` avaliado) — nada a ver com a linha.
+      const patchOnlyScore = computeDigitalScore({
+        ...emptyScoreFields(),
+        website_has_clear_cta: 'nao',
+      })
+
+      const updated = await saveDigitalAuditCore(clientA, orgAId, userAId, {
+        lead_id: leadAId,
+        audit_id: created.auditId,
+        website_has_clear_cta: 'nao',
+      })
+      expect(updated.error).toBeNull()
+
+      const finalExpected = computeDigitalScore({ ...initialFields, website_has_clear_cta: 'nao' })
+
+      const { data: row } = await clientA
+        .from('lead_digital_audits')
+        .select('digital_score, digital_score_completeness, google_rating, google_reviews_count, instagram_has_bio_link')
+        .eq('id', created.auditId ?? '')
+        .single()
+
+      // Dados que não estavam no patch continuam lá.
+      expect(row?.google_rating).toBe(4.5)
+      expect(row?.google_reviews_count).toBe(30)
+      expect(row?.instagram_has_bio_link).toBe('sim')
+
+      expect(row?.digital_score).toBe(finalExpected.score)
+      expect(row?.digital_score_completeness).toBe(finalExpected.completeness)
+      // E não o score do patch isolado — é este o bug que a correção fecha.
+      expect(row?.digital_score_completeness).not.toBe(patchOnlyScore.completeness)
+      expect(finalExpected.completeness).toBeGreaterThan(patchOnlyScore.completeness)
+    })
+  })
+
+  describe('C · website SIM → NÃO limpa dependentes e PageSpeed', () => {
+    it('estado final não guarda site nem medição de um site que não existe', async () => {
+      const created = await saveDigitalAuditCore(clientA, orgAId, userAId, {
+        lead_id: leadAId,
+        website_exists: 'sim',
+        website_url: 'https://clinica.example',
+        website_has_clear_cta: 'sim',
+        website_has_whatsapp: 'sim',
+        website_notes: 'site antigo, encontrado em agosto',
+        pagespeed_mobile_performance: '72',
+        pagespeed_mobile_lcp: '3400',
+        pagespeed_desktop_performance: '90',
+        pagespeed_analyzed_url: 'https://clinica.example',
+        pagespeed_analyzed_at: '2026-08-27T10:30:00.000Z',
+        pagespeed_notes: 'medido no 4G',
+      })
+      expect(created.error).toBeNull()
+
+      const { data: before } = await clientA
+        .from('lead_digital_audits')
+        .select('website_url, pagespeed_mobile_performance, pagespeed_analyzed_at')
+        .eq('id', created.auditId ?? '')
+        .single()
+      expect(before?.website_url).toBe('https://clinica.example')
+      expect(before?.pagespeed_mobile_performance).toBe(72)
+      expect(before?.pagespeed_analyzed_at).not.toBeNull()
+
+      // Update parcial: só corrige a base.
+      const updated = await saveDigitalAuditCore(clientA, orgAId, userAId, {
+        lead_id: leadAId,
+        audit_id: created.auditId,
+        website_exists: 'nao',
+      })
+      expect(updated.error).toBeNull()
+
+      const { data: after } = await clientA
+        .from('lead_digital_audits')
+        .select(
+          'website_exists, website_url, website_has_clear_cta, website_has_whatsapp, website_notes, pagespeed_mobile_performance, pagespeed_mobile_lcp, pagespeed_desktop_performance, pagespeed_analyzed_url, pagespeed_analyzed_at, pagespeed_notes, digital_score, digital_score_completeness',
+        )
+        .eq('id', created.auditId ?? '')
+        .single()
+
+      expect(after?.website_exists).toBe('nao')
+      expect(after?.website_url).toBeNull()
+      expect(after?.website_has_clear_cta).toBeNull()
+      expect(after?.website_has_whatsapp).toBeNull()
+      expect(after?.pagespeed_mobile_performance).toBeNull()
+      expect(after?.pagespeed_mobile_lcp).toBeNull()
+      expect(after?.pagespeed_desktop_performance).toBeNull()
+      expect(after?.pagespeed_analyzed_url).toBeNull()
+      expect(after?.pagespeed_analyzed_at).toBeNull()
+
+      // Observações sobrevivem (valor documental).
+      expect(after?.website_notes).toBe('site antigo, encontrado em agosto')
+      expect(after?.pagespeed_notes).toBe('medido no 4G')
+
+      const expected = computeDigitalScore({ ...emptyScoreFields(), website_exists: 'nao' })
+      expect(after?.digital_score).toBe(expected.score)
+      expect(after?.digital_score_completeness).toBe(expected.completeness)
+      // Sem site: os 20 pts restantes de Website contam 0 e PageSpeed sai do
+      // denominador (regra de cascata da 7.2).
+      expect(after?.digital_score_completeness).toBe(25)
+    })
+  })
+
+  describe('D · Instagram SIM → NÃO limpa dependentes', () => {
+    it('dados estruturados do perfil somem; observação permanece', async () => {
+      const created = await saveDigitalAuditCore(clientA, orgAId, userAId, {
+        lead_id: leadAId,
+        instagram_exists: 'sim',
+        instagram_username: 'clinica_exemplo',
+        instagram_url: 'https://instagram.com/clinica_exemplo',
+        instagram_active: 'ativo',
+        instagram_has_bio_link: 'sim',
+        instagram_last_post_date: '2026-07-15',
+        instagram_notes: 'perfil parecia abandonado',
+      })
+      expect(created.error).toBeNull()
+
+      const updated = await saveDigitalAuditCore(clientA, orgAId, userAId, {
+        lead_id: leadAId,
+        audit_id: created.auditId,
+        instagram_exists: 'nao',
+      })
+      expect(updated.error).toBeNull()
+
+      const { data: after } = await clientA
+        .from('lead_digital_audits')
+        .select(
+          'instagram_exists, instagram_url, instagram_active, instagram_has_bio_link, instagram_last_post_date, instagram_username, instagram_notes, digital_score_completeness',
+        )
+        .eq('id', created.auditId ?? '')
+        .single()
+
+      expect(after?.instagram_exists).toBe('nao')
+      expect(after?.instagram_url).toBeNull()
+      expect(after?.instagram_active).toBeNull()
+      expect(after?.instagram_has_bio_link).toBeNull()
+      expect(after?.instagram_last_post_date).toBeNull()
+
+      // Contrato definido: o identificador procurado e a observação ficam.
+      expect(after?.instagram_username).toBe('clinica_exemplo')
+      expect(after?.instagram_notes).toBe('perfil parecia abandonado')
+
+      const expected = computeDigitalScore({ ...emptyScoreFields(), instagram_exists: 'nao' })
+      expect(after?.digital_score_completeness).toBe(expected.completeness)
+    })
+  })
+
+  describe('E · Google Business SIM → NÃO limpa só o perfil', () => {
+    it('atributos do perfil somem; dados da busca no Google permanecem', async () => {
+      const created = await saveDigitalAuditCore(clientA, orgAId, userAId, {
+        lead_id: leadAId,
+        found_on_google: 'sim',
+        google_result_type: 'patrocinado',
+        google_ads_active: 'sim',
+        google_ads_position: '2',
+        google_organic_position: '7',
+        google_search_result_url: 'https://www.google.com/search?q=clinica',
+        google_business_profile: 'sim',
+        google_business_name: 'Clínica Exemplo',
+        google_rating: '4.7',
+        google_reviews_count: '128',
+        google_has_photos: 'sim',
+        google_profile_completeness: 'boa',
+        google_notes: 'perfil parecia de outra unidade',
+      })
+      expect(created.error).toBeNull()
+
+      const updated = await saveDigitalAuditCore(clientA, orgAId, userAId, {
+        lead_id: leadAId,
+        audit_id: created.auditId,
+        google_business_profile: 'nao',
+      })
+      expect(updated.error).toBeNull()
+
+      const { data: after } = await clientA
+        .from('lead_digital_audits')
+        .select(
+          'google_business_profile, google_rating, google_reviews_count, google_has_photos, google_profile_completeness, found_on_google, google_result_type, google_ads_active, google_ads_position, google_organic_position, google_search_result_url, google_business_name, google_notes',
+        )
+        .eq('id', created.auditId ?? '')
+        .single()
+
+      // Dependentes do perfil: limpos.
+      expect(after?.google_business_profile).toBe('nao')
+      expect(after?.google_rating).toBeNull()
+      expect(after?.google_reviews_count).toBeNull()
+      expect(after?.google_has_photos).toBeNull()
+      expect(after?.google_profile_completeness).toBeNull()
+
+      // Busca no Google: intocada — aparecer em anúncio/orgânico não depende
+      // de existir Google Business Profile.
+      expect(after?.found_on_google).toBe('sim')
+      expect(after?.google_result_type).toBe('patrocinado')
+      expect(after?.google_ads_active).toBe('sim')
+      expect(after?.google_ads_position).toBe(2)
+      expect(after?.google_organic_position).toBe(7)
+      expect(after?.google_search_result_url).toBe('https://www.google.com/search?q=clinica')
+      expect(after?.google_business_name).toBe('Clínica Exemplo')
+      expect(after?.google_notes).toBe('perfil parecia de outra unidade')
+    })
+  })
+
+  describe('F · datas de calendário não deslocam', () => {
+    it('researched_at e instagram_last_post_date chegam exatos ao banco', async () => {
+      const result = await saveDigitalAuditCore(clientA, orgAId, userAId, {
+        lead_id: leadAId,
+        researched_at: '2026-08-27',
+        instagram_last_post_date: '2026-08-27',
+      })
+      expect(result.error).toBeNull()
+
+      const { data: row } = await clientA
+        .from('lead_digital_audits')
+        .select('researched_at, instagram_last_post_date')
+        .eq('id', result.auditId ?? '')
+        .single()
+
+      expect(row?.researched_at).toBe('2026-08-27')
+      expect(row?.instagram_last_post_date).toBe('2026-08-27')
+    })
+
+    it('data inexistente no calendário é rejeitada, não normalizada', async () => {
+      const result = await saveDigitalAuditCore(clientA, orgAId, userAId, {
+        lead_id: leadAId,
+        researched_at: '2026-02-31',
+      })
+      expect(result.error).not.toBeNull()
+      expect(result.auditId).toBeUndefined()
+    })
+
+    it('datetime com fuso é rejeitado em campo de calendário', async () => {
+      const result = await saveDigitalAuditCore(clientA, orgAId, userAId, {
+        lead_id: leadAId,
+        researched_at: '2026-08-27T23:00:00-03:00',
+      })
+      expect(result.error).not.toBeNull()
+    })
+
+    it('pagespeed_analyzed_at (timestamptz) preserva o instante', async () => {
+      const result = await saveDigitalAuditCore(clientA, orgAId, userAId, {
+        lead_id: leadAId,
+        website_exists: 'sim',
+        pagespeed_analyzed_at: '2026-08-27T23:00:00-03:00',
+      })
+      expect(result.error).toBeNull()
+
+      const { data: row } = await clientA
+        .from('lead_digital_audits')
+        .select('pagespeed_analyzed_at')
+        .eq('id', result.auditId ?? '')
+        .single()
+
+      expect(new Date(row?.pagespeed_analyzed_at ?? '').toISOString()).toBe('2026-08-28T02:00:00.000Z')
+    })
+
+    it('update parcial não apaga pagespeed_analyzed_at que não foi enviado', async () => {
+      const created = await saveDigitalAuditCore(clientA, orgAId, userAId, {
+        lead_id: leadAId,
+        website_exists: 'sim',
+        pagespeed_analyzed_at: '2026-08-27T10:30:00.000Z',
+      })
+      const updated = await saveDigitalAuditCore(clientA, orgAId, userAId, {
+        lead_id: leadAId,
+        audit_id: created.auditId,
+        website_https: 'sim',
+      })
+      expect(updated.error).toBeNull()
+
+      const { data: row } = await clientA
+        .from('lead_digital_audits')
+        .select('pagespeed_analyzed_at, website_https')
+        .eq('id', created.auditId ?? '')
+        .single()
+      expect(row?.website_https).toBe('sim')
+      expect(new Date(row?.pagespeed_analyzed_at ?? '').toISOString()).toBe('2026-08-27T10:30:00.000Z')
+    })
   })
 })
 

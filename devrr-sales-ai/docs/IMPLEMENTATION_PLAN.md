@@ -3875,6 +3875,74 @@ pelo cliente é ignorado.
 > / `build` verdes. Sem migration/DDL/types (nenhum gate de `gen:types`/
 > `get_advisors` aplicável); a suíte `test:rls` é o gate de banco/RLS das
 > actions e passou.
+>
+> ---
+>
+> **Revisão corretiva antes da aprovação (fechamento da 7.4).** Quatro defeitos
+> de integridade confirmados no código commitado em `92a255c` e corrigidos —
+> todos comprovados por regressão (revertidas as correções, exatamente os 5
+> testes novos falham; os 21 anteriores seguem passando):
+>
+> 1. **Auditoria trocava de lead.** `buildPayload` destructurava só as três
+>    datas, então `lead_id` sobrevivia em `...columns` e ia no `UPDATE`.
+>    `audit_id` do lead A + `lead_id` do lead B (mesma org, ambos válidos)
+>    transferia a auditoria histórica. O vínculo agora é imutável: a linha é
+>    carregada, `data.lead_id !== parsed.data.lead_id` rejeita com "Esta
+>    auditoria pertence a outro lead.", `lead_id` saiu do payload de update
+>    (só entra no `insert`) e o `WHERE` ganhou `.eq('lead_id', ...)` — três
+>    camadas, não só check-before-write.
+> 2. **Score do update descrevia o request, não a linha.**
+>    `computeDigitalScore(toScoreInput(parsed.data))` sobre um patch parcial
+>    produzia completude do patch (ex.: 2) numa linha com dezenas de campos.
+>    Agora: carrega o estado (`AUDIT_STATE_COLUMNS`, os 46 campos do score +
+>    `lead_id`, uma consulta só que também substitui o `checkBelongsToOrg` da
+>    auditoria) → `mergedState = { ...current, ...parsed.data }` → cascata →
+>    score sobre o estado final. Chave ausente do patch não existe em
+>    `parsed.data` (verificado), então o valor do banco sobrevive; chave
+>    enviada vazia vira `null` e limpa.
+> 3. **Contradição herdada ficava no banco.** O Zod só enxerga um request:
+>    update parcial mudando só `website_exists` para `nao` deixava
+>    `website_url`/CTA/WhatsApp e todo o PageSpeed antigos gravados. Nova
+>    normalização server-side em `lib/domain/digital-audit-cascade.ts`
+>    (`resolveClearedFields`, pura, 100% coberta): `website_exists='nao'` limpa
+>    os 20 dependentes de site **e** as 27 colunas de PageSpeed (mobile,
+>    desktop e metadados — medem um site que a auditoria afirma não existir);
+>    `instagram_exists='nao'` limpa os 11 estruturados;
+>    `google_business_profile='nao'` limpa só os 11 atributos do perfil e
+>    **preserva** tudo da busca (`found_on_google`, `google_result_type`,
+>    `google_ads_*`, `google_organic_position`, `google_search_result_url`).
+>    Notas em texto livre, `instagram_username`, `google_business_name` e
+>    `google_business_category` sobrevivem (valor documental). O **mesmo**
+>    `clearedPatch` alimenta a gravação e o score. As listas viraram fonte
+>    única: `lib/validation/digital-audit.ts` (7.3) importa as mesmas e um
+>    `type ... extends keyof AuditUpdate ? true : never` no core prova em
+>    tempo de compilação que todo nome é coluna real (verificado: nome
+>    inventado quebra o `typecheck` em 3 pontos).
+> 4. **Datas de calendário deslocavam por fuso.** `z.coerce.date()` transformava
+>    `2026-08-27T23:00:00-03:00` em `2026-08-28` e normalizava `2026-02-31`
+>    para `2026-03-03` em silêncio (ambos verificados). `researched_at` e
+>    `instagram_last_post_date` passaram a `optionalCalendarDate`: string
+>    `AAAA-MM-DD` do começo ao fim, com regex + checagem de calendário real —
+>    nunca viram `Date`. `pagespeed_analyzed_at` continua `z.coerce.date()`,
+>    que é o certo para `timestamptz`. Correção pequena na 7.3, autorizada.
+>
+> **Achado extra, mesma classe:** `buildPayload` gravava
+> `instagram_last_post_date` e `pagespeed_analyzed_at` **incondicionalmente**,
+> então um update parcial que não mandasse esses campos os apagava. Agora só
+> entram no payload quando o request os envia.
+>
+> Reconfirmado sem alteração: `org_id` só de `requireOrgId()`; `created_by` do
+> servidor; score do cliente ignorado (D-038); auditoria/lead de outra org
+> inacessíveis; histórico 1:N preservado; insert mínimo e update normal
+> funcionando; erro de banco ≠ "não encontrado"; zero `as`/`!` para calar o
+> compilador.
+>
+> Testes: `tests/actions/digital-audit.test.ts` 14 → **26** (blocos A–F);
+> `tests/domain/digital-audit-cascade.test.ts` **19** (novo);
+> `tests/validation/digital-audit.test.ts` 30 → **39** (datas).
+> Validação: `typecheck` / `lint` / `test` (262/262) / `test:coverage`
+> (`lib/domain/` 100%, 520/520 stmt) / `test:rls` (227/227) / `build` verdes.
+> Sem migration/DDL/types.
 
 Mesmo padrão de `lead-intake-core.ts` (D-020): core recebe `supabase`/`orgId`/`userId`
 prontos, sem `'use server'`, sem `next/headers`.

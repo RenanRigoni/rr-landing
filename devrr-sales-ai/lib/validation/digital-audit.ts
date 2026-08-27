@@ -1,5 +1,10 @@
 import { z } from 'zod'
 import { optionalText, optionalUuid } from '@/lib/validation/leads'
+import {
+  WEBSITE_DEPENDENT_FIELDS,
+  INSTAGRAM_DEPENDENT_FIELDS,
+  GOOGLE_PROFILE_DEPENDENT_FIELDS,
+} from '@/lib/domain/digital-audit-cascade'
 
 // Schema de entrada do dossiê digital (7.3). Espelha `sales.lead_digital_audits`
 // (migration 0012): **tudo opcional/nullable exceto `lead_id`**. Salvar parcial
@@ -60,9 +65,50 @@ function optionalEnum<const T extends readonly [string, ...string[]]>(values: T)
   return z.preprocess(emptyToNull, z.enum(values).nullable().optional())
 }
 
-/** Data opcional (`researched_at`, `instagram_last_post_date`,
- * `pagespeed_analyzed_at`). Form manda string ISO. */
-const optionalDate = z.preprocess(emptyToNull, z.coerce.date().nullable().optional())
+const CALENDAR_DATE_RE = /^\d{4}-\d{2}-\d{2}$/
+
+/**
+ * `2026-02-31` existe como string mas não como dia. `new Date()` normaliza em
+ * silêncio para `2026-03-03` — este check reprova em vez de deixar passar.
+ * Comparação em UTC só para conferir o calendário; nenhum valor derivado daqui
+ * é usado como instante.
+ */
+function isRealCalendarDate(value: string): boolean {
+  const [year, month, day] = value.split('-').map(Number)
+  if (year === undefined || month === undefined || day === undefined) return false
+  const asUtc = new Date(Date.UTC(year, month - 1, day))
+  return (
+    asUtc.getUTCFullYear() === year && asUtc.getUTCMonth() === month - 1 && asUtc.getUTCDate() === day
+  )
+}
+
+/**
+ * Data de CALENDÁRIO (`date` no Postgres: `researched_at`,
+ * `instagram_last_post_date`). Fica string `AAAA-MM-DD` do começo ao fim —
+ * nunca vira `Date`.
+ *
+ * `z.coerce.date()` era errado aqui: `2026-08-27T23:00:00-03:00` vira
+ * `2026-08-28` depois de passar por UTC (verificado), e `2026-02-31` é
+ * silenciosamente normalizada para `2026-03-03`. Um dossiê datado é comparado
+ * com outro ("melhorou desde agosto?", DOSSIE §17) — deslocar o dia por fuso
+ * corrompe exatamente essa comparação.
+ */
+const optionalCalendarDate = z.preprocess(
+  emptyToNull,
+  z
+    .string()
+    .regex(CALENDAR_DATE_RE, 'Data inválida (use AAAA-MM-DD)')
+    .refine(isRealCalendarDate, 'Data inexistente no calendário')
+    .nullable()
+    .optional(),
+)
+
+/**
+ * Instante (`timestamptz` no Postgres: `pagespeed_analyzed_at`). Aqui `Date` é
+ * a representação certa — o valor É um ponto no tempo, com fuso, e o
+ * round-trip por UTC é o comportamento desejado.
+ */
+const optionalTimestamp = z.preprocess(emptyToNull, z.coerce.date().nullable().optional())
 
 // --- Vocabulários dos enums (idênticos aos do Postgres — migration 0012) ---
 
@@ -87,7 +133,7 @@ const digitalAuditObject = z.object({
   // Identidade — o único campo obrigatório. `researched_at` tem default no
   // banco (current_date); aqui é opcional (regra "tudo opcional exceto lead_id").
   lead_id: z.string().uuid('Lead inválido'),
-  researched_at: optionalDate,
+  researched_at: optionalCalendarDate,
 
   // Origem da prospecção (DOSSIE §2)
   search_query: optionalText,
@@ -159,7 +205,7 @@ const digitalAuditObject = z.object({
   instagram_easy_whatsapp: optionalEnum(TRI_STATE),
   instagram_easy_website: optionalEnum(TRI_STATE),
   instagram_active: optionalEnum(ACTIVITY_LEVEL),
-  instagram_last_post_date: optionalDate,
+  instagram_last_post_date: optionalCalendarDate,
   instagram_visual_quality: optionalEnum(QUALITY_LEVEL),
   instagram_services_content: optionalEnum(TRI_STATE),
   instagram_content_cta: optionalEnum(FREQUENCY_LEVEL),
@@ -193,7 +239,7 @@ const digitalAuditObject = z.object({
 
   // PageSpeed, informações gerais
   pagespeed_analyzed_url: optionalUrl,
-  pagespeed_analyzed_at: optionalDate,
+  pagespeed_analyzed_at: optionalTimestamp,
   pagespeed_mobile_report_url: optionalUrl,
   pagespeed_desktop_report_url: optionalUrl,
   pagespeed_field_data_available: optionalEnum(TRI_STATE),
@@ -232,31 +278,18 @@ function isAffirmativeValue(value: unknown): boolean {
   return true
 }
 
-const WEBSITE_INTERNAL_FIELDS = [
-  'website_url', 'website_https', 'website_mobile_friendly', 'website_visual_quality',
-  'website_perceived_speed', 'website_services_clear', 'website_has_target_service_page',
-  'website_target_service_url', 'website_has_clear_cta', 'website_has_whatsapp',
-  'website_whatsapp_clickable', 'website_whatsapp_floating', 'website_has_contact_form',
-  'website_has_online_booking', 'website_phone_visible', 'website_address_visible',
-  'website_has_social_proof', 'website_has_clear_differentiators', 'website_has_team',
-  'website_content_updated',
-] as const satisfies readonly (keyof DigitalAuditObjectShape)[]
-
-const INSTAGRAM_INTERNAL_FIELDS = [
-  'instagram_url', 'instagram_has_bio_link', 'instagram_clear_bio', 'instagram_has_cta',
-  'instagram_easy_whatsapp', 'instagram_easy_website', 'instagram_active',
-  'instagram_last_post_date', 'instagram_visual_quality', 'instagram_services_content',
-  'instagram_content_cta',
-] as const satisfies readonly (keyof DigitalAuditObjectShape)[]
-
-// Só os campos que descrevem o PRÓPRIO perfil (não a busca no Google). O
-// texto do plano pede "campos internos incompatíveis" — posição orgânica,
-// anúncios e URL do resultado são sobre a SERP, não sobre o GBP.
-const GOOGLE_PROFILE_INTERNAL_FIELDS = [
-  'google_rating', 'google_reviews_count', 'google_recent_reviews', 'google_replies_reviews',
-  'google_has_photos', 'google_has_hours', 'google_has_phone', 'google_has_website',
-  'google_easy_whatsapp', 'google_has_booking', 'google_profile_completeness',
-] as const satisfies readonly (keyof DigitalAuditObjectShape)[]
+// As listas vivem em `lib/domain/digital-audit-cascade.ts` (7.4): o mesmo
+// conjunto que o Zod usa para REJEITAR contradição dentro de um request é o que
+// a action usa para LIMPAR contradição herdada do estado já persistido. Duas
+// cópias divergiriam na primeira vez que alguém acrescentasse um campo.
+// `satisfies` prova, em tempo de compilação, que toda entrada das listas é
+// campo real deste schema.
+const WEBSITE_INTERNAL_FIELDS =
+  WEBSITE_DEPENDENT_FIELDS satisfies readonly (keyof DigitalAuditObjectShape)[]
+const INSTAGRAM_INTERNAL_FIELDS =
+  INSTAGRAM_DEPENDENT_FIELDS satisfies readonly (keyof DigitalAuditObjectShape)[]
+const GOOGLE_PROFILE_INTERNAL_FIELDS =
+  GOOGLE_PROFILE_DEPENDENT_FIELDS satisfies readonly (keyof DigitalAuditObjectShape)[]
 
 function guardBaseNao(
   data: DigitalAuditObjectShape,
