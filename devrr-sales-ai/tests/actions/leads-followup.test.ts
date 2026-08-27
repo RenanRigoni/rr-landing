@@ -420,6 +420,52 @@ describe('lib/actions/leads-core — follow-up (4.3)', () => {
       expect(leadAfterSecond!.responded_at).toBe(respondedAtFirst)
     })
 
+    it('fluxo 6.2 ponta a ponta: criar lead → proposta_enviada (3 follow-ups nas datas certas) → markResponded → 3 cancelados → next_action_at vira null', async () => {
+      const leadId = await newLead('Fluxo 6.2 Completo')
+
+      const before = new Date()
+      const moved = await moveStageCore(clientA, orgAId, leadId, stagePropostaA)
+      expect(moved.error).toBeNull()
+
+      const pending = await pendingAutoActivities(leadId)
+      expect(pending.map((a) => a.step_number)).toEqual([1, 2, 3])
+
+      const { data: rules } = await clientA
+        .from('followup_rules')
+        .select('step_number, delay_days')
+        .eq('org_id', orgAId)
+        .eq('trigger_stage_id', stagePropostaA)
+        .order('step_number', { ascending: true })
+      const expected = computeFollowupSchedule({
+        enteredStageAt: before,
+        rules: rules!.map((r) => ({ stepNumber: r.step_number, delayDays: r.delay_days, isActive: true })),
+        timezone: orgTimezone,
+        businessHours: orgBusinessHours,
+      })
+      for (const item of expected) {
+        const activity = pending.find((a) => a.step_number === item.stepNumber)!
+        expect(Math.abs(new Date(activity.due_at!).getTime() - item.dueAt.getTime())).toBeLessThan(10_000)
+      }
+
+      const { data: leadMid } = await clientA.from('leads').select('next_action_at').eq('id', leadId).single()
+      expect(leadMid?.next_action_at).not.toBeNull()
+
+      const responded = await markRespondedCore(clientA, orgAId, leadId, userAId)
+      expect(responded.error).toBeNull()
+
+      const { data: autos } = await clientA
+        .from('activities')
+        .select('status')
+        .eq('lead_id', leadId)
+        .eq('is_auto', true)
+      expect(autos).toHaveLength(3)
+      expect(autos!.every((a) => a.status === 'cancelled')).toBe(true)
+
+      // Nenhuma pendência sobra (não foi plantada tarefa manual) → o cache zera.
+      const { data: leadEnd } = await clientA.from('leads').select('next_action_at').eq('id', leadId).single()
+      expect(leadEnd?.next_action_at).toBeNull()
+    })
+
     it('rejeita lead de outra organização', async () => {
       const contactB = await createContactCore(clientB, orgBId, userBId, { full_name: 'Contato B Responded' })
       const leadB = await createLeadCore(clientB, orgBId, userBId, {

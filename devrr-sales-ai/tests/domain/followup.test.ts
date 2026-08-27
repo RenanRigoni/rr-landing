@@ -153,6 +153,70 @@ describe('computeFollowupSchedule', () => {
     expect(january[0]?.dueAt.getUTCHours()).toBe(12)
     expect(july[0]?.dueAt.getUTCHours()).toBe(12)
   })
+
+  it('entrada num dia útil antes da abertura (07h local) vence às 09h do mesmo dia', () => {
+    const mondayAt07 = new Date('2026-06-15T10:00:00.000Z') // segunda 07h em America/Sao_Paulo
+    const now = new Date('2026-06-01T12:00:00.000Z')
+
+    const result = computeFollowupSchedule({
+      enteredStageAt: mondayAt07,
+      rules: [{ stepNumber: 1, delayDays: 0, isActive: true }],
+      timezone: 'America/Sao_Paulo',
+      businessHours: DEFAULT_HOURS,
+      now,
+    })
+
+    expect(result).toEqual([{ stepNumber: 1, dueAt: new Date('2026-06-15T12:00:00.000Z') }]) // segunda 09h BRT
+  })
+
+  it('entrada num dia útil depois do fechamento (19h local) vence às 09h do dia útil seguinte', () => {
+    const mondayAt19 = new Date('2026-06-15T22:00:00.000Z') // segunda 19h em America/Sao_Paulo
+    const now = new Date('2026-06-01T12:00:00.000Z')
+
+    const result = computeFollowupSchedule({
+      enteredStageAt: mondayAt19,
+      rules: [{ stepNumber: 1, delayDays: 0, isActive: true }],
+      timezone: 'America/Sao_Paulo',
+      businessHours: DEFAULT_HOURS,
+      now,
+    })
+
+    expect(result).toEqual([{ stepNumber: 1, dueAt: new Date('2026-06-16T12:00:00.000Z') }]) // terça 09h BRT
+  })
+
+  it('sem "now" no input usa o relógio real como referência de "não agendar no passado"', () => {
+    const farFuture = new Date('2099-03-16T12:00:00.000Z') // segunda, bem depois de qualquer "agora" real
+
+    const result = computeFollowupSchedule({
+      enteredStageAt: farFuture,
+      rules: [{ stepNumber: 1, delayDays: 0, isActive: true }],
+      timezone: 'America/Sao_Paulo',
+      businessHours: DEFAULT_HOURS,
+      // sem `now` — cai em `new Date()`
+    })
+
+    // candidato (2099) está no futuro em relação ao relógio real, então é ele
+    // que vale; só confirma que a função rodou sem `now` e não jogou pro passado.
+    expect(result[0]?.dueAt.getUTCFullYear()).toBe(2099)
+  })
+
+  it('businessHours.days vazio: a guarda de 8 iterações corta o laço e devolve uma data válida em vez de girar pra sempre', () => {
+    const monday = new Date('2026-06-15T12:00:00.000Z')
+    const now = new Date('2026-06-01T12:00:00.000Z')
+
+    const result = computeFollowupSchedule({
+      enteredStageAt: monday,
+      rules: [{ stepNumber: 1, delayDays: 0, isActive: true }],
+      timezone: 'America/Sao_Paulo',
+      businessHours: { start: '09:00', end: '18:00', days: [] },
+      now,
+    })
+
+    // Sem nenhum dia útil não há janela válida — a guarda para depois de 8
+    // avanços de 1 dia (entrada + 8 dias, às 09h local). Não é contrato de
+    // produto, é o fail-safe do laço: o que importa é não travar.
+    expect(result).toEqual([{ stepNumber: 1, dueAt: new Date('2026-06-23T12:00:00.000Z') }])
+  })
 })
 
 describe('shouldCancelFollowups', () => {
@@ -209,5 +273,13 @@ describe('resolveNextAction', () => {
   it('aceita due_at já como Date, não só string', () => {
     const result = resolveNextAction([{ status: 'pending', due_at: new Date('2026-05-05T00:00:00.000Z') }])
     expect(result?.toISOString()).toBe('2026-05-05T00:00:00.000Z')
+  })
+
+  it('pendentes já em ordem crescente: mantém a primeira como menor (ramo "else" do reduce)', () => {
+    const result = resolveNextAction([
+      { status: 'pending', due_at: '2026-01-01T00:00:00.000Z' },
+      { status: 'pending', due_at: '2026-03-03T00:00:00.000Z' },
+    ])
+    expect(result?.toISOString()).toBe('2026-01-01T00:00:00.000Z')
   })
 })

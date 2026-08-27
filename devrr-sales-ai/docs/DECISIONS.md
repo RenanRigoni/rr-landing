@@ -1227,6 +1227,46 @@ request de usuário.
 
 ---
 
+## D-033 — Cobertura (6.2): `@vitest/coverage-v8` com gate só em `lib/domain/` (100%), opt-in via `test:coverage`; "80% no resto" fica com a suíte `test:rls`
+
+**Data:** 2026-08-27 · **Status:** decidido, tarefa 6.2 · **Aplica a:** `package.json` (script `test:coverage`), `vitest.config.ts` (bloco `coverage`), `devDependencies`
+
+A 6.2 pede "Meta de cobertura: **100% em `lib/domain/`**, 80% no resto". Um número
+exige ferramenta — o projeto não tinha nenhuma (nem o CRM-RR). Três escolhas.
+
+**1. `@vitest/coverage-v8` como devDep, não como parte de `npm run test`.** É a devDep
+oficial do Vitest 3.x (pinada `^3`, mesma major do `vitest`). O gate vive num script
+próprio, `npm run test:coverage` (`vitest run --coverage`) — o `npm run test` que
+todas as outras tarefas rodam a cada commit **não muda de comportamento** (a config de
+`coverage` só entra em ação com a flag). Motivo: um threshold de 100% no comando de
+teste padrão vira freio brusco em qualquer tarefa futura que ainda não escreveu o
+teste; a disciplina "regra de negócio sem teste não fecha tarefa" do `CLAUDE.md` já
+cobre isso sem gate automático.
+
+**2. `coverage.include` restrito a `lib/domain/**/*.ts`.** É o único trecho de `lib/`
+100% exercitável pela suíte pura (sem rede). O threshold de 100%
+(statements/branches/functions/lines) está em `vitest.config.ts` →
+`coverage.thresholds['lib/domain/**/*.ts']`. Medido: 168/168 statements, 82/82
+branches, 19/19 functions — **100% nos quatro**.
+
+**3. "80% no resto" não vira um número único aqui.** `lib/actions/` e `lib/queries/`
+são cobertos pela suíte `test:rls` (167 testes contra o Supabase real), que roda em
+config separada (`vitest.rls.config.ts`, `fileParallelism: false`, precisa de rede) —
+separada desde a 2.4 justamente por isso. Fundir a cobertura das duas suítes num
+relatório só exigiria rodar a suíte de rede com `--coverage` a cada medição, o que
+sai do escopo de "testes de fluxo" da 6.2. A checagem de fluxo, isolamento e erro de
+banco dessas camadas já é feita por asserção explícita naquela suíte, não por
+percentual.
+
+**Lacunas de `lib/domain/` fechadas na 6.2 para bater 100%:** `followup.ts` —
+`pushIntoBusinessWindow` (antes da abertura / depois do fechamento / `days: []`),
+`computeFollowupSchedule` sem `now`, `resolveNextAction` ramo `else` do `reduce`;
+`ai-context.ts` — carimbo caindo em `created_at`, `buildFollowupVars` sem `now`.
+Nenhuma dessas era bug — código defensivo/parâmetro de teste sem exercício. 18 testes
+novos em `tests/domain/` (99 → 117).
+
+---
+
 ## Questões abertas
 
 Sonnet: adicione aqui o que travar. Opus resolve no próximo checkpoint.

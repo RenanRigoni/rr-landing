@@ -34,6 +34,13 @@ npm run seed:purge -- --yes    # apaga todo dado is_demo de contacts/leads/activ
   SEED_DEMO_OWNER_EMAIL=voce@exemplo.com npm run seed:demo
   ```
 
+## Cobertura (`npm run test:coverage`)
+
+Roda a suíte pura (`npm run test`) com o provider `v8` e um gate de **100%**
+em `lib/domain/` (statements/branches/functions/lines). Opt-in: não faz parte
+do `npm run test` das outras tarefas. O restante de `lib/` (actions, queries)
+é coberto pela suíte `test:rls`. Ver `docs/DECISIONS.md` → D-033.
+
 ## Testes de RLS (`tests/rls.test.ts`)
 
 Prova que o isolamento multi-tenant funciona de verdade — não que as policies

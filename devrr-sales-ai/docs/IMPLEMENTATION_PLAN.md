@@ -2900,7 +2900,7 @@ WhatsApp e marcar como enviada — e o `ai_run` fica registrado com tokens e lat
 > puro). `typecheck`/`lint`/`test` (110/110)/`test:rls` (166/166, sem
 > regressão)/`build` verdes. `advisors`/`replay` não aplicável (sem DDL).
 
-### [ ] 6.2 Testes de fluxo
+### [x] 6.2 Testes de fluxo
 
 - Unitários: tudo em `lib/domain/` (`followup`, `phone`, `money`, `next-action`).
 - Integração das actions com Supabase de teste: criar lead → mover para
@@ -2908,6 +2908,47 @@ WhatsApp e marcar como enviada — e o `ai_run` fica registrado com tokens e lat
   os 3 cancelados → `next_action_at` vira null.
 - Idempotência: mover A→B→A não duplica follow-up.
 - Meta de cobertura: **100% em `lib/domain/`**, 80% no resto.
+
+> feito: sem migration, sem mudança de schema. As Fases 3–5 já escreveram a
+> maior parte destes testes conforme implementavam; a 6.2 fecha as lacunas e
+> instrumenta a cobertura. **D-033** para o desvio (ferramenta de cobertura).
+>
+> **Cobertura:** `@vitest/coverage-v8` adicionado (devDep), script novo
+> `npm run test:coverage` (`vitest run --coverage`) — **não** entra no
+> `npm run test` que as outras tarefas rodam a cada commit; é opt-in. Escopo
+> em `vitest.config.ts` → `coverage.include = ['lib/domain/**/*.ts']` com
+> `thresholds` 100% (statements/branches/functions/lines). `lib/domain/` bate
+> **100% nos quatro** (168/168 stmts, 82/82 branches, 19/19 funcs). O resto de
+> `lib/` (actions/queries) é exercitado pela suíte `test:rls` (167 testes,
+> Supabase real) — um número único de cobertura combinando as duas suítes não
+> é produzido aqui: `test:rls` precisa de rede e roda em config própria
+> (`fileParallelism: false`), mesma razão de ela já ser separada desde a 2.4.
+>
+> **Lacunas de domínio fechadas para chegar a 100%:** `followup.ts` —
+> `pushIntoBusinessWindow` ganhou testes para "entrada antes da abertura"
+> (07h → 09h do mesmo dia), "entrada depois do fechamento" (19h → 09h do dia
+> útil seguinte) e `businessHours.days: []` (guarda de 8 iterações corta o
+> laço, não trava); `computeFollowupSchedule` sem `now` (cai em `new Date()`);
+> `resolveNextAction` com pendentes em ordem crescente (ramo `else` do
+> `reduce`). `ai-context.ts` — atividade sem `done_at`/`due_at` (carimbo cai
+> em `created_at`) e `buildFollowupVars` sem `now`. `tests/domain/` passou de
+> 99 para 117 testes.
+>
+> **Fluxo ponta a ponta (6.2):** novo `it` em `tests/actions/leads-followup.test.ts`
+> → `markRespondedCore` que faz a cadeia completa da spec: criar lead → mover
+> para `proposta_enviada` (3 automáticos, datas conferidas contra
+> `computeFollowupSchedule` com tolerância de 10s) → `next_action_at` não-nulo
+> → `markResponded` → os 3 `cancelled` → **`next_action_at` vira `null`** (sem
+> tarefa manual plantada, nada sobra). A assimetria "não zera quando sobra
+> manual" já era coberta pelo teste de reentrada (D-027).
+>
+> **Idempotência A→B→A:** já coberta desde a 4.3
+> (`tests/actions/leads-followup.test.ts` → "mover A→B→A não duplica":
+> 3 pendentes + 3 cancelados = 6 no total, nunca 9). Sem duplicação.
+>
+> Validação: `typecheck`/`lint`/`test` (117/117)/`test:coverage`
+> (`lib/domain/` 100%)/`test:rls` (167/167, +1)/`build` verdes.
+> `advisors`/`replay` não aplicável (sem DDL).
 
 ### [ ] 6.3 Reconciliação de caches
 

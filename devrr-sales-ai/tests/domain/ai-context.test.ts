@@ -73,6 +73,14 @@ describe('buildFollowupVars — mapeamento feliz', () => {
       expect(value.length).toBeGreaterThan(0)
     }
   })
+
+  it('sem "now" no input usa o relógio real — não lança e devolve as 9 chaves', () => {
+    const input = baseInput()
+    delete input.now
+    const vars = buildFollowupVars(input)
+    expect(Object.keys(vars).sort()).toEqual(EXPECTED_KEYS)
+    expect(vars.dias_desde_ultimo_contato).toMatch(/^\d+$/) // lastContactAt no passado → número, calculado contra new Date()
+  })
 })
 
 describe('buildFollowupVars — valor (regra da PRODUCT_SPEC #1)', () => {
@@ -146,6 +154,18 @@ describe('buildFollowupVars — histórico resumido', () => {
     expect(linhas[0]).toContain('Evento 1')
     expect(linhas[4]).toContain('Evento 5')
     expect(resumo).not.toContain('Evento 6')
+  })
+
+  it('atividade sem done_at e sem due_at cai no created_at para o carimbo relativo', () => {
+    const resumo = buildFollowupVars(
+      baseInput({
+        activities: [
+          activity({ title: 'Nota solta', status: 'done', done_at: null, due_at: null, created_at: subDays(NOW, 2).toISOString() }),
+        ],
+      }),
+    ).historico_resumido
+
+    expect(resumo).toBe('- há 2 dias: Nota solta')
   })
 
   it('marca status não concluído: [pendente] e [cancelada]; done fica sem sufixo', () => {
