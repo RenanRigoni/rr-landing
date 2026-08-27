@@ -3546,7 +3546,56 @@ os types atualizados, `DATABASE.md` refletindo o que está no banco.
 
 ---
 
-### [ ] 7.2 `lib/domain/digital-score.ts` + `lib/domain/pagespeed.ts` + testes
+### [x] 7.2 `lib/domain/digital-score.ts` + `lib/domain/pagespeed.ts` + testes
+
+> feito: `lib/domain/digital-score.ts` (`computeDigitalScore(audit:
+> DigitalAuditFields)` → `{ score, completeness, earned, available, sections }`)
+> e `lib/domain/pagespeed.ts` (`classifyLighthouseScore`, `classifyLcpMs`,
+> `classifyInpMs`, `classifyClsValue`, `formatMsAsSeconds`). Puros — zero
+> import de `supabase`/`next`/`database.types`. `DigitalAuditFields` declara os
+> 46 campos que entram no score como uniões de literais próprias (D-036); a
+> `Row` de `lead_digital_audits` satisfaz estruturalmente.
+>
+> Tabela de pesos implementada exatamente como no plano (Google 20 · Website 25
+> · Conversão 20 · PageSpeed 20 · Instagram 15 = 100). D-037 respeitado:
+> `null`/`nao_analisado`/`nao_identificado`/`nao_se_aplica`/número fora do
+> domínio → **não avaliado** (sai de numerador e denominador); `nao` → avaliado
+> valendo 0 (fica no denominador). D-038: `digital_score`/
+> `digital_score_completeness` **não** entram em `DigitalAuditFields` — são
+> saída da função, nunca entrada. `score = round(100*earned/available)`,
+> `null` quando `available === 0`; `completeness = round(available)`.
+>
+> As 5 regras de cascata do plano: `website_exists='nao'` → outros 20 pts de
+> Website avaliados valendo 0 **e** seção PageSpeed fora do denominador;
+> `website_exists` nulo/`nao_analisado` → seção Website inteira fora do
+> denominador (PageSpeed segue regra própria — o plano só acopla PageSpeed ao
+> caso `='nao'`); `instagram_exists='nao'` → outros 12 pts de Instagram
+> valendo 0; `google_business_profile='nao'` → outros 16 pts de Google
+> valendo 0; número fora do domínio → não avaliado, nunca 0.
+>
+> `pagespeed.ts` centraliza os limiares de `DOSSIE.md` §8 — nenhum limiar
+> repetido em componente (só existe domínio até aqui). `formatMsAsSeconds`:
+> ms inteiro → segundos com 2 casas pt-BR (`2480` → `"2,48 s"`).
+>
+> Testes: `tests/domain/digital-score.test.ts` (44 casos) e
+> `tests/domain/pagespeed.test.ts` (16 casos) — vazia → `null`/0; perfeita →
+> 100/100; `nao_analisado` reduz completude sem mexer no score; `nao` derruba
+> score sem mexer na completude; cada regra de cascata; fricção invertida;
+> todas as bandas numéricas (rating, reviews, cliques) e enum não-binárias;
+> limiares dos classificadores nas bordas exatas (90/89, 50/49, 2500/2501,
+> 4000/4001, 200/201, 500/501, 0.1/0.11, 0.25/0.26).
+>
+> **Decisão de leitura (não é mudança de contrato):** para
+> `google_business_profile`/`instagram_exists` **nulos ou `nao_analisado`** o
+> plano não define cascata (só define para `='nao'`); segui o comportamento
+> default — campo-base não avaliado, os demais itens da seção pontuados
+> individualmente. Só o caso de Website nulo tem regra explícita de "seção
+> inteira fora", por causa do acoplamento com PageSpeed.
+>
+> Validação: `test:coverage` — `lib/domain/` 100% (430/430 stmt, 254/254
+> branch, 43/43 fn); `digital-score.ts` e `pagespeed.ts` 100/100/100/100.
+> `typecheck` / `lint` / `test` (204/204, +60) / `build` verdes. Sem
+> schema/migration/RLS nesta tarefa.
 
 Lógica pura, zero import de `supabase`/`next` (regra de dependência da
 `ARCHITECTURE.md`). O domínio declara a própria interface de entrada
