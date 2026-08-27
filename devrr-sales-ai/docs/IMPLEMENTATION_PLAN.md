@@ -2740,7 +2740,7 @@ coerência: as `followup_rules` semeadas apontam para o slug que existe).
 contagem furada, o real pós-5.1 era 73)/`test:rls` (139/139 — +1 do `it` do
 seed)/`build` verdes.
 
-### [ ] 5.3 Contexto real do lead
+### [x] 5.3 Contexto real do lead
 
 `lib/queries/ai-context.ts`: `buildFollowupContext(leadId)` monta as variáveis a
 partir do banco — nome, título, interesse, valor formatado, dias desde o último
@@ -2748,6 +2748,50 @@ contato, estágio, passo, e um resumo das últimas 5 atividades.
 
 **Valor só entra no contexto se `value_cents > 0`.** Enviar "R$ 0,00" faz a IA
 escrever bobagem sobre preço. Regra da `PRODUCT_SPEC.md` #1 aplicada na prática.
+
+> feito: `lib/domain/ai-context.ts` (puro — `buildFollowupVars` +
+> `resolveFollowupStep` + `FOLLOWUP_VAR_KEYS`) e `lib/queries/ai-context.ts`
+> (`buildFollowupContext`). Nenhuma migration, nenhum arquivo de banco tocado;
+> `renderTemplate`/wrapper/core da 5.1 intocados (D-029 não exigido pela 5.3 — o
+> `system_prompt` do seed não tem placeholder). Nenhuma action/UI chama IA ainda
+> (isso é 5.4); `buildFollowupContext` não chama o gateway, só monta `vars` +
+> `leadId` + `contactId` para a 5.4 passar a `runAiPrompt`.
+>
+> **Assinatura `buildFollowupContext(supabase, orgId, leadId)`** em vez do
+> `(leadId)` literal do texto — registrado em **D-030**: mesma razão de D-028
+> (`gateway.ts`) e D-020 (`*-core`), client+org explícitos vindos da action
+> `'use server'` da 5.4, o que torna o isolamento entre tenants testável sem
+> `cookies()`. `orgId` sempre server-side.
+>
+> **Contexto só do tenant atual:** lead + contato + estágio + organização +
+> atividades, cada `select` filtrado por `org_id` (colunas listadas, sem
+> `select *`). Lead fora da org (ou `orgId` que não é do usuário) → lança
+> `Lead não encontrado.`, nunca contexto parcial. Contato/estágio ausentes na
+> org lançam como invariante quebrada (D-020 valida na escrita). Erro de banco
+> é propagado (lança), nunca vira contexto vazio silencioso.
+>
+> **Campos opcionais — comportamento explícito** (`PRODUCT_SPEC.md` #1: "se não
+> tem o dado, declara que não tem"): `valor` só formatado quando
+> `value_cents > 0`, senão sentinel `'não informado'` — a linha fixa
+> `Valor: {{valor}}` do template do seed 0010 nunca renderiza vazia (teste
+> cobre). `interesse` nulo/em branco → `'não informado'`.
+> `dias_desde_ultimo_contato` sem `last_contact_at` → `'não informado'` (não
+> inventa 0); `done_at` no futuro trava em `'0'`. `historico_resumido` sem
+> atividades → `'sem histórico registrado'`; senão até 5 linhas
+> (`formatRelativeDateBR` + título + `[pendente]`/`[cancelada]`).
+> `passo_followup` = menor `step_number` entre as pendentes automáticas; sem
+> nenhuma → `1` (passo de menor pressão), explícito. Telefone/dinheiro/data via
+> os helpers de `lib/domain/` já existentes (`formatBRL`, `formatRelativeDateBR`).
+>
+> Testes: `tests/domain/ai-context.test.ts` (22, puro — valor/interesse/dias/
+> histórico/passo, contrato das 9 chaves travado por `FOLLOWUP_VAR_KEYS`,
+> render da linha `Valor:`) e `tests/actions/ai-context.test.ts` (12, Supabase
+> real na suíte `test:rls` — contexto completo, cross-tenant nos 3 sentidos
+> (B→lead de A, A com `orgId` de B, A→lead de B), lead inexistente/ inválido,
+> valor/interesse ausentes ponta a ponta, `dias` a partir de `last_contact_at`,
+> erro de banco em `leads` e em tabela relacionada). `typecheck`/`lint`/
+> `test` (99/99, +22)/`test:rls` (151/151, +12)/`build` verdes. `get_advisors`
+> não aplicável — 5.3 não altera o schema.
 
 ### [ ] 5.4 Gerar, revisar, usar
 

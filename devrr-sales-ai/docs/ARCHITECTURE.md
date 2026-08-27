@@ -180,6 +180,12 @@ O que a IA pode fazer no MVP: **escrever mensagem de follow-up** com contexto re
 lead. Só isso. Classificação e sugestão de próxima ação entram depois de haver dado
 real pra avaliar.
 
+O contexto (o `vars` do passo 2) é montado por `lib/queries/ai-context.ts`
+(`buildFollowupContext(supabase, orgId, leadId)`, D-030) — cada `select` filtrado
+por `org_id` — sobre `lib/domain/ai-context.ts` (puro: formatação de valor/data,
+resumo de histórico, sentinel explícito para campo ausente). A action da 5.4 chama
+`buildFollowupContext` e passa o resultado para `runAiPrompt`.
+
 ## Port do CRM-RR — mapa arquivo a arquivo
 
 Cópia direta, ajustando só schema (`crm` → `sales`) e adicionando `org_id`:

@@ -1046,6 +1046,58 @@ primeira linha do user prompt), reversível a qualquer momento.
 
 ---
 
+## D-030 — Contexto de IA (5.3): `buildFollowupContext(supabase, orgId, leadId)`, não `(leadId)`; camada pura separada; sentinel explícito para campo opcional
+
+**Data:** 2026-08-27 · **Status:** decidido, tarefa 5.3 · **Aplica a:** `lib/queries/ai-context.ts`, `lib/domain/ai-context.ts`, qualquer construção futura de contexto para prompt
+
+O texto da 5.3 no `IMPLEMENTATION_PLAN.md` escreve `buildFollowupContext(leadId)`.
+Três pontos que não estavam fechados nos docs.
+
+**1. Assinatura recebe `client` + `orgId` explícitos.** Mesma decisão de **D-028**
+(`gateway.ts`) e **D-020** (`*-core`): a função é chamada pela action `'use server'`
+da 5.4, que já resolve sessão/org via `requireOrgId()`. Fazer `buildFollowupContext`
+chamar `createClient()`/`cookies()` por conta própria (padrão dos outros
+`lib/queries/*.ts`, que são `server-only`) duplicaria a resolução de sessão **e**
+tornaria impossível o requisito da própria 5.3 de testes cross-tenant — a suíte
+`test:rls` prova isolamento com dois clientes anônimos autenticados
+(`tests/actions/*.test.ts`), o que exige o client injetado. `orgId` continua sempre
+server-side; nada vem do cliente. Por isso o arquivo **não** tem `import
+'server-only'` (mesma exceção que `gateway.ts` abriu em D-028). Fica em
+`lib/queries/` como o plano pede — é leitura pura, sem escrita.
+
+**2. Lógica de formatação/decisão isolada em `lib/domain/ai-context.ts`.** Regra
+dura do `CLAUDE.md` ("toda função em `lib/domain/` tem teste vitest; regra de
+negócio sem teste não fecha tarefa"). `buildFollowupVars` + `resolveFollowupStep`
++ `FOLLOWUP_VAR_KEYS` são puros (zero `supabase`/`next`/`ai`), testados no
+`npm run test` padrão. `lib/queries/ai-context.ts` só busca as linhas (cada
+`select` filtrado por `org_id`, colunas listadas) e delega. Mesmo split de
+`lib/queries/today.ts` ↔ `lib/domain/today.ts`.
+
+**3. Campo opcional ausente = sentinel explícito `'não informado'`, nunca string
+vazia nem valor inventado.** O `user_prompt_template` do seed 0010 tem linhas
+fixas (`Valor: {{valor}}`, `Interesse: {{interesse}}`, ...). `renderTemplate`
+troca `{{x}}` por `vars[x] ?? ''` — sem o sentinel, `value_cents = 0` ou
+`interest = null` renderizaria `Valor:` / `Interesse:` pendurado, o que a 5.3
+proíbe ("não envie 'Valor:' vazio"). `'não informado'` é a leitura da regra 1 da
+`PRODUCT_SPEC.md` ("se não tem o dado, declara que não tem — não estima"); o
+`system_prompt` do seed já instrui a IA a não mencionar o que está marcado assim.
+`valor` só é formatado (`formatBRL`) quando `value_cents > 0`.
+`dias_desde_ultimo_contato` sem `last_contact_at` → `'não informado'` (não fabrica
+`0`). `passo_followup` sem nenhuma atividade automática pendente → `1` (menor
+pressão), decisão explícita, não fallback silencioso.
+
+**Descartado:** (a) `buildFollowupContext(leadId)` resolvendo a própria sessão —
+quebra os testes cross-tenant e diverge de D-020/D-028; (b) mandar `R$ 0,00` /
+linha vazia e deixar a IA lidar — é exatamente o que a 5.3 diz que faz a IA
+"escrever bobagem sobre preço"; (c) omitir a chave do `vars` — `renderTemplate`
+cairia em `''` e o resultado é o mesmo problema da linha pendurada.
+
+**Aberto para o Opus:** nada bloqueante. Se num checkpoint o `system_prompt`
+passar a ter placeholders (D-029), `buildFollowupContext` já entrega o `vars`
+completo — só o `gateway.ts` mudaria.
+
+---
+
 ## Questões abertas
 
 Sonnet: adicione aqui o que travar. Opus resolve no próximo checkpoint.
