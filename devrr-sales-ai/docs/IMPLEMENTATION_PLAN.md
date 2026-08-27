@@ -3287,7 +3287,7 @@ incluindo `ai_runs` e `audit_logs`. Rodar `get_advisors(type:'security')` e
 > Validação: `typecheck`/`lint`/`test` (144/144)/`test:coverage` (`lib/domain/`
 > 100%)/`test:rls` (201/201, +30)/`build` verdes.
 
-### [ ] 6.5 Uso real
+### [ ] 6.5 Uso real — **em andamento (janela: 2026-08-27 → 2026-09-10)**
 
 Deploy Vercel (projeto `devrr-sales-ai`, root `devrr-sales-ai/`, env configuradas).
 Cadastrar os leads reais da DevRR. Usar por **duas semanas**, todo dia, de verdade.
@@ -3298,6 +3298,32 @@ escrito hoje.
 
 **Pronto quando:** o sistema responde as 6 perguntas da `PRODUCT_SPEC.md` → Definição
 de pronto usando dados reais. → **Checkpoint Opus: revisar plano das fases 7+.**
+
+> **Preparado (agente):** a 6.5 é tarefa de operador + tempo de calendário —
+> deploy, entrada de dado real da DevRR e duas semanas de uso não são
+> executáveis por agente, e as field notes vêm desse uso, não podem ser
+> escritas antes. Feito o que era automatizável:
+>
+> - **`docs/FIELD_NOTES.md`** criado — esqueleto de registro: checklist das 6
+>   perguntas de `PRODUCT_SPEC.md` (com coluna de tela/data), o fluxo ponta a
+>   ponta passo a passo, a verificação em Production do job de reconciliação
+>   (6.3/D-034 — fecha o item operacional que a 6.3 deixou pendente), e
+>   seções de log de atrito / faltou / sobrou / bugs + fechamento.
+> - **`README.md` → Deploy** — runbook do projeto Vercel `devrr-sales-ai`:
+>   Root Directory `devrr-sales-ai/`, as 5 env vars (`CRON_SECRET` ≥32 em
+>   Production), `vercel.json` (cron só roda em Production), e os dois `curl`
+>   de verificação pós-deploy (`200` com header, `401` sem — não `307`).
+> - **Gates** (pré-deploy): `typecheck`/`lint`/`test` (144/144)/`test:coverage`
+>   (`lib/domain/` 100%)/`test:rls` (201/201)/`build` verdes.
+>
+> **Sem código de produto novo, sem migration, sem DDL.** `service_role` e RLS
+> inalterados (D-034 intacto). Q-006 e Q-008 **não** tocadas — entram no mesmo
+> checkpoint Opus do fim da 6.5.
+>
+> **Falta (operador):** configurar o projeto Vercel e as env vars, deployar a
+> Production, cadastrar os leads reais, usar por duas semanas preenchendo
+> `FIELD_NOTES.md`. Ao fim: marcar `[x]` aqui e abrir o checkpoint Opus das
+> Fases 7+.
 
 ---
 

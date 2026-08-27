@@ -11,6 +11,45 @@ cp .env.example .env.local   # preencher com as credenciais reais
 npm run dev
 ```
 
+## Deploy (Vercel — projeto `devrr-sales-ai`)
+
+Projeto Vercel próprio, **separado** do `rr-landing` (raiz do repo) e do
+`CLAUDE.md` → Stack fixada.
+
+**Configuração do projeto (uma vez, no dashboard da Vercel):**
+
+- **Root Directory:** `devrr-sales-ai/` (o repo é `RR`; este projeto vive numa
+  subpasta).
+- **Framework preset:** Next.js. Build/Install padrão.
+- **Environment Variables** (todas as 5 de `.env.example`, em **Production** e
+  **Preview**):
+  - `NEXT_PUBLIC_SUPABASE_URL`
+  - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+  - `SUPABASE_SERVICE_ROLE_KEY` — server-only, nunca exposta ao browser
+  - `AI_GATEWAY_API_KEY`
+  - `CRON_SECRET` — **valor aleatório de ≥32 caracteres**. É a única
+    autenticação de `app/api/cron/*` (D-034). Com a env var presente em
+    Production, a Vercel injeta `Authorization: Bearer $CRON_SECRET` nas
+    requests de Cron automaticamente.
+
+**Cron (`vercel.json`):** `GET /api/cron/reconcile`, `0 9 * * *` UTC (06:00
+BRT). Cron **só roda em deploy de Production**. Ver `docs/IMPLEMENTATION_PLAN.md`
+→ 6.3 e `docs/DECISIONS.md` → D-034.
+
+**Verificação pós-deploy:**
+
+```bash
+# 200 + contadores (sem org_id / id de lead no corpo)
+curl -sS -H "Authorization: Bearer $CRON_SECRET" https://<prod-url>/api/cron/reconcile
+
+# 401 (NÃO 307 → prova que api/cron está fora do matcher do proxy.ts)
+curl -sS -o /dev/null -w '%{http_code}\n' https://<prod-url>/api/cron/reconcile
+```
+
+Deploy é disparado por push (o repo já usa esse fluxo). Migrations do Supabase
+**não** são aplicadas pela Vercel — rodam à parte contra o projeto
+`fvgbbixxcapltudonxqx` (`CLAUDE.md` → Banco).
+
 ## Seed de demonstração (`supabase/seed/`)
 
 Popula uma organização de demonstração para inspeção e exploração local. Roda
