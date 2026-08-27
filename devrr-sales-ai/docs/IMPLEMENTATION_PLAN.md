@@ -3238,13 +3238,54 @@ reconciliar leads fechados; qualquer segunda rota de cron.
 > Validação: `typecheck`/`lint`/`test` (144/144)/`test:coverage` (`lib/domain/`
 > 100%)/`test:rls` (171/171, +4)/`build` verdes.
 
-### [ ] 6.4 Validar RLS de novo, com tudo pronto
+### [x] 6.4 Validar RLS de novo, com tudo pronto
 
 Reexecutar `tests/rls.test.ts` estendido para todas as tabelas criadas nas Fases 3-5,
 incluindo `ai_runs` e `audit_logs`. Rodar `get_advisors(type:'security')` e
 `get_advisors(type:'performance')`. Resolver todo alerta.
 
 **Pronto quando:** advisors limpos e todos os casos de isolamento passam.
+
+> feito: sem migration, sem DDL. Nenhum uso de `service_role` ampliado; D-034
+> intacto.
+>
+> **`tests/rls.test.ts` estendido (+30, de 55 → 85 no arquivo; `test:rls`
+> 171 → 201).** Bloco novo `RLS — sales.contacts, leads, ai_prompts, ai_runs,
+> audit_logs (Fases 3–5, revalidação 6.4)` com `beforeAll`/`afterAll` próprios
+> (mesmo padrão dos blocos existentes). Por tabela, 6 casos: A lê a própria
+> linha; B não vê linha de A (0 linhas, não erro); B não insere com `org_id`
+> de A (`WITH CHECK` → erro real); B não faz `UPDATE` nem `DELETE` de linha de
+> A (`USING` → 0 linhas, sem erro, checado via `.select()` encadeado — D-016);
+> `anon` não lê. Os leads de A usam `contact_id`/`stage_id` da própria org B
+> no teste de `INSERT` cross-tenant — o que barra é a policy de `org_id`, não
+> a FK. As tabelas já cobertas antes (`organizations`, `org_members`,
+> `activities`, `followup_rules`, as duas views) seguem inalteradas e passam.
+>
+> **`audit_logs`:** só isolamento entre tenants aqui. Endurecer a policy para
+> append-only (bloquear `update`/`delete` do próprio membro) é **Q-006**, fora
+> do escopo da 6.4 (registrado como continua aberto).
+>
+> **`get_advisors(security)`:** zero alerta novo no schema `sales`. Os três
+> `authenticated_security_definer_function_executable` (`create_organization`,
+> `current_org_ids`, `current_org_role`) são os já adjudicados em **D-013**
+> ("esperado, não é falha" — RPC que o app precisa chamar via `authenticated`,
+> nenhuma vaza dado de outro usuário). `seed_org_defaults` **não** aparece — o
+> `revoke execute ... from authenticated` funcionou. Todo o resto do relatório
+> é do schema `public`/`crm` (outro projeto no mesmo banco Supabase), fora de
+> escopo.
+>
+> **`get_advisors(performance)`:** 18 lints no schema `sales`, **todos INFO,
+> zero WARN/ERROR** — 17 × `unindexed_foreign_keys` + 1 × `unused_index`
+> (`leads_org_status_next_action_idx`, não usado só porque ainda não há dado —
+> é índice deliberado do hot path, DATABASE.md). Nenhum é regressão da 6.3/6.4
+> (a 6.3 não teve DDL; todos vêm do DDL de tabela das Fases 3–5). Decidir se
+> vale um `0012_*` de índices de cobertura agora ou no checkpoint da Fase 6
+> com dados reais (D-014, "revisar se performance real na 6.5 justificar") é
+> **Q-008** — devolvido ao Opus, não improvisado aqui (CLAUDE.md: Sonnet não
+> decide schema).
+>
+> Validação: `typecheck`/`lint`/`test` (144/144)/`test:coverage` (`lib/domain/`
+> 100%)/`test:rls` (201/201, +30)/`build` verdes.
 
 ### [ ] 6.5 Uso real
 

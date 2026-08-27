@@ -1396,3 +1396,20 @@ Sonnet: adicione aqui o que travar. Opus resolve no próximo checkpoint.
   existente precisou de edição (regressão coberta); teste novo em
   `tests/actions/activities.test.ts` prova a distinção com `stubTableError` na
   tabela relacionada, confirmando que o erro não vira `'Lead não encontrado.'`.
+- **Q-008** — `get_advisors(performance)` na 6.4 lista **18 lints no schema
+  `sales`, todos INFO**: 17 × `unindexed_foreign_keys` (FKs `*_created_by`,
+  `*_reviewed_by`, `audit_logs.user_id`, `leads.contact_id`/`stage_id`/
+  `source_id`, `activities.lead_id`/`contact_id`/`rule_id`/`ai_run_id`,
+  `ai_runs.*`, `followup_rules.trigger_stage_id`) + 1 × `unused_index`
+  (`leads_org_status_next_action_idx`, "não usado" só porque ainda não há dado
+  real — é índice deliberado do hot path). Nenhum é WARN/ERROR nem regressão
+  da 6.3/6.4 — todos vêm do DDL de tabela das Fases 3–5. Vale criar uma
+  migration `0012_*` de índices de cobertura agora, ou fica pro checkpoint da
+  Fase 6 / 6.5 com padrão de query e de `DELETE` cascade real (D-014, "revisar
+  se performance real na 6.5 justificar")? A 6.4 não adicionou índices por
+  isso ser decisão de schema (CLAUDE.md: Sonnet não improvisa arquitetura).
+  Contexto relevante pro Opus: D-017 previu o custo do cascade de tenant que
+  varre `contacts`/`leads`/`activities`/`ai_runs`/`audit_logs` — as FKs no
+  caminho de `on delete cascade` (`leads.contact_id`, `activities.lead_id`/
+  `contact_id`, `ai_runs.org_id`/`lead_id`) são as que mais pesam se um
+  `DELETE` de organização acontecer com volume.

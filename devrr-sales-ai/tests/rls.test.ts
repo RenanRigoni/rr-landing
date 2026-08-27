@@ -894,3 +894,325 @@ describe('RLS — sales.v_today_actions e sales.v_leads_without_action (migratio
     })
   })
 })
+
+/**
+ * Revalidação 6.4: isolamento das tabelas das Fases 3–5 que ainda não tinham
+ * bloco próprio na suíte — `contacts`/`leads` (0005), `ai_prompts`/`ai_runs`
+ * (0009) e `audit_logs` (0011). As cinco usam a mesma policy `tenant_isolation`
+ * "for all" (`org_id in (select sales.current_org_ids())`); os casos seguem o
+ * padrão já provado para `activities`/`followup_rules`: B não lê linha de A,
+ * `INSERT` com `org_id` de A barrado por `WITH CHECK` (erro real), `UPDATE`/
+ * `DELETE` barrados por `USING` (0 linhas, sem erro — D-016), anon não lê nada.
+ *
+ * `audit_logs`: só o isolamento entre tenants é testado aqui. Endurecer a
+ * policy para append-only (bloquear `update`/`delete` do próprio membro) é
+ * Q-006, fora do escopo da 6.4.
+ */
+describe('RLS — sales.contacts, leads, ai_prompts, ai_runs, audit_logs (Fases 3–5, revalidação 6.4)', () => {
+  let userAId: string
+  let userBId: string
+  let clientA: SupabaseClient<Database, 'sales'>
+  let clientB: SupabaseClient<Database, 'sales'>
+  let orgAId: string
+  let orgBId: string
+  let contactAId: string
+  let leadAId: string
+  let promptAId: string
+  let aiRunAId: string
+  let auditLogAId: string
+  let contactBId: string
+  let stageNovoBId: string
+
+  beforeAll(async () => {
+    userAId = await ensureTestUser(TEST_USER_A)
+    userBId = await ensureTestUser(TEST_USER_B)
+    await cleanupOrgsForUser(userAId)
+    await cleanupOrgsForUser(userBId)
+
+    clientA = await signInTestClient(TEST_USER_A)
+    clientB = await signInTestClient(TEST_USER_B)
+
+    const { data: newOrgA, error: orgAError } = await clientA.rpc('create_organization', { p_name: 'RLS 6.4 Org A' })
+    if (orgAError || !newOrgA) throw new Error(`Falha ao criar org A: ${orgAError?.message}`)
+    orgAId = newOrgA
+
+    const { data: newOrgB, error: orgBError } = await clientB.rpc('create_organization', { p_name: 'RLS 6.4 Org B' })
+    if (orgBError || !newOrgB) throw new Error(`Falha ao criar org B: ${orgBError?.message}`)
+    orgBId = newOrgB
+
+    const { data: stagesA } = await clientA.from('pipeline_stages').select('id, key').eq('org_id', orgAId)
+    const stageNovoA = stagesA!.find((s) => s.key === 'novo')!.id
+
+    const { data: stagesB } = await clientB.from('pipeline_stages').select('id, key').eq('org_id', orgBId)
+    stageNovoBId = stagesB!.find((s) => s.key === 'novo')!.id
+
+    const { data: contactA, error: contactAError } = await clientA
+      .from('contacts')
+      .insert({ org_id: orgAId, full_name: 'Contato 6.4 A' })
+      .select('id')
+      .single()
+    if (contactAError || !contactA) throw new Error(`Falha ao criar contato A: ${contactAError?.message}`)
+    contactAId = contactA.id
+
+    const { data: leadA, error: leadAError } = await clientA
+      .from('leads')
+      .insert({ org_id: orgAId, contact_id: contactAId, title: 'Lead 6.4 A', stage_id: stageNovoA })
+      .select('id')
+      .single()
+    if (leadAError || !leadA) throw new Error(`Falha ao criar lead A: ${leadAError?.message}`)
+    leadAId = leadA.id
+
+    // ai_prompts: A já recebe o followup_proposta v1 ativo do seed_org_defaults.
+    const { data: promptA } = await clientA.from('ai_prompts').select('id').eq('org_id', orgAId).limit(1).single()
+    promptAId = promptA!.id
+
+    const { data: aiRunA, error: aiRunAError } = await clientA
+      .from('ai_runs')
+      .insert({ org_id: orgAId, lead_id: leadAId, contact_id: contactAId, status: 'pending_review' })
+      .select('id')
+      .single()
+    if (aiRunAError || !aiRunA) throw new Error(`Falha ao criar ai_run A: ${aiRunAError?.message}`)
+    aiRunAId = aiRunA.id
+
+    const { data: auditA, error: auditAError } = await clientA
+      .from('audit_logs')
+      .insert({ org_id: orgAId, entity: 'lead', entity_id: leadAId, action: 'test_6_4' })
+      .select('id')
+      .single()
+    if (auditAError || !auditA) throw new Error(`Falha ao criar audit_log A: ${auditAError?.message}`)
+    auditLogAId = auditA.id
+
+    const { data: contactB, error: contactBError } = await clientB
+      .from('contacts')
+      .insert({ org_id: orgBId, full_name: 'Contato 6.4 B' })
+      .select('id')
+      .single()
+    if (contactBError || !contactB) throw new Error(`Falha ao criar contato B: ${contactBError?.message}`)
+    contactBId = contactB.id
+  }, 30_000)
+
+  afterAll(async () => {
+    await cleanupOrgsForUser(userAId)
+    await cleanupOrgsForUser(userBId)
+  })
+
+  describe('sales.contacts', () => {
+    it('A lê o próprio contato', async () => {
+      const { data, error } = await clientA.from('contacts').select('id').eq('id', contactAId)
+      expect(error).toBeNull()
+      expect(data?.map((c) => c.id)).toContain(contactAId)
+    })
+
+    it('B não vê o contato de A (0 linhas, não erro)', async () => {
+      const { data, error } = await clientB.from('contacts').select('id').eq('id', contactAId)
+      expect(error).toBeNull()
+      expect(data).toEqual([])
+    })
+
+    it('B não consegue inserir contato com org_id de A (WITH CHECK rejeita, erro real)', async () => {
+      const { error } = await clientB.from('contacts').insert({ org_id: orgAId, full_name: 'Invasão B' })
+      expect(error).not.toBeNull()
+    })
+
+    it('B não consegue UPDATE do contato de A (bloqueado por USING — 0 linhas, não erro, D-016)', async () => {
+      const { data, error } = await clientB.from('contacts').update({ full_name: 'Alterado por B' }).eq('id', contactAId).select()
+      expect(error).toBeNull()
+      expect(data).toEqual([])
+
+      const { data: still } = await clientA.from('contacts').select('full_name').eq('id', contactAId).single()
+      expect(still?.full_name).toBe('Contato 6.4 A')
+    })
+
+    it('B não consegue DELETE do contato de A (bloqueado por USING — 0 linhas, não erro, D-016)', async () => {
+      const { data, error } = await clientB.from('contacts').delete().eq('id', contactAId).select()
+      expect(error).toBeNull()
+      expect(data).toEqual([])
+
+      const { data: still } = await clientA.from('contacts').select('id').eq('id', contactAId).maybeSingle()
+      expect(still).not.toBeNull()
+    })
+
+    it('anon não lê contacts', async () => {
+      const { data, error } = await anonClient().from('contacts').select('id')
+      expect(error).not.toBeNull()
+      expect(data).toBeNull()
+    })
+  })
+
+  describe('sales.leads', () => {
+    it('A lê o próprio lead', async () => {
+      const { data, error } = await clientA.from('leads').select('id').eq('id', leadAId)
+      expect(error).toBeNull()
+      expect(data?.map((l) => l.id)).toContain(leadAId)
+    })
+
+    it('B não vê o lead de A (0 linhas, não erro)', async () => {
+      const { data, error } = await clientB.from('leads').select('id').eq('id', leadAId)
+      expect(error).toBeNull()
+      expect(data).toEqual([])
+    })
+
+    it('B não consegue inserir lead com org_id de A (WITH CHECK rejeita, erro real)', async () => {
+      // contact_id/stage_id são de B (FK válida) — o que barra é a policy de org_id, não a FK.
+      const { error } = await clientB
+        .from('leads')
+        .insert({ org_id: orgAId, contact_id: contactBId, title: 'Invasão B', stage_id: stageNovoBId })
+      expect(error).not.toBeNull()
+    })
+
+    it('B não consegue UPDATE do lead de A (bloqueado por USING — 0 linhas, não erro, D-016)', async () => {
+      const { data, error } = await clientB.from('leads').update({ title: 'Alterado por B' }).eq('id', leadAId).select()
+      expect(error).toBeNull()
+      expect(data).toEqual([])
+
+      const { data: still } = await clientA.from('leads').select('title').eq('id', leadAId).single()
+      expect(still?.title).toBe('Lead 6.4 A')
+    })
+
+    it('B não consegue DELETE do lead de A (bloqueado por USING — 0 linhas, não erro, D-016)', async () => {
+      const { data, error } = await clientB.from('leads').delete().eq('id', leadAId).select()
+      expect(error).toBeNull()
+      expect(data).toEqual([])
+
+      const { data: still } = await clientA.from('leads').select('id').eq('id', leadAId).maybeSingle()
+      expect(still).not.toBeNull()
+    })
+
+    it('anon não lê leads', async () => {
+      const { data, error } = await anonClient().from('leads').select('id')
+      expect(error).not.toBeNull()
+      expect(data).toBeNull()
+    })
+  })
+
+  describe('sales.ai_prompts', () => {
+    it('A lê os próprios prompts (seed_org_defaults)', async () => {
+      const { data, error } = await clientA.from('ai_prompts').select('id').eq('org_id', orgAId)
+      expect(error).toBeNull()
+      expect((data ?? []).length).toBeGreaterThan(0)
+    })
+
+    it('B não vê os prompts de A (0 linhas, não erro)', async () => {
+      const { data, error } = await clientB.from('ai_prompts').select('id').eq('org_id', orgAId)
+      expect(error).toBeNull()
+      expect(data).toEqual([])
+    })
+
+    it('B não consegue inserir ai_prompt com org_id de A (WITH CHECK rejeita, erro real)', async () => {
+      const { error } = await clientB.from('ai_prompts').insert({
+        org_id: orgAId,
+        slug: 'invasao-b',
+        system_prompt: 's',
+        user_prompt_template: 't',
+      })
+      expect(error).not.toBeNull()
+    })
+
+    it('B não consegue UPDATE de ai_prompt de A (bloqueado por USING — 0 linhas, não erro, D-016)', async () => {
+      const { data, error } = await clientB.from('ai_prompts').update({ is_active: false }).eq('id', promptAId).select()
+      expect(error).toBeNull()
+      expect(data).toEqual([])
+    })
+
+    it('B não consegue DELETE de ai_prompt de A (bloqueado por USING — 0 linhas, não erro, D-016)', async () => {
+      const { data, error } = await clientB.from('ai_prompts').delete().eq('id', promptAId).select()
+      expect(error).toBeNull()
+      expect(data).toEqual([])
+
+      const { data: still } = await clientA.from('ai_prompts').select('id').eq('id', promptAId).maybeSingle()
+      expect(still).not.toBeNull()
+    })
+
+    it('anon não lê ai_prompts', async () => {
+      const { data, error } = await anonClient().from('ai_prompts').select('id')
+      expect(error).not.toBeNull()
+      expect(data).toBeNull()
+    })
+  })
+
+  describe('sales.ai_runs', () => {
+    it('A lê o próprio ai_run', async () => {
+      const { data, error } = await clientA.from('ai_runs').select('id').eq('id', aiRunAId)
+      expect(error).toBeNull()
+      expect(data?.map((r) => r.id)).toContain(aiRunAId)
+    })
+
+    it('B não vê o ai_run de A (0 linhas, não erro)', async () => {
+      const { data, error } = await clientB.from('ai_runs').select('id').eq('id', aiRunAId)
+      expect(error).toBeNull()
+      expect(data).toEqual([])
+    })
+
+    it('B não consegue inserir ai_run com org_id de A (WITH CHECK rejeita, erro real)', async () => {
+      const { error } = await clientB.from('ai_runs').insert({ org_id: orgAId, status: 'pending_review' })
+      expect(error).not.toBeNull()
+    })
+
+    it('B não consegue UPDATE do ai_run de A (bloqueado por USING — 0 linhas, não erro, D-016)', async () => {
+      const { data, error } = await clientB.from('ai_runs').update({ status: 'discarded' }).eq('id', aiRunAId).select()
+      expect(error).toBeNull()
+      expect(data).toEqual([])
+
+      const { data: still } = await clientA.from('ai_runs').select('status').eq('id', aiRunAId).single()
+      expect(still?.status).toBe('pending_review')
+    })
+
+    it('B não consegue DELETE do ai_run de A (bloqueado por USING — 0 linhas, não erro, D-016)', async () => {
+      const { data, error } = await clientB.from('ai_runs').delete().eq('id', aiRunAId).select()
+      expect(error).toBeNull()
+      expect(data).toEqual([])
+
+      const { data: still } = await clientA.from('ai_runs').select('id').eq('id', aiRunAId).maybeSingle()
+      expect(still).not.toBeNull()
+    })
+
+    it('anon não lê ai_runs', async () => {
+      const { data, error } = await anonClient().from('ai_runs').select('id')
+      expect(error).not.toBeNull()
+      expect(data).toBeNull()
+    })
+  })
+
+  describe('sales.audit_logs', () => {
+    it('A lê o próprio audit_log', async () => {
+      const { data, error } = await clientA.from('audit_logs').select('id').eq('id', auditLogAId)
+      expect(error).toBeNull()
+      expect(data?.map((l) => l.id)).toContain(auditLogAId)
+    })
+
+    it('B não vê o audit_log de A (0 linhas, não erro)', async () => {
+      const { data, error } = await clientB.from('audit_logs').select('id').eq('id', auditLogAId)
+      expect(error).toBeNull()
+      expect(data).toEqual([])
+    })
+
+    it('B não consegue inserir audit_log com org_id de A (WITH CHECK rejeita, erro real)', async () => {
+      const { error } = await clientB.from('audit_logs').insert({ org_id: orgAId, entity: 'lead', action: 'invasao_b' })
+      expect(error).not.toBeNull()
+    })
+
+    it('B não consegue UPDATE de audit_log de A (bloqueado por USING — 0 linhas, não erro, D-016)', async () => {
+      const { data, error } = await clientB.from('audit_logs').update({ action: 'alterado_por_b' }).eq('id', auditLogAId).select()
+      expect(error).toBeNull()
+      expect(data).toEqual([])
+
+      const { data: still } = await clientA.from('audit_logs').select('action').eq('id', auditLogAId).single()
+      expect(still?.action).toBe('test_6_4')
+    })
+
+    it('B não consegue DELETE de audit_log de A (bloqueado por USING — 0 linhas, não erro, D-016)', async () => {
+      const { data, error } = await clientB.from('audit_logs').delete().eq('id', auditLogAId).select()
+      expect(error).toBeNull()
+      expect(data).toEqual([])
+
+      const { data: still } = await clientA.from('audit_logs').select('id').eq('id', auditLogAId).maybeSingle()
+      expect(still).not.toBeNull()
+    })
+
+    it('anon não lê audit_logs', async () => {
+      const { data, error } = await anonClient().from('audit_logs').select('id')
+      expect(error).not.toBeNull()
+      expect(data).toBeNull()
+    })
+  })
+})
