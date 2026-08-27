@@ -134,6 +134,8 @@ export function shouldCancelFollowups(input: ShouldCancelFollowupsInput): boolea
 export interface ActivityLike {
   status: 'pending' | 'done' | 'cancelled'
   due_at: string | Date | null
+  /** `done_at` da activity. Opcional para call sites que só resolvem `next_action_at` (seed 6.1); `resolveLastContact` trata ausência como "sem contato". */
+  done_at?: string | Date | null
 }
 
 /** Menor `due_at` entre as activities pendentes — o que `leads.next_action_at` deveria valer (D-006: cache mantido pela aplicação, não trigger). `null` sem nenhuma pendente com data. */
@@ -147,4 +149,25 @@ export function resolveNextAction(activities: ActivityLike[]): Date | null {
   }
 
   return pendingDueDates.reduce((earliest, current) => (current.getTime() < earliest.getTime() ? current : earliest))
+}
+
+/**
+ * Maior `done_at` entre as activities — o que `leads.last_contact_at` deveria
+ * valer (D-006: cache mantido pela aplicação, não trigger). `null` quando
+ * nenhuma activity tem `done_at`. Extraída de `recalculateLeadCache`
+ * (`lib/actions/leads-core.ts`, o `doneAts.reduce` inline) para que a
+ * reconciliação (6.3) use a **mesma** definição — se o reconciliador
+ * reimplementasse a regra, "corrigiria" o cache para um valor que a aplicação
+ * não escreveria, e o detector viraria fonte de divergência.
+ */
+export function resolveLastContact(activities: ActivityLike[]): Date | null {
+  const doneDates = activities
+    .filter((activity): activity is ActivityLike & { done_at: string | Date } => activity.done_at != null)
+    .map((activity) => (activity.done_at instanceof Date ? activity.done_at : new Date(activity.done_at)))
+
+  if (doneDates.length === 0) {
+    return null
+  }
+
+  return doneDates.reduce((latest, current) => (current.getTime() > latest.getTime() ? current : latest))
 }

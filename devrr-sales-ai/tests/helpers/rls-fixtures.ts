@@ -21,7 +21,7 @@ import type { Database } from '@/lib/types/database.types'
  * abaixo é próprio deste arquivo de teste, lendo a chave direto de
  * `process.env` (populada via `loadEnv` nos vitest.*.config.ts).
  */
-function testAdminClient(): SupabaseClient<Database, 'sales'> {
+export function testAdminClient(): SupabaseClient<Database, 'sales'> {
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
   if (!serviceRoleKey) {
     throw new Error('SUPABASE_SERVICE_ROLE_KEY ausente — necessária só para fixtures de teste, nunca no app.')

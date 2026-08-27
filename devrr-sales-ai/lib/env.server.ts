@@ -9,7 +9,13 @@ import { z } from 'zod'
 const serverEnvSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1, 'SUPABASE_SERVICE_ROLE_KEY é obrigatória'),
   AI_GATEWAY_API_KEY: z.string().min(1, 'AI_GATEWAY_API_KEY é obrigatória'),
-  CRON_SECRET: z.string().min(1, 'CRON_SECRET é obrigatória'),
+  // ≥32: `CRON_SECRET` deixou de ser "um header a mais" e virou a única
+  // autenticação da rota privilegiada `app/api/cron/*`, que roda fora do
+  // `proxy.ts` e com `service_role` (D-034). Segredo curto aqui é a fronteira
+  // de autenticação inteira daquela rota.
+  CRON_SECRET: z
+    .string()
+    .min(32, 'CRON_SECRET deve ter ao menos 32 caracteres aleatórios (é a única autenticação de app/api/cron/*)'),
 })
 
 function parseServerEnv() {

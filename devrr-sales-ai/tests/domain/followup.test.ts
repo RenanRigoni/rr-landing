@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { computeFollowupSchedule, shouldCancelFollowups, resolveNextAction, type BusinessHours } from '@/lib/domain/followup'
+import { computeFollowupSchedule, shouldCancelFollowups, resolveNextAction, resolveLastContact, type BusinessHours } from '@/lib/domain/followup'
 
 // Toda data esperada abaixo foi conferida rodando a função de verdade antes
 // de virar expect(...).toBe(...) — mesma disciplina do achado do NBSP
@@ -281,5 +281,42 @@ describe('resolveNextAction', () => {
       { status: 'pending', due_at: '2026-03-03T00:00:00.000Z' },
     ])
     expect(result?.toISOString()).toBe('2026-01-01T00:00:00.000Z')
+  })
+})
+
+describe('resolveLastContact', () => {
+  it('sem activities, devolve null', () => {
+    expect(resolveLastContact([])).toBeNull()
+  })
+
+  it('nenhuma activity com done_at (só pendentes, e done_at ausente/nulo), devolve null', () => {
+    expect(
+      resolveLastContact([
+        { status: 'pending', due_at: '2026-01-01T00:00:00.000Z' },
+        { status: 'pending', due_at: '2026-02-01T00:00:00.000Z', done_at: null },
+      ]),
+    ).toBeNull()
+  })
+
+  it('devolve o maior done_at, ignorando activities sem done_at (done anterior primeiro)', () => {
+    const result = resolveLastContact([
+      { status: 'done', due_at: null, done_at: '2026-03-01T00:00:00.000Z' },
+      { status: 'done', due_at: null, done_at: '2026-05-01T00:00:00.000Z' },
+      { status: 'pending', due_at: '2026-09-01T00:00:00.000Z', done_at: null },
+    ])
+    expect(result?.toISOString()).toBe('2026-05-01T00:00:00.000Z')
+  })
+
+  it('maior done_at quando o primeiro já é o maior (ramo "else" do reduce)', () => {
+    const result = resolveLastContact([
+      { status: 'done', due_at: null, done_at: '2026-05-01T00:00:00.000Z' },
+      { status: 'done', due_at: null, done_at: '2026-03-01T00:00:00.000Z' },
+    ])
+    expect(result?.toISOString()).toBe('2026-05-01T00:00:00.000Z')
+  })
+
+  it('aceita done_at já como Date, não só string', () => {
+    const result = resolveLastContact([{ status: 'done', due_at: null, done_at: new Date('2026-07-07T00:00:00.000Z') }])
+    expect(result?.toISOString()).toBe('2026-07-07T00:00:00.000Z')
   })
 })

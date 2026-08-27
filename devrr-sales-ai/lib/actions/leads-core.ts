@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { z } from 'zod'
 import { createLeadSchema, updateLeadSchema } from '@/lib/validation/leads'
-import { computeFollowupSchedule, resolveNextAction, shouldCancelFollowups, type BusinessHours, type FollowupRule } from '@/lib/domain/followup'
+import { computeFollowupSchedule, resolveNextAction, resolveLastContact, shouldCancelFollowups, type BusinessHours, type FollowupRule } from '@/lib/domain/followup'
 import type { Database, Json } from '@/lib/types/database.types'
 
 export interface ActionResult {
@@ -61,13 +61,15 @@ export async function recalculateLeadCache(supabase: SalesClient, orgId: string,
   }
 
   const rows = data ?? []
-  const nextActionAt = resolveNextAction(rows.map((row) => ({ status: row.status, due_at: row.due_at })))
-  const doneAts = rows.map((row) => row.done_at).filter((value): value is string => value !== null)
-  const lastContactAt = doneAts.length === 0 ? null : doneAts.reduce((latest, current) => (current > latest ? current : latest))
+  const activityLikes = rows.map((row) => ({ status: row.status, due_at: row.due_at, done_at: row.done_at }))
+  const nextActionAt = resolveNextAction(activityLikes)
+  // `resolveLastContact` (mesma definição que a reconciliação da 6.3 usa) no
+  // lugar do `doneAts.reduce` inline — uma só regra para "último contato".
+  const lastContactAt = resolveLastContact(activityLikes)
 
   const { error: updateError } = await supabase
     .from('leads')
-    .update({ next_action_at: nextActionAt?.toISOString() ?? null, last_contact_at: lastContactAt })
+    .update({ next_action_at: nextActionAt?.toISOString() ?? null, last_contact_at: lastContactAt?.toISOString() ?? null })
     .eq('id', leadId)
     .eq('org_id', orgId)
 

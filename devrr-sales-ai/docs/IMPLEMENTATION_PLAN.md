@@ -2950,7 +2950,7 @@ WhatsApp e marcar como enviada — e o `ai_run` fica registrado com tokens e lat
 > (`lib/domain/` 100%)/`test:rls` (167/167, +1)/`build` verdes.
 > `advisors`/`replay` não aplicável (sem DDL).
 
-### [ ] 6.3 Reconciliação de caches
+### [x] 6.3 Reconciliação de caches
 
 > ✅ **DESBLOQUEADA** no checkpoint da Fase 6. **Q-007 resolvida por D-034**:
 > `createAdminClient()` (`service_role`) dentro do próprio route handler, construído
@@ -3160,6 +3160,83 @@ em Production; e uma chamada manual à rota em Production com o header correto d
 
 **Fora do escopo:** instrumentar `audit_logs` nas actions das Fases 3–4 (é Q-006);
 reconciliar leads fechados; qualquer segunda rota de cron.
+
+> feito: sem migration, sem DDL — `advisors`/`replay` não aplicável. Contrato
+> inteiro de D-034 implementado, nada renegociado.
+>
+> **6.3.1** `proxy.ts` — `api/cron` entrou no negative lookahead do matcher
+> (`'/((?!api/cron|_next/static|...).*)'`). Novo `tests/proxy-matcher.test.ts`:
+> `/api/cron/reconcile` não casa; `/today`, `/login`, `/onboarding`,
+> `/api/qualquer-outra` casam; assets seguem fora.
+>
+> **6.3.2** `lib/env.server.ts` — `CRON_SECRET` de `.min(1)` para `.min(32)`
+> com mensagem própria. `.env.example` atualizado (valor aleatório ≥32; a
+> Vercel injeta `Authorization: Bearer $CRON_SECRET` em Production quando a
+> env var existe). `.env.local` local já tem 64 chars — nenhum boot quebrou.
+>
+> **6.3.3** `lib/domain/followup.ts` — `resolveLastContact(activities): Date | null`
+> extraída (= maior `done_at`, `null` sem nenhum); era o `doneAts.reduce`
+> inline de `recalculateLeadCache`. `ActivityLike` ganhou `done_at?: string |
+> Date | null` (opcional — o seed 6.1 só resolve `next_action_at`).
+> `recalculateLeadCache` (`lib/actions/leads-core.ts`) passou a chamar
+> `resolveLastContact` — refactor de comportamento idêntico, coberto pelos
+> testes `test:rls` existentes. Novo `lib/domain/reconcile.ts` (puro):
+> `computeLeadCacheFixes(leads, activitiesByLead)` devolve só os divergentes
+> com `before`/`after`. Comparação **por epoch** (`getTime()`), nunca string —
+> `null`×`null` igual, `null`×valor divergência. Ambos entram no gate de
+> cobertura de `lib/domain/` (segue **100%**: 208/208 stmts, 110/110 branches).
+>
+> **6.3.4** `lib/actions/reconcile-core.ts` (novo) — `reconcileAllOrgs` /
+> `reconcileOrg`, padrão `*-core` (recebe o client, não importa `admin.ts`).
+> Escopo: leads `status = 'open'` de toda org (demo incluído). Paginação de
+> 500 em `organizations`, `leads` e `activities` (laço enquanto a página vier
+> cheia). Uma org que falha não derruba o lote (erro genérico acumulado em
+> `errors`, sem id de tenant); falha ao listar orgs derruba o run. Só grava
+> lead divergente, `update` filtrado por `id`+`org_id` (write set declarado).
+> Write set fechado: `next_action_at`, `last_contact_at`, `insert` em
+> `audit_logs` — nunca `delete`, nunca outra tabela. Auditoria em um único
+> `insert` de array por org com ≥1 correção: linha `cache_reconciled`
+> (`user_id: null`, `diff: {before, after}`) por lead + linha
+> `cache_reconcile_run` (`entity: 'organization'`, `diff: {leads_checked,
+> leads_fixed}`). Best-effort — falha de auditoria não derruba a correção.
+>
+> **6.3.5** `lib/api/cron-auth.ts` (novo) — `isAuthorizedCronRequest(header,
+> secret)`. Só `Authorization: Bearer <secret>`. `timingSafeEqual` sobre o
+> `sha256` dos dois lados (digests de 32 bytes → nunca lança, não vaza
+> comprimento). Header ausente/malformado/token vazio → `false`. Sem
+> `server-only` (segredo por parâmetro).
+>
+> **6.3.6** `app/api/cron/reconcile/route.ts` (novo) — `GET`, `dynamic =
+> 'force-dynamic'`, `maxDuration = 60`. Ordem: valida segredo → `401` genérico
+> **sem** ter chamado `createAdminClient()` → só então `createAdminClient()` +
+> `reconcileAllOrgs`. Zero entrada do cliente. Resposta só com contadores
+> (`orgs`, `leadsChecked`, `leadsFixed`, `durationMs`, `errors: number`) — sem
+> `org_id`/id de lead no corpo nem em erro. `errors.length > 0` → `500`. Linha
+> estruturada no log (`{ job: 'reconcile', ... }`, `errors` por extenso ali —
+> log é do operador). Outros métodos → `405` pelo próprio Next.
+>
+> **6.3.7** `vercel.json` (novo em `devrr-sales-ai/`) —
+> `{ "crons": [{ "path": "/api/cron/reconcile", "schedule": "0 9 * * *" }] }`
+> (`0 9 UTC` = 06:00 BRT). **Pendente de operador:** confirmar no painel da
+> Vercel (projeto `devrr-sales-ai`) que `CRON_SECRET` existe em **Production**
+> e rodar a chamada manual (`200` com header, `401` sem) — Cron só roda em
+> deploy de Production, não verificável daqui.
+>
+> **6.3.8** Testes: `tests/domain/reconcile.test.ts` (7), `resolveLastContact`
+> em `tests/domain/followup.test.ts` (+5, 29 no total), `tests/api/cron-auth.test.ts`
+> (6), `tests/api/cron-reconcile.test.ts` (5 — mock de `server-only`/`env.server`/
+> `admin`/`reconcile-core`, `import()` da rota depois; asserção central:
+> `createAdminClient` **não** chamado nos dois `401`), `tests/actions/reconcile.test.ts`
+> (`test:rls`, 4 — duas orgs, planta divergência em cada, corrige as duas,
+> lead consistente sem `updated_at` alterado, `audit_logs` na org certa,
+> segunda execução corrige 0), `tests/proxy-matcher.test.ts` (4).
+> `tests/helpers/rls-fixtures.ts` → `testAdminClient` agora exportado.
+>
+> **6.3.9** Docstring de `lib/supabase/admin.ts` trocado pela lista fechada de
+> D-034.
+>
+> Validação: `typecheck`/`lint`/`test` (144/144)/`test:coverage` (`lib/domain/`
+> 100%)/`test:rls` (171/171, +4)/`build` verdes.
 
 ### [ ] 6.4 Validar RLS de novo, com tudo pronto
 
