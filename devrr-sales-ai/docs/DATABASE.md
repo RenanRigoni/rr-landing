@@ -603,14 +603,21 @@ Sem histórico de execução não existe como saber se a IA está melhorando ou 
 id           uuid pk
 org_id       uuid not null
 user_id      uuid -> auth.users
-entity       text not null          -- 'lead', 'activity', 'contact'
+entity       text not null          -- 'lead', 'activity', 'contact', 'ai_run'
 entity_id    uuid
-action       text not null          -- 'create', 'update', 'stage_change', 'cancel_followups'
+action       text not null          -- 'create', 'update', 'stage_change', 'cancel_followups', 'ai_used'
 diff         jsonb
 created_at
 ```
 
 Índice: `create index on sales.audit_logs (org_id, entity, entity_id, created_at desc);`
+
+Criada na migration `0011_audit.sql` (tarefa 5.4). RLS `tenant_isolation` `for all`
+(dado operacional — D-017 não se aplica). Sem `updated_at` / trigger: append-only,
+só `created_at default now()`. Na 5.4 só o verbo `ai_used` tem call site
+(`lib/actions/audit.ts` → `logAudit`, chamado por `useFollowupMessageCore`); os
+outros verbos são o vocabulário previsto para quando `create`/`update`/
+`stage_change`/`cancel_followups` das Fases 3–4 forem instrumentados (Q-006).
 
 ---
 
@@ -687,9 +694,8 @@ de antes de `activities`/`followup_rules` (4.1) ocuparem `0006`/`0007`, o que em
 tudo depois em duas posições sem a tabela ser reajustada. O `0010` reservado para a
 auditoria virou `0011` na tarefa 5.2: a 5.1 deixou `ai_prompts` vazia e a 5.2 semeia
 o prompt padrão numa migration própria (`0009` já aplicada, "nova mudança de banco =
-nova migration"), consumindo o slot `0010`. `0011_audit.sql` é reserva de numeração
-para a tarefa 5.4, não um arquivo que já existe. Replay do zero precisa funcionar
-lendo os arquivos em ordem alfabética.
+nova migration"), consumindo o slot `0010`. `0011_audit.sql` foi criado e aplicado na
+tarefa 5.4. Replay do zero precisa funcionar lendo os arquivos em ordem alfabética.
 
 Cada migration: arquivo commitado → aplicado → `get_advisors(type:'security')` sem
 alerta novo → esta doc atualizada → `npm run typecheck` com types regerados.

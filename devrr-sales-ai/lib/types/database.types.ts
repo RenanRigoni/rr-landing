@@ -1,8 +1,9 @@
 // Tipos do schema `sales`, escritos à mão a partir de
 // supabase/migrations/0001_schema_and_helpers.sql, 0002_organizations.sql,
 // 0004_catalogs.sql, 0005_contacts_leads.sql, 0006_activities.sql,
-// 0007_followup_rules.sql, 0008_views.sql e 0009_ai.sql (tarefas 2.1, 2.2,
-// 3.1, 3.2, 4.1, 4.3 e 5.1).
+// 0007_followup_rules.sql, 0008_views.sql, 0009_ai.sql,
+// 0010_seed_followup_proposta_prompt.sql e 0011_audit.sql (tarefas 2.1, 2.2,
+// 3.1, 3.2, 4.1, 4.3, 5.1, 5.2 e 5.4).
 //
 // `sales` está em Settings → API → Exposed schemas (confirmado batendo direto
 // no PostgREST: erro de "tabela não encontrada", não de "schema inválido").
@@ -655,6 +656,47 @@ export interface Database {
             columns: ['contact_id']
             isOneToOne: false
             referencedRelation: 'contacts'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      audit_logs: {
+        Row: {
+          id: string
+          org_id: string
+          user_id: string | null
+          entity: string
+          entity_id: string | null
+          action: string
+          diff: Json | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          org_id: string
+          user_id?: string | null
+          entity: string
+          entity_id?: string | null
+          action: string
+          diff?: Json | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          org_id?: string
+          user_id?: string | null
+          entity?: string
+          entity_id?: string | null
+          action?: string
+          diff?: Json | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'audit_logs_org_id_fkey'
+            columns: ['org_id']
+            isOneToOne: false
+            referencedRelation: 'organizations'
             referencedColumns: ['id']
           },
         ]

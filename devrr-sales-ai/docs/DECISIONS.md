@@ -1098,6 +1098,79 @@ completo — só o `gateway.ts` mudaria.
 
 ---
 
+## D-031 — Primeira action real de IA (5.4): `ai-followup-core` + wrapper, ids do cliente revalidados antes de gravar; `audit.ts` portado com `ai_used` apenas
+
+**Data:** 2026-08-27 · **Status:** decidido, tarefa 5.4 · **Aplica a:** `lib/actions/ai-followup*.ts`, `lib/actions/audit.ts`, `sales.audit_logs`, `components/ai/FollowupGenerator.tsx`
+
+A 5.4 é a primeira tarefa que liga a camada de IA (5.1–5.3) a uma action de
+verdade. Cinco pontos que o texto do `IMPLEMENTATION_PLAN.md` não fechava.
+
+**1. Mesmo split wrapper + core de todo o resto.** `lib/actions/ai-followup-core.ts`
+(`generateFollowupMessageCore` / `applyFollowupMessageCore` / `discardAiRunCore`,
+recebem `supabase` + `orgId` + `userId`, sem `'use server'`, sem `cookies()`) e
+`lib/actions/ai-followup.ts` (`'use server'`, resolve `requireOrgId()` +
+`createClient()` + `auth.getUser()`, delega, `revalidatePath`). É D-020/D-028/D-030
+de novo — e é o que torna os testes cross-tenant de `test:rls` possíveis. A 5.1
+(`gateway.ts`) e a 5.3 (`buildFollowupContext`) já foram desenhadas prevendo este
+call site; aqui ele só apareceu.
+
+**2. `orgId` sempre server-side; todo id vindo do browser é revalidado contra o
+tenant antes de qualquer escrita.** `generateFollowupMessageCore` delega a
+revalidação do `leadId` ao próprio `buildFollowupContext` (5.3), que já lança
+`Lead não encontrado.` para lead de outro tenant — vira `{ ok: false }`, nunca
+contexto parcial nem `{ ok: true }`. `applyFollowupMessageCore` recebe três ids do
+cliente (`runId`, `activityId`, `leadId`) e faz uma consulta própria filtrada por
+`org_id` para cada um antes de gravar `activities.body`/`ai_run_id`: o `ai_run` tem
+que ser da org, a `activity` tem que ser da org **e** pertencer ao `leadId`
+informado, e o `leadId` passa por `checkBelongsToOrg`. O texto editável da textarea
+é revalidado por `messageSchema` (`trim().min(1).max(4000)`) — o servidor não confia
+no que veio do browser. Provado por teste (`tests/actions/ai-followup.test.ts`):
+B não gera para lead de A, B não usa run de A, activity de B não é alcançável com
+run/lead de A, e a activity alvo fica intacta em todos esses casos.
+
+**3. Erro de contexto / gateway / schema nunca vira sucesso, e `ai_runs` registra o
+estado certo.** `generateFollowupMessageCore` devolve `{ ok: false, error }` quando
+`buildFollowupContext` lança (contexto/banco), quando `runAiPrompt` relança (gateway
+— e o gateway já gravou `ai_runs` com `status='error'` antes de relançar, 5.1), e
+quando `followupPropostaOutputSchema.safeParse(output)` falha (formato inesperado).
+Sucesso grava `pending_review` (via gateway). "Usar esta" → `reviewed` +
+`reviewed_by`/`reviewed_at`. "Descartar" → `discarded`. Testado nos quatro estados.
+
+**4. `lib/actions/audit.ts` portado com assinatura adaptada; só `ai_used` tem call
+site na 5.4.** O `audit.ts` do CRM-RR é o helper `logAudit` (single-tenant, com
+`import 'server-only'`, sem `org_id`). Portado como
+`logAudit(supabase, orgId, userId, entity, entityId, action, diff)` — `client`/`orgId`
+explícitos (D-028) e sem `server-only` (o pacote lança em vitest, impediria o teste
+direto do log; mesma exceção de `gateway.ts`). Best-effort como no original: falha
+ao gravar o log não derruba a operação de negócio já concluída. A 5.4 chama
+`logAudit(..., 'activity', activityId, 'ai_used', { ai_run_id })` dentro de
+`applyFollowupMessageCore`. Os outros verbos listados no plano
+(`create`/`update`/`stage_change`/`cancel_followups`) são o vocabulário de
+`audit_logs.action`, mas instrumentar as actions das Fases 3–4 sairia do escopo
+estrito de uma tarefa de IA e mexeria em `leads-core.ts`/`activities-core.ts`
+inteiros ("não refatore fora do escopo", "preserve wrapper/core"). Registrado como
+**Q-006**. O "Pronto quando" da 5.4 só exige o `ai_run` registrado com tokens e
+latência — que está.
+
+**`audit_logs` RLS `tenant_isolation for all`.** Dado operacional (D-017 não se
+aplica: registrar que algo aconteceu não muda quem manda nem se o tenant existe) —
+mesma classificação de `activities`/`ai_runs`. Endurecer para append-only real
+(policy só de `insert`/`select`, sem `update`/`delete`) seria desvio do padrão de 1
+policy por tabela que o plano não pede; anotado para o checkpoint da Fase 6, não
+feito aqui.
+
+**5. `FollowupGenerator` é componente cliente autossuficiente renderizado pela
+`ActionRow` e pela tela do lead.** Fala só com `lib/actions/ai-followup.ts` (D-020),
+tem só estado de UI. Renderizá-lo dentro de `ActionRow` (em vez de threading mais um
+par de callbacks por `TodayActionsList`, já com 300 linhas e navegação por teclado)
+mantém a linha sem regra de negócio própria — exceção comentada no header do
+arquivo. Na tela do lead, aparece só quando há um follow-up pendente (o alvo do
+`body`/`ai_run_id`). "Gerar outra versão" cria um `ai_run` novo e deixa os
+anteriores em `pending_review` (só o usado vira `reviewed`, só o descartado vira
+`discarded`) — aceitável no MVP; revisitar se o volume de runs órfãos incomodar.
+
+---
+
 ## Questões abertas
 
 Sonnet: adicione aqui o que travar. Opus resolve no próximo checkpoint.
@@ -1109,6 +1182,12 @@ Sonnet: adicione aqui o que travar. Opus resolve no próximo checkpoint.
   "dono do lead" (`assigned_to`). Adicionar quando existir a primeira PME com 2+
   vendedores. Não antes.
 - ~~**Q-004**~~ — resolvida, ver **D-019**.
+- **Q-006** — `audit_logs` (D-031) só tem call site para `ai_used` (5.4). Instrumentar
+  `create`/`update`/`stage_change`/`cancel_followups` nas actions das Fases 3–4
+  (`leads-core.ts`, `activities-core.ts`) é uma passada de manutenção que toca código
+  de fases anteriores — vale a pena fazer antes da Fase 6.4 (que revalida RLS de
+  `audit_logs`) ou junto dela? Também aberto: endurecer a RLS de `audit_logs` para
+  append-only (sem `update`/`delete`).
 - ~~**Q-005**~~ — **implementada na tarefa 4.6.** `belongsToOrg`
   (`lib/actions/leads-core.ts`) passou a devolver `{ exists: boolean; error:
   string | null }` em vez de `boolean`; novo helper `checkBelongsToOrg` (mesmo

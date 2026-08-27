@@ -2793,7 +2793,7 @@ escrever bobagem sobre preço. Regra da `PRODUCT_SPEC.md` #1 aplicada na prátic
 > `test` (99/99, +22)/`test:rls` (151/151, +12)/`build` verdes. `get_advisors`
 > não aplicável — 5.3 não altera o schema.
 
-### [ ] 5.4 Gerar, revisar, usar
+### [x] 5.4 Gerar, revisar, usar
 
 - Botão `Gerar mensagem com IA` na linha de ação e no lead.
 - Painel de revisão: mensagem gerada em textarea **editável**, com o `reasoning`
@@ -2807,6 +2807,41 @@ escrever bobagem sobre preço. Regra da `PRODUCT_SPEC.md` #1 aplicada na prátic
 
 **Pronto quando:** dá pra gerar mensagem para um lead real, editar, copiar, colar no
 WhatsApp e marcar como enviada — e o `ai_run` fica registrado com tokens e latência.
+
+> **Feito:** migration `0011_audit.sql` (`sales.audit_logs` + RLS `tenant_isolation`
+> + índice) commitada antes de aplicar, aplicada no projeto real,
+> `get_advisors(security)` sem alerta novo atribuível a `sales`, `database.types.ts`
+> atualizado à mão. `lib/actions/audit.ts` portado do CRM-RR com assinatura adaptada
+> (`client`/`orgId`/`userId` explícitos, sem `server-only` — **D-031**).
+>
+> Primeira action real de IA: `lib/actions/ai-followup-core.ts`
+> (`generateFollowupMessageCore` / `applyFollowupMessageCore` / `discardAiRunCore`) +
+> wrapper `lib/actions/ai-followup.ts` (`'use server'`). `generate` monta o contexto
+> via `buildFollowupContext` (5.3), chama `runAiPrompt` (5.1) com
+> `followupPropostaOutputSchema` (5.2) e revalida a saída — erro de
+> contexto/gateway/schema vira `{ ok: false }`, nunca sucesso. `applyFollowupMessage`
+> revalida `runId`/`activityId`/`leadId` contra `org_id` antes de gravar
+> `activities.body` + `ai_run_id`, marca o `ai_run` como `reviewed` e grava
+> `audit_logs` (`ai_used`). `discardAiRun` → `discarded` (idempotente). `orgId`
+> sempre server-side; texto editável revalidado por `messageSchema`. **D-031** para
+> os desvios; **Q-006** para instrumentar os outros verbos de auditoria
+> (`create`/`update`/`stage_change`/`cancel_followups`) nas actions das Fases 3–4 —
+> fora do escopo desta tarefa.
+>
+> UI: `components/ai/FollowupGenerator.tsx` (cliente, autossuficiente, fala só com
+> `lib/actions/ai-followup.ts`) — botão "Gerar IA" + painel de revisão (textarea
+> editável, `reasoning`, `Copiar`/`Gerar outra versão`/`Usar esta`/`Descartar`).
+> Renderizado na `ActionRow` (tela de hoje, `variant="dropdown"`) e na tela do lead
+> quando há follow-up pendente (`variant="inline"`). Nada é enviado automaticamente.
+>
+> Testes: `tests/actions/ai-followup.test.ts` (15, suíte `test:rls`, `generateText`
+> mockado — sucesso grava `pending_review` com tokens/latência/lead/contato,
+> cross-tenant em 4 sentidos (B→lead de A, A com `orgId` de B, run de A usado por B,
+> activity de B via A), gateway caindo → `error` + `ok:false`, schema inválido →
+> `ok:false`, erro de banco no contexto/no run → `ok:false`, "usar esta" grava
+> body/`ai_run_id`/`reviewed`/`audit_logs`, mensagem vazia rejeitada, activity fora
+> do lead rejeitada, descartar → `discarded` idempotente). `typecheck`/`lint`/
+> `test` (99/99)/`test:rls` (166/166, +15)/`build` verdes.
 
 ---
 

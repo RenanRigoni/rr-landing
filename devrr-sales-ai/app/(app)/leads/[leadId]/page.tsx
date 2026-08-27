@@ -9,6 +9,7 @@ import { StageBadge } from '@/components/ui/StageBadge'
 import { StageMover } from '@/components/leads/StageMover'
 import { MarkRespondedButton } from '@/components/leads/MarkRespondedButton'
 import { ActivityTimeline } from '@/components/leads/ActivityTimeline'
+import { FollowupGenerator } from '@/components/ai/FollowupGenerator'
 import type { Database } from '@/lib/types/database.types'
 
 const STATUS_LABEL: Record<Database['sales']['Enums']['lead_status'], string> = {
@@ -30,6 +31,10 @@ export default async function LeadDetailPage({ params }: LeadDetailPageProps) {
   }
 
   const activities = await listActivitiesForLead(lead.id)
+  // Alvo do "Gerar mensagem com IA" (5.4): o follow-up pendente mais recente
+  // deste lead — é a mensagem que o usuário está prestes a mandar. Sem
+  // nenhum pendente, o botão não aparece (nada pra escrever).
+  const pendingFollowup = activities.find((activity) => activity.status === 'pending')
 
   return (
     <div className="max-w-3xl">
@@ -97,6 +102,17 @@ export default async function LeadDetailPage({ params }: LeadDetailPageProps) {
         <p className="mt-2 text-sm text-content-secondary">{lead.contact.full_name}</p>
         {lead.contact.phone ? <p className="font-mono text-sm text-content-secondary">{lead.contact.phone}</p> : null}
       </div>
+
+      {pendingFollowup ? (
+        <div className="mt-6 rounded-lg border border-white/[0.08] bg-surface-elevated p-4">
+          <h2 className="text-sm font-semibold text-content-primary">Mensagem de follow-up</h2>
+          <p className="mt-1 text-xs text-content-secondary">
+            Gera um rascunho com IA para <span className="font-medium">{pendingFollowup.title}</span>. Você revisa, edita e
+            copia — nada é enviado automaticamente.
+          </p>
+          <FollowupGenerator leadId={lead.id} activityId={pendingFollowup.id} variant="inline" />
+        </div>
+      ) : null}
 
       <div className="mt-6 rounded-lg border border-white/[0.08] bg-surface-elevated p-4">
         <h2 className="text-sm font-semibold text-content-primary">Histórico</h2>
