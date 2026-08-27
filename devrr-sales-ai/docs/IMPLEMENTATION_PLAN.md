@@ -3731,7 +3731,59 @@ classificador nas bordas exatas (90, 89, 50, 49, 2500, 2501, 200, 201, 0.1, 0.11
 
 ---
 
-### [ ] 7.3 `lib/validation/digital-audit.ts` (Zod) + testes
+### [x] 7.3 `lib/validation/digital-audit.ts` (Zod) + testes
+
+> feito: `lib/validation/digital-audit.ts` — `digitalAuditSchema` espelhando
+> `sales.lead_digital_audits` (migration 0012): **102 campos, todos
+> opcionais/nullable exceto `lead_id`** (uuid obrigatório). `optionalText`
+> passou a ser `export` em `lib/validation/leads.ts` e é reusado aqui junto de
+> `optionalUuid` (o plano manda reaproveitar em vez de redefinir).
+>
+> Helpers locais: `emptyToNull` (roda ANTES do `z.coerce` — `''`/espaços →
+> `null`, nunca `0`), `optionalUrl` (`optionalText` + `z.string().url()`
+> **depois** do transform vazio→null), `optionalInt(min,max)` /
+> `optionalDecimal({min,max,multipleOf})` (`z.coerce` + `emptyToNull` via
+> `z.preprocess`; `.nullable()` faz `null` curto-circuitar antes do coerce),
+> `optionalEnum(values)` (`z.enum` com os valores exatos do Postgres),
+> `optionalDate`.
+>
+> Limites (DOSSIE §19): `google_rating` 0–5 `multipleOf(0.1)`;
+> `google_reviews_count`/`conversion_clicks_to_whatsapp` int ≥ 0; scores
+> Lighthouse (8 campos) int 0–100; `digital_opportunity_score` int 0–10;
+> `google_ads_position`/`google_organic_position` int ≥ 1; LCP/INP/FCP/TBT/
+> Speed Index (mobile+desktop, 10 campos) int ≥ 0 em ms; `cls` mobile+desktop
+> decimal ≥ 0; `digital_opportunities` `z.array(z.enum(...)).default([])`.
+>
+> **Fora do schema de entrada de propósito (D-038):** `digital_score` e
+> `digital_score_completeness` — derivados no servidor por
+> `lib/domain/digital-score.ts`. Também fora, por serem geridos pelo servidor:
+> `id`, `org_id`, `created_by`, `created_at`, `updated_at`. `z.object` descarta
+> chaves desconhecidas, então `digital_score` enviado pelo cliente é
+> silenciosamente ignorado (testado).
+>
+> **Estados contraditórios** (`.superRefine`): quando a base de uma seção é
+> **explicitamente `nao`** e um campo interno estruturado traz valor
+> afirmativo/medido, emite erro no path do campo. Cobre os três casos pedidos:
+> `website_exists='nao'` + campo interno de website; `instagram_exists='nao'` +
+> campo interno de Instagram; `google_business_profile='nao'` + atributo do
+> **próprio perfil** (nota, avaliações, fotos… — não os campos de busca na
+> SERP como posição orgânica/anúncios). `null`/ausente/`nao_analisado`/`nao`
+> NUNCA disparam o guard (D-037 + regra 6 "salvar parcial é normal"). Notas em
+> texto livre ficam de fora (podem descrever a ausência).
+>
+> Testes: `tests/validation/digital-audit.test.ts` (30 casos) — campo vazio →
+> `null` nunca `0`; ausente → `undefined`; `nao` × `nao_analisado` distintos e
+> ambos preservados; nota 5.1 e 4.55 rejeitadas; score 101 rejeitado; posição
+> 0 rejeitada; contador negativo/não-inteiro rejeitado; `cls` decimal aceito e
+> negativo rejeitado; coerção string→número; URL inválida rejeitada / vazia
+> aceita (→ null); `digital_opportunities` default `[]` e valor fora do
+> vocabulário rejeitado; `digital_score` do cliente ignorado; os três guards
+> de contradição + os contra-casos (base nula, base `nao_analisado`, campo de
+> busca do Google).
+>
+> Validação: `typecheck` / `lint` / `test` (234/234, +30) / `test:coverage`
+> (`lib/domain/` segue 100%, inalterado) / `build` verdes. Sem
+> schema/migration/RLS nesta tarefa.
 
 Schema espelhando a tabela, **tudo opcional/nullable** exceto `lead_id`. Reaproveitar
 os helpers `optionalText`/`optionalUuid` de `lib/validation/leads.ts` em vez de
