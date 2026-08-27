@@ -2647,7 +2647,7 @@ vira tarefa agora:**
 
 # FASE 5 — IA
 
-### [ ] 5.1 Infra de IA
+### [x] 5.1 Infra de IA
 
 - `0008_ai.sql`: `ai_prompts` e `ai_runs` conforme `DATABASE.md`.
 - Portar de `../CRM-RR/lib/ai/`: `gateway.ts` (ajustar para `org_id` e `lead_id`),
@@ -2655,6 +2655,38 @@ vira tarefa agora:**
 - `AI_GATEWAY_API_KEY` no env. Modelo default `anthropic/claude-sonnet-5`.
 - `runAiPrompt` deve falhar com mensagem clara e **gravar o erro em `ai_runs`** se a
   chave faltar ou o gateway cair — nunca falhar em silêncio.
+
+**Feito:** migration `0009_ai.sql` (número real por `DATABASE.md` → Ordem das
+migrations — a tabela já documentava 0009, o texto acima ficou desatualizado)
+commitada antes de aplicar, aplicada no projeto real, FK antecipada de
+`activities.ai_run_id` fechada. `sales.ai_prompts`/`sales.ai_runs` com RLS
+`tenant_isolation`, índice parcial de prompt ativo por slug. `database.types.ts`
+atualizado à mão (MCP `generate_typescript_types` só introspecta `public`,
+que neste projeto compartilhado pertence a outro app — limitação já
+documentada no cabeçalho do próprio arquivo). `get_advisors(security)` sem
+alerta novo atribuível a `sales`.
+
+Portados `render-template.ts` e `error-categories.ts`, idênticos ao CRM-RR.
+`gateway.ts` portado com adaptação de assinatura (client+`orgId` explícitos,
+padrão `*-core`) e `schemas.ts` **não portado** — ambos os desvios são D-028,
+com a justificativa completa. Resumo: `gateway.ts` segue D-020 em vez de
+resolver a própria sessão (é isso que a action da 5.4 vai chamar), e
+`schemas.ts` do CRM-RR é schema de qualificação de deal B2B, fora do escopo
+de IA do MVP (`ARCHITECTURE.md` → Camada de IA) — a própria tabela de port do
+`ARCHITECTURE.md` já não o listava.
+
+Testes: `tests/ai/render-template.test.ts` (4, puro) e
+`tests/actions/ai-gateway.test.ts` (5, Supabase real + `generateText`
+mockado — sucesso grava `pending_review`, isolamento entre orgs, slug sem
+prompt não grava nada, gateway caindo grava `status='error'` e relança,
+`leadId`/`contactId` persistidos). `typecheck`/`lint`/`test` (77/77)/
+`test:rls` (138/138)/`build` verdes.
+
+Não implementado (fora do escopo da 5.1, entra na 5.4): nenhuma action
+`'use server'` chama `runAiPrompt` ainda — não há botão de IA na UI. Validação
+cross-tenant de `leadId`/`contactId` passados a `runAiPrompt` é
+responsabilidade do chamador (D-028), a ser exercida quando a action da 5.4
+existir.
 
 ### [ ] 5.2 Prompt de follow-up
 

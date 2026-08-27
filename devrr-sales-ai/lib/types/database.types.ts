@@ -1,8 +1,8 @@
 // Tipos do schema `sales`, escritos à mão a partir de
 // supabase/migrations/0001_schema_and_helpers.sql, 0002_organizations.sql,
 // 0004_catalogs.sql, 0005_contacts_leads.sql, 0006_activities.sql,
-// 0007_followup_rules.sql e 0008_views.sql (tarefas 2.1, 2.2, 3.1, 3.2, 4.1
-// e 4.3).
+// 0007_followup_rules.sql, 0008_views.sql e 0009_ai.sql (tarefas 2.1, 2.2,
+// 3.1, 3.2, 4.1, 4.3 e 5.1).
 //
 // `sales` está em Settings → API → Exposed schemas (confirmado batendo direto
 // no PostgREST: erro de "tabela não encontrada", não de "schema inválido").
@@ -433,6 +433,13 @@ export interface Database {
             referencedRelation: 'followup_rules'
             referencedColumns: ['id']
           },
+          {
+            foreignKeyName: 'activities_ai_run_id_fkey'
+            columns: ['ai_run_id']
+            isOneToOne: false
+            referencedRelation: 'ai_runs'
+            referencedColumns: ['id']
+          },
         ]
       }
       followup_rules: {
@@ -509,6 +516,145 @@ export interface Database {
             columns: ['trigger_stage_id']
             isOneToOne: false
             referencedRelation: 'pipeline_stages'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      ai_prompts: {
+        Row: {
+          id: string
+          org_id: string
+          slug: string
+          version: number
+          system_prompt: string
+          user_prompt_template: string
+          model: string
+          temperature: number
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          org_id: string
+          slug: string
+          version?: number
+          system_prompt: string
+          user_prompt_template: string
+          model?: string
+          temperature?: number
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          org_id?: string
+          slug?: string
+          version?: number
+          system_prompt?: string
+          user_prompt_template?: string
+          model?: string
+          temperature?: number
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'ai_prompts_org_id_fkey'
+            columns: ['org_id']
+            isOneToOne: false
+            referencedRelation: 'organizations'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      ai_runs: {
+        Row: {
+          id: string
+          org_id: string
+          prompt_id: string | null
+          lead_id: string | null
+          contact_id: string | null
+          input_payload: Json | null
+          raw_response: string | null
+          parsed_output: Json | null
+          status: 'pending_review' | 'reviewed' | 'discarded' | 'error'
+          model: string | null
+          input_tokens: number | null
+          output_tokens: number | null
+          latency_ms: number | null
+          error_message: string | null
+          reviewed_by: string | null
+          reviewed_at: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          org_id: string
+          prompt_id?: string | null
+          lead_id?: string | null
+          contact_id?: string | null
+          input_payload?: Json | null
+          raw_response?: string | null
+          parsed_output?: Json | null
+          status?: 'pending_review' | 'reviewed' | 'discarded' | 'error'
+          model?: string | null
+          input_tokens?: number | null
+          output_tokens?: number | null
+          latency_ms?: number | null
+          error_message?: string | null
+          reviewed_by?: string | null
+          reviewed_at?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          org_id?: string
+          prompt_id?: string | null
+          lead_id?: string | null
+          contact_id?: string | null
+          input_payload?: Json | null
+          raw_response?: string | null
+          parsed_output?: Json | null
+          status?: 'pending_review' | 'reviewed' | 'discarded' | 'error'
+          model?: string | null
+          input_tokens?: number | null
+          output_tokens?: number | null
+          latency_ms?: number | null
+          error_message?: string | null
+          reviewed_by?: string | null
+          reviewed_at?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'ai_runs_org_id_fkey'
+            columns: ['org_id']
+            isOneToOne: false
+            referencedRelation: 'organizations'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'ai_runs_prompt_id_fkey'
+            columns: ['prompt_id']
+            isOneToOne: false
+            referencedRelation: 'ai_prompts'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'ai_runs_lead_id_fkey'
+            columns: ['lead_id']
+            isOneToOne: false
+            referencedRelation: 'leads'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'ai_runs_contact_id_fkey'
+            columns: ['contact_id']
+            isOneToOne: false
+            referencedRelation: 'contacts'
             referencedColumns: ['id']
           },
         ]

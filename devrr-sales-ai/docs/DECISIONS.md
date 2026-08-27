@@ -949,6 +949,61 @@ em vez do `stage.is_won || stage.is_lost` escrito à mão.
 
 ---
 
+## D-028 — Port de `lib/ai/` (5.1): `gateway.ts` recebe client+orgId como todo `*-core`; `schemas.ts` não portado
+
+`ARCHITECTURE.md` → "Port do CRM-RR" listava `lib/ai/gateway.ts` como "igual",
+ajustando só `ai_runs` ganhar `org_id` e os ids de contexto virarem
+`leadId`/`contactId`. No CRM-RR original, `gateway.ts` resolve sua própria
+sessão (`createClient()` de `lib/supabase/server.ts`, que usa `cookies()`) e
+não recebe `orgId` como parâmetro — só grava o resultado.
+
+**Decisão:** `runAiPrompt(supabase, orgId, { slug, vars, schema, leadId,
+contactId })` — client e `orgId` explícitos, no mesmo formato de todo
+`*-core` já existente (`leads-core.ts`, `activities-core.ts`,
+`contacts-core.ts`, D-020). `import 'server-only'` do original também caiu.
+
+**Por quê:** duas razões, não uma preferência solta.
+
+1. **Consistência real, não só estética.** Todo outro módulo chamado por uma
+   action `'use server'` neste projeto recebe sessão resolvida como
+   parâmetro — nunca resolve a própria. `gateway.ts` vai ser chamado pela
+   action de "Gerar mensagem com IA" (5.4), que já vai ter `orgId` resolvido
+   via `requireOrgId()`. Fazer `gateway.ts` chamar `createClient()`/cookies()
+   de novo por conta própria duplicaria a resolução de sessão sem motivo.
+2. **`import 'server-only'` quebra teste direto.** Já documentado em
+   `tests/helpers/rls-fixtures.ts` (comentário sobre `lib/supabase/admin.ts`):
+   o pacote lança fora do bundler do Next, mesmo em Node puro — inclusive em
+   vitest. Nenhum `*-core` do projeto importa `server-only` por este motivo
+   exato; todos são testados diretamente contra o Supabase real
+   (`tests/actions/*.test.ts`). `gateway.ts` seguiu o mesmo padrão —
+   `tests/actions/ai-gateway.test.ts` teste 5 cenários (sucesso grava
+   `pending_review`, isolamento entre orgs, slug sem prompt não grava nada,
+   gateway caindo grava `status='error'`, `leadId`/`contactId` persistidos)
+   contra o Supabase real, com `generateText` mockado.
+
+**Cross-tenant de `leadId`/`contactId`:** não validado dentro de
+`runAiPrompt`. Mesma divisão de responsabilidade que `activities-core.ts` já
+tem em outro sentido — aqui quem valida é o chamador (a action de 5.4 vai
+rodar `checkBelongsToOrg` antes de passar o id, igual a todo outro call site
+D-020). `gateway.ts` só grava o que recebe; a responsabilidade de garantir
+que o id pertence à org não muda de lugar, só de camada.
+
+**`lib/ai/schemas.ts` não foi portado.** A tabela do `ARCHITECTURE.md` →
+"Port do CRM-RR" já **não lista** `schemas.ts` — só `render-template.ts`,
+`gateway.ts` e `error-categories.ts`. O texto da tarefa 5.1 em
+`IMPLEMENTATION_PLAN.md` cita `schemas.ts` também, mas o conteúdo do arquivo
+original (`qualifyDealOutputSchema`, `summarizeDealOutputSchema`,
+`draftFollowupEmailOutputSchema`) é de qualificação de deal B2B outbound —
+exatamente a categoria que a seção "Camada de IA" do `ARCHITECTURE.md`
+descarta pro MVP ("O que a IA pode fazer no MVP: escrever mensagem de
+follow-up. Só isso."). Portar traria schema de produto errado pro
+repositório. Seguido `ARCHITECTURE.md` como fonte de verdade (é o documento
+que `CLAUDE.md` manda ler especificamente para "o que portar do CRM-RR").
+O schema de output de `followup_proposta` (`{ message, tone, reasoning }`)
+nasce na tarefa 5.2, que é quem de fato precisa dele.
+
+---
+
 ## Questões abertas
 
 Sonnet: adicione aqui o que travar. Opus resolve no próximo checkpoint.
