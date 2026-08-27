@@ -130,6 +130,9 @@ create type sales.activity_status as enum ('pending', 'done', 'cancelled');
 create type sales.ai_run_status   as enum ('pending_review', 'reviewed', 'discarded', 'error');
 ```
 
+Os 8 enums do dossiê digital (Fase 7) estão documentados junto da tabela que os usa,
+em **Tabelas — Fase 7 (dossiê digital)**.
+
 `lead_status` é o ciclo de vida macro (aberto/ganho/perdido). O **estágio** granular
 vive em `pipeline_stages`, configurável por organização — não é enum, porque cada PME
 tem um funil diferente.
@@ -633,6 +636,209 @@ outros verbos são o vocabulário previsto para quando `create`/`update`/
 
 ---
 
+## Tabelas — Fase 7 (dossiê digital)
+
+### Enums do dossiê
+
+Oito vocabulários **compartilhados** entre dezenas de colunas, em vez de um enum por
+campo (**D-036**). A UI escolhe o subconjunto de opções que faz sentido em cada campo
+— o banco só garante que nada fora do vocabulário entra.
+
+```sql
+create type sales.tri_state as enum (
+  'sim', 'nao', 'parcialmente', 'nao_identificado', 'nao_analisado', 'nao_se_aplica'
+);
+create type sales.quality_level      as enum ('excelente', 'boa', 'regular', 'ruim', 'nao_analisado');
+create type sales.frequency_level    as enum ('frequentemente', 'algumas', 'raramente', 'nao', 'nao_analisado');
+create type sales.speed_level        as enum ('rapido', 'aceitavel', 'lento', 'muito_lento', 'nao_analisado');
+create type sales.activity_level     as enum ('ativo', 'pouco_ativo', 'inativo', 'nao_analisado');
+create type sales.cwv_status         as enum ('aprovado', 'reprovado', 'dados_insuficientes', 'nao_analisado');
+create type sales.google_result_type as enum ('organico', 'patrocinado', 'maps', 'outro', 'nao_identificado');
+create type sales.sales_priority     as enum ('muito_alta', 'alta', 'media', 'baixa', 'nao_avaliada');
+```
+
+`sales.tri_state` cobre os três formatos de pergunta do dossiê: Sim/Não,
+Sim/Parcialmente/Não e Sim/Não/Não identificado — mais o `nao_se_aplica` de
+`website_whatsapp_clickable`. **Coluna nula e coluna `nao_analisado`/
+`nao_identificado`/`nao_se_aplica` significam a mesma coisa para o score: não
+avaliado** (D-037). `nao` significa avaliado e ausente, e vale zero.
+
+### `sales.lead_digital_audits`
+
+O dossiê da presença digital pública de uma empresa, tirado **antes** da prospecção.
+Tabela própria, 1:N com `leads` (**D-035**): um mesmo lead pode ter várias auditorias
+em datas diferentes, e comparar "melhorou desde agosto?" é o objetivo declarado
+(`DOSSIE.md` §17). A **auditoria atual** é a de maior `researched_at` (empate resolvido
+por `created_at`) — não existe flag `is_current`, que seria uma segunda fonte de
+verdade capaz de divergir.
+
+**Todo campo é nullable** exceto os de identidade. Nulo significa "não foi possível
+encontrar/avaliar", nunca zero. É a regra que o produto inteiro depende para não
+confundir ausência de pesquisa com ausência de presença digital.
+
+```
+id                        uuid pk
+org_id                    uuid not null -> organizations on delete cascade
+lead_id                   uuid not null -> leads on delete cascade
+researched_at             date not null default current_date   -- "Data da pesquisa" (DOSSIE §2)
+created_by                uuid -> auth.users
+created_at, updated_at    timestamptz not null default now()
+
+-- Origem da prospecção (DOSSIE §2)
+search_query              text                       -- "clareamento dental"
+search_location           text                       -- "Uberlândia - MG"
+found_on_google           sales.tri_state
+google_result_type        sales.google_result_type
+google_ads_active         sales.tri_state
+google_ads_position       smallint  check (google_ads_position >= 1)
+google_organic_position   smallint  check (google_organic_position >= 1)
+google_search_result_url  text
+
+-- Google Business Profile / Maps (DOSSIE §3)
+google_business_profile   sales.tri_state
+google_business_name      text
+google_business_category  text
+google_rating             numeric(2,1) check (google_rating between 0 and 5)
+google_reviews_count      integer      check (google_reviews_count >= 0)
+google_recent_reviews     sales.tri_state
+google_replies_reviews    sales.frequency_level
+google_has_photos         sales.tri_state
+google_has_hours          sales.tri_state
+google_has_phone          sales.tri_state
+google_has_website        sales.tri_state
+google_easy_whatsapp      sales.tri_state
+google_has_booking        sales.tri_state
+google_profile_completeness sales.quality_level
+google_notes              text
+
+-- Website (DOSSIE §4)
+website_exists                    sales.tri_state
+website_url                       text
+website_https                     sales.tri_state
+website_mobile_friendly           sales.tri_state
+website_visual_quality            sales.quality_level
+website_perceived_speed           sales.speed_level
+website_services_clear            sales.tri_state
+website_has_target_service_page   sales.tri_state
+website_target_service_url        text
+website_has_clear_cta             sales.tri_state
+website_has_whatsapp              sales.tri_state
+website_whatsapp_clickable        sales.tri_state
+website_whatsapp_floating         sales.tri_state
+website_has_contact_form          sales.tri_state
+website_has_online_booking        sales.tri_state
+website_phone_visible             sales.tri_state
+website_address_visible           sales.tri_state
+website_has_social_proof          sales.tri_state
+website_has_clear_differentiators sales.tri_state
+website_has_team                  sales.tri_state
+website_content_updated           sales.tri_state
+website_notes                     text
+
+-- Conversão digital (DOSSIE §5)
+conversion_clear_contact_path   sales.tri_state
+conversion_clicks_to_whatsapp   smallint check (conversion_clicks_to_whatsapp >= 0)
+conversion_cta_above_fold       sales.tri_state
+conversion_repeated_cta         sales.tri_state
+conversion_alternative_capture  sales.tri_state
+conversion_has_friction         sales.tri_state
+conversion_friction_notes       text
+
+-- Instagram (DOSSIE §6)
+instagram_exists           sales.tri_state
+instagram_username         text
+instagram_url              text
+instagram_has_bio_link     sales.tri_state
+instagram_clear_bio        sales.tri_state
+instagram_has_cta          sales.tri_state
+instagram_easy_whatsapp    sales.tri_state
+instagram_easy_website     sales.tri_state
+instagram_active           sales.activity_level
+instagram_last_post_date   date
+instagram_visual_quality   sales.quality_level
+instagram_services_content sales.tri_state
+instagram_content_cta      sales.frequency_level
+instagram_notes            text
+
+-- PageSpeed mobile (DOSSIE §7)
+pagespeed_mobile_performance     smallint check (between 0 and 100)
+pagespeed_mobile_accessibility   smallint check (between 0 and 100)
+pagespeed_mobile_best_practices  smallint check (between 0 and 100)
+pagespeed_mobile_seo             smallint check (between 0 and 100)
+pagespeed_mobile_core_web_vitals sales.cwv_status
+pagespeed_mobile_lcp             integer      check (>= 0)   -- ms
+pagespeed_mobile_inp             integer      check (>= 0)   -- ms, só existe com dado de campo
+pagespeed_mobile_cls             numeric(6,3) check (>= 0)
+pagespeed_mobile_fcp             integer      check (>= 0)   -- ms
+pagespeed_mobile_tbt             integer      check (>= 0)   -- ms
+pagespeed_mobile_speed_index     integer      check (>= 0)   -- ms
+
+-- PageSpeed desktop — mesmas 11 colunas com prefixo pagespeed_desktop_
+
+-- PageSpeed, informações gerais
+pagespeed_analyzed_url          text
+pagespeed_analyzed_at           timestamptz
+pagespeed_mobile_report_url     text
+pagespeed_desktop_report_url    text
+pagespeed_field_data_available  sales.tri_state
+pagespeed_notes                 text
+
+-- Diagnóstico digital (DOSSIE §9)
+digital_problems           text
+digital_strengths          text
+digital_opportunities      text[] not null default '{}'
+digital_sales_priority     sales.sales_priority
+digital_opportunity_score  smallint check (between 0 and 10)
+digital_opportunity_reason text
+
+-- Score derivado (DOSSIE §10) — nunca vem do formulário (D-038)
+digital_score              smallint check (between 0 and 100)
+digital_score_completeness smallint check (between 0 and 100)
+```
+
+`digital_opportunities` é `text[]` com CHECK de subconjunto do vocabulário do
+`DOSSIE.md` §9 (`google_business`, `google_reputation`, `website`, `landing_page`,
+`seo_local`, `performance`, `ux_mobile`, `conversao`, `whatsapp`, `automacao`,
+`agendamento`, `captacao_leads`, `instagram`, `crm`, `analytics`, `outro`):
+
+```sql
+check (digital_opportunities <@ array['google_business','google_reputation','website',
+  'landing_page','seo_local','performance','ux_mobile','conversao','whatsapp',
+  'automacao','agendamento','captacao_leads','instagram','crm','analytics','outro']::text[])
+```
+
+Array em vez de tabela de junção: é uma lista curta e fechada, sempre lida junto com a
+auditoria, nunca consultada de trás para frente ("quais leads têm oportunidade X" sai
+de um `@>` com índice GIN se um dia fizer falta). Tabela de junção aqui seria
+arquitetura complexa desnecessária (`DOSSIE.md` §16).
+
+Índices:
+
+```sql
+create index on sales.lead_digital_audits (org_id, lead_id, researched_at desc);
+create index on sales.lead_digital_audits (org_id, digital_score desc nulls last);
+```
+
+O primeiro serve à consulta dominante ("auditoria atual deste lead") e já cobre a FK
+`lead_id` (não entra em `unindexed_foreign_keys`, Q-008). O segundo serve à comparação
+entre dezenas de empresas, que é o objetivo de médio prazo do `DOSSIE.md` §15.
+
+RLS `tenant_isolation` no padrão do schema + trigger `fn_set_updated_at`. `lead_id`
+**não** garante organização por FK — mesma armadilha de `leads.contact_id`
+(**D-020**): a checagem é da camada de `lib/actions/`, com `checkBelongsToOrg`.
+
+**Milissegundos, sempre.** Toda métrica de tempo é armazenada em ms inteiro e
+formatada em segundos na exibição (`formatMsAsSeconds` em `lib/domain/pagespeed.ts`).
+O `DOSSIE.md` §7 pede "um padrão consistente em toda a aplicação"; ms é o que a API do
+PageSpeed devolve, então converter na entrada seria perder precisão à toa.
+
+**Nenhuma coluna nova em `sales.leads`.** O lead continua sendo o comercial; o dossiê é
+uma linha à parte que pode nem existir. Todo lead cadastrado antes desta fase continua
+válido sem auditoria nenhuma — a compatibilidade é por construção, não por default de
+coluna (`DOSSIE.md` §21).
+
+---
+
 ## Views
 
 Toda view leva `alter view ... set (security_invoker = true)` na mesma migration.
@@ -697,6 +903,7 @@ alter view sales.v_leads_without_action set (security_invoker = true);
 | `0009_ai.sql` | `ai_prompts`, `ai_runs` (tabelas vazias) + FK de `activities.ai_run_id` | 5.1 |
 | `0010_seed_followup_proposta_prompt.sql` | estende `seed_org_defaults` com o prompt `followup_proposta` v1 | 5.2 |
 | `0011_audit.sql` | `audit_logs` | 5.4 |
+| `0012_lead_digital_audits.sql` | 8 enums do dossiê + `lead_digital_audits`, índices, RLS | 7.1 |
 
 A numeração segue a **ordem de aplicação**, não a ordem das fases. Esta tabela foi
 corrigida na tarefa 4.3: o texto desta seção já dizia "as views entram antes da

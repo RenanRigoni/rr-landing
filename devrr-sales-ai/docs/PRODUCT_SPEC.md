@@ -60,12 +60,13 @@ relatório:
 
 | Depois | O quê | Por que não agora |
 |---|---|---|
-| Fase 7 | Agendamento + lembretes | Só faz sentido com leads reais fluindo |
-| Fase 8 | Gerador de propostas + PDF | Depende de catálogo de serviços maduro |
-| Fase 9 | Kanban visual do pipeline | Lista + Ações de hoje resolvem com <50 leads |
-| Fase 10 | IA comercial conversacional + WhatsApp Cloud API | Precisa de fluxo humano validado antes |
-| Fase 11 | Dashboard comercial | Precisa de dados reais acumulados |
-| Fase 12 | Assistente interno com documentos (RAG) | Produto adjacente, não bloqueia nada |
+| Fase 7 | Dossiê digital de prospecção | Pedido do operador durante a 6.5 (`DOSSIE.md`) |
+| Fase 8 | Agendamento + lembretes | Só faz sentido com leads reais fluindo |
+| Fase 9 | Gerador de propostas + PDF | Depende de catálogo de serviços maduro |
+| Fase 10 | Kanban visual do pipeline | Lista + Ações de hoje resolvem com <50 leads |
+| Fase 11 | IA comercial conversacional + WhatsApp Cloud API | Precisa de fluxo humano validado antes |
+| Fase 12 | Dashboard comercial | Precisa de dados reais acumulados |
+| Fase 13 | Assistente interno com documentos (RAG) | Produto adjacente, não bloqueia nada |
 
 ### Fora de escopo, ponto final (por enquanto)
 

@@ -23,7 +23,8 @@ Se a tarefa estiver ambígua ou exigir decisão de arquitetura que não está no
 |---|---|
 | Fase 2 completa | Isolamento multi-tenant de fato funciona? RLS testado? |
 | Fase 4 completa | O fluxo de follow-up faz sentido operacional na prática? |
-| Fase 6 completa | Vale abrir pra uso real? O que muda no plano das fases 7+? |
+| Fase 6 completa | Vale abrir pra uso real? O que muda no plano das fases 8+? |
+| Fase 7 completa | O dossiê digital sustenta a prospecção real? Score calibrado? |
 
 ---
 
@@ -3327,19 +3328,455 @@ de pronto usando dados reais. → **Checkpoint Opus: revisar plano das fases 7+.
 
 ---
 
-# Fases 7+ — pós-MVP (esboço, não especificar ainda)
+# FASE 7 — Dossiê Digital de Prospecção
+
+Origem: `DOSSIE.md` (raiz deste projeto), pedido do operador em 2026-08-27, durante a
+janela de uso real da 6.5.
+
+**O que é:** hoje o cadastro grava só o comercial (nome, telefone, título, interesse,
+fonte, valor, observações). Esta fase adiciona o **dossiê da presença digital pública**
+da empresa prospectada — Google, Google Business Profile, site, conversão, Instagram e
+PageSpeed —, um diagnóstico inicial, um score 0–100 derivado, e a exportação desse
+dossiê em JSON/Markdown/CSV para colar direto numa IA antes da abordagem comercial.
+
+**Observação de escopo (não bloqueia):** `PRODUCT_SPEC.md` descreve o produto como
+inbound (o lead chega até a PME). O dossiê é **outbound** — é a DevRR pesquisando uma
+clínica no Google antes de prospectar. Isso não conflita com nada já construído: a
+DevRR é o cliente #0 e prospecta ativamente. O dossiê é uma camada opcional sobre o
+lead: não muda o funil, o follow-up, nem a tela "Ações de hoje". Se um dia o produto
+for vendido a uma PME inbound, a aba simplesmente não é usada.
+
+**Fora do escopo desta fase** (explícito no `DOSSIE.md` §22): análise de conversa de
+WhatsApp, atendimento comercial, Cliente Oculto. Não implementar nada disso aqui.
+
+## Regras que valem para a fase inteira
+
+1. **Nenhum campo do dossiê é obrigatório.** Campo vazio significa "não foi possível
+   encontrar/avaliar", nunca "o valor é zero/não". Só `lead_id` e `researched_at` são
+   obrigatórios. Ver **D-037**.
+2. `null`, `nao_analisado`, `nao_identificado` e `nao_se_aplica` são **não avaliado** —
+   saem do numerador **e** do denominador do score. `nao` é **avaliado e ausente** —
+   entra no denominador valendo 0. Essa distinção é a razão de existir da completude.
+3. `digital_score` e `digital_score_completeness` **nunca** vêm do formulário. São
+   derivados de `lib/domain/digital-score.ts` na camada de action, a cada gravação.
+4. Toda regra de classificação (Lighthouse, Core Web Vitals, rótulo de enum) vive num
+   único módulo de domínio e é importada pela UI, pelo Markdown e pelo CSV. Zero
+   duplicação de limiar em componente (`DOSSIE.md` §8).
+5. Nada de `service_role`. A exportação em massa roda com a sessão do usuário e a RLS
+   de sempre (**D-041**). D-034 continua com a lista fechada de três usos.
+6. Salvar parcial é o caminho normal, não a exceção: criar hoje, completar depois.
+
+---
+
+### [ ] 7.1 Migration `0012_lead_digital_audits.sql` + enums + types
+
+Criar os 8 enums compartilhados e a tabela `sales.lead_digital_audits`, exatamente
+como especificados em `docs/DATABASE.md` → **Tabelas — Fase 7 (dossiê digital)**. Não
+inventar coluna, não renomear, não omitir: a lista de lá é o contrato, derivada campo
+a campo do `DOSSIE.md` §2–§10.
+
+Checklist da migration (o de `DATABASE.md` → Checklist obrigatório por migration):
+arquivo commitado antes de aplicar · `org_id not null` + FK + índice · RLS
+`tenant_isolation` · trigger `fn_set_updated_at` · `get_advisors(type:'security')` sem
+alerta novo · `lib/types/database.types.ts` atualizado à mão (o arquivo é mantido
+manualmente, ver o cabeçalho dele) · `DATABASE.md` atualizado no mesmo commit (a linha
+`0012` na tabela "Ordem das migrations").
+
+Nenhuma coluna nova em `sales.leads`. Nenhum dado existente é tocado — a tabela nasce
+vazia e todo lead atual continua funcionando sem auditoria nenhuma (**D-035**).
+
+**Pronto quando:** migration aplicada, advisors limpos, `npm run typecheck` verde com
+os types atualizados, `DATABASE.md` refletindo o que está no banco.
+
+---
+
+### [ ] 7.2 `lib/domain/digital-score.ts` + `lib/domain/pagespeed.ts` + testes
+
+Lógica pura, zero import de `supabase`/`next` (regra de dependência da
+`ARCHITECTURE.md`). O domínio declara a própria interface de entrada
+(`DigitalAuditFields`) — a `Row` do banco a satisfaz estruturalmente, mas o domínio
+não importa `database.types.ts` para isso.
+
+**`digital-score.ts`** implementa a tabela de pesos abaixo. Total = 100 pontos, o que
+faz a completude ser literalmente "quantos pontos foram avaliáveis".
+
+```
+computeDigitalScore(audit: DigitalAuditFields): {
+  score: number | null            // round(100 * earned / available); null se available = 0
+  completeness: number            // round(available)  — o total é 100 por construção
+  earned: number
+  available: number
+  sections: { key, label, earned, available }[]
+}
+```
+
+**Google / Google Business — 20 pts**
+
+| Item | Campo | Peso | Conversão |
+|---|---|---|---|
+| Tem perfil | `google_business_profile` | 4 | sim=1 · nao=0 |
+| Nota | `google_rating` | 3 | >=4.5 = 1 · 4.0–4.49 = 0.6 · 3.0–3.99 = 0.3 · <3 = 0 |
+| Volume de avaliações | `google_reviews_count` | 2 | >=50 = 1 · 20–49 = 0.6 · 5–19 = 0.3 · <5 = 0 |
+| Avaliações recentes | `google_recent_reviews` | 2 | sim=1 · nao=0 |
+| Responde avaliações | `google_replies_reviews` | 2 | frequentemente=1 · algumas=0.5 · raramente=0.25 · nao=0 |
+| Fotos | `google_has_photos` | 1 | sim=1 · nao=0 |
+| Horário | `google_has_hours` | 1 | sim=1 · nao=0 |
+| Telefone | `google_has_phone` | 1 | sim=1 · nao=0 |
+| Site no Google | `google_has_website` | 1 | sim=1 · nao=0 |
+| WhatsApp fácil | `google_easy_whatsapp` | 2 | sim=1 · nao=0 |
+| Agendamento | `google_has_booking` | 1 | sim=1 · nao=0 |
+
+`google_profile_completeness` fica **fora** do score (é impressão subjetiva e
+sobrepõe itens já pontuados) — aparece no dossiê e no Markdown.
+
+**Website — 25 pts**
+
+| Item | Campo | Peso | Conversão |
+|---|---|---|---|
+| Tem site | `website_exists` | 5 | sim=1 · nao=0 |
+| HTTPS | `website_https` | 1 | sim=1 · nao=0 |
+| Mobile | `website_mobile_friendly` | 3 | sim=1 · parcialmente=0.5 · nao=0 |
+| Qualidade visual | `website_visual_quality` | 2 | excelente=1 · boa=0.75 · regular=0.4 · ruim=0 |
+| Velocidade percebida | `website_perceived_speed` | 1 | rapido=1 · aceitavel=0.6 · lento=0.2 · muito_lento=0 |
+| Serviços claros | `website_services_clear` | 2 | sim=1 · parcialmente=0.5 · nao=0 |
+| Página do serviço pesquisado | `website_has_target_service_page` | 2 | sim=1 · nao=0 |
+| CTA claro | `website_has_clear_cta` | 2 | sim=1 · nao=0 |
+| WhatsApp visível | `website_has_whatsapp` | 2 | sim=1 · nao=0 |
+| Formulário | `website_has_contact_form` | 1 | sim=1 · nao=0 |
+| Agendamento online | `website_has_online_booking` | 1 | sim=1 · nao=0 |
+| Telefone visível | `website_phone_visible` | 1 | sim=1 · nao=0 |
+| Prova social | `website_has_social_proof` | 2 | sim=1 · nao=0 |
+
+Fora do score, dentro do dossiê: `website_whatsapp_clickable`,
+`website_whatsapp_floating`, `website_address_visible`, `website_has_team`,
+`website_has_clear_differentiators`, `website_content_updated`.
+
+**Conversão — 20 pts**
+
+| Item | Campo | Peso | Conversão |
+|---|---|---|---|
+| Caminho até contato | `conversion_clear_contact_path` | 6 | sim=1 · parcialmente=0.5 · nao=0 |
+| Cliques até WhatsApp | `conversion_clicks_to_whatsapp` | 4 | <=1 = 1 · 2 = 0.6 · 3 = 0.3 · >=4 = 0 |
+| CTA acima da dobra | `conversion_cta_above_fold` | 4 | sim=1 · nao=0 |
+| CTA repetido | `conversion_repeated_cta` | 2 | sim=1 · nao=0 |
+| Captura alternativa | `conversion_alternative_capture` | 2 | sim=1 · nao=0 |
+| Sem fricção | `conversion_has_friction` | 2 | **invertido**: nao=1 · sim=0 |
+
+**PageSpeed — 20 pts**
+
+| Item | Campo | Peso | Conversão |
+|---|---|---|---|
+| Performance mobile | `pagespeed_mobile_performance` | 6 | valor/100 |
+| Core Web Vitals mobile | `pagespeed_mobile_core_web_vitals` | 4 | aprovado=1 · reprovado=0 · dados_insuficientes = **não avaliado** |
+| SEO mobile | `pagespeed_mobile_seo` | 2 | valor/100 |
+| Accessibility mobile | `pagespeed_mobile_accessibility` | 2 | valor/100 |
+| Best Practices mobile | `pagespeed_mobile_best_practices` | 1 | valor/100 |
+| Performance desktop | `pagespeed_desktop_performance` | 3 | valor/100 |
+| Core Web Vitals desktop | `pagespeed_desktop_core_web_vitals` | 2 | aprovado=1 · reprovado=0 · dados_insuficientes = não avaliado |
+
+**Instagram — 15 pts**
+
+| Item | Campo | Peso | Conversão |
+|---|---|---|---|
+| Tem Instagram | `instagram_exists` | 3 | sim=1 · nao=0 |
+| Link na bio | `instagram_has_bio_link` | 1 | sim=1 · nao=0 |
+| Bio clara | `instagram_clear_bio` | 2 | sim=1 · parcialmente=0.5 · nao=0 |
+| CTA na bio | `instagram_has_cta` | 2 | sim=1 · nao=0 |
+| WhatsApp fácil | `instagram_easy_whatsapp` | 2 | sim=1 · nao=0 |
+| Site fácil | `instagram_easy_website` | 1 | sim=1 · nao=0 |
+| Perfil ativo | `instagram_active` | 2 | ativo=1 · pouco_ativo=0.5 · inativo=0 |
+| Qualidade visual | `instagram_visual_quality` | 1 | excelente=1 · boa=0.75 · regular=0.4 · ruim=0 |
+| Conteúdo mostra serviços | `instagram_services_content` | 1 | sim=1 · parcialmente=0.5 · nao=0 |
+
+`instagram_content_cta` fica fora do score, dentro do dossiê.
+
+**Regras de cascata** (o que acontece quando a base da seção não existe):
+
+- `website_exists = 'nao'` → os outros 20 pontos de Website contam como **avaliados
+  valendo 0** (não ter site é uma lacuna real, medida — não uma lacuna de pesquisa);
+  e **toda a seção PageSpeed sai do denominador** (não há o que medir).
+- `website_exists` nulo/não analisado → seção Website inteira fora do denominador.
+- `instagram_exists = 'nao'` → os outros 12 pontos de Instagram contam avaliados
+  valendo 0.
+- `google_business_profile = 'nao'` → os outros 16 pontos de Google contam avaliados
+  valendo 0.
+- Item numérico com valor fora do domínio válido (não deveria chegar aqui — Zod e
+  CHECK barram antes) é tratado como **não avaliado**, nunca como 0.
+
+**`pagespeed.ts`** centraliza a classificação visual (`DOSSIE.md` §8):
+
+```
+classifyLighthouseScore(v: number | null): 'bom' | 'precisa_melhorar' | 'ruim' | null
+  // >=90 bom · 50-89 precisa_melhorar · <50 ruim · null -> null
+classifyLcpMs(v)    // <=2500 bom · <=4000 precisa_melhorar · >4000 ruim
+classifyInpMs(v)    // <=200  bom · <=500  precisa_melhorar · >500  ruim
+classifyClsValue(v) // <=0.1  bom · <=0.25 precisa_melhorar · >0.25 ruim
+formatMsAsSeconds(ms) // 2480 -> "2,48 s"  (armazenamos ms, exibimos segundos)
+```
+
+Nenhum componente repete um limiar desses. UI, Markdown e CSV importam daqui.
+
+**Testes** (`tests/domain/digital-score.test.ts`, `tests/domain/pagespeed.test.ts`):
+auditoria toda vazia → `score: null`, `completeness: 0`; auditoria perfeita → 100/100;
+`nao_analisado` não derruba score e reduz completude; `nao` derruba score e **não**
+reduz completude; cada regra de cascata; fricção invertida; limiares de cada
+classificador nas bordas exatas (90, 89, 50, 49, 2500, 2501, 200, 201, 0.1, 0.11).
+
+**Pronto quando:** 100% de cobertura em `lib/domain/` mantida (`npm run test:coverage`).
+
+---
+
+### [ ] 7.3 `lib/validation/digital-audit.ts` (Zod) + testes
+
+Schema espelhando a tabela, **tudo opcional/nullable** exceto `lead_id`. Reaproveitar
+os helpers `optionalText`/`optionalUuid` de `lib/validation/leads.ts` em vez de
+redefinir. Limites (`DOSSIE.md` §19):
+
+- `google_rating` 0–5 (uma casa decimal), `google_reviews_count` inteiro >= 0;
+- scores Lighthouse 0–100 inteiros; `digital_opportunity_score` 0–10;
+- posições (`google_ads_position`, `google_organic_position`) inteiras >= 1;
+- `conversion_clicks_to_whatsapp` inteiro >= 0;
+- `cls` decimal >= 0; LCP/INP/FCP/TBT/Speed Index inteiros >= 0 em **milissegundos**;
+- URLs validadas com `z.string().url()` **depois** do transform de vazio→null (campo
+  vazio não pode virar erro de URL inválida);
+- enums do banco como `z.enum([...])` com exatamente os mesmos valores do Postgres;
+- `digital_opportunities` como array de enum, default `[]`;
+- `digital_score`/`digital_score_completeness` **não existem no schema de entrada** —
+  são derivados no servidor (mesmo motivo de `org_id`/`status` não estarem em
+  `createLeadSchema`).
+
+Formulário HTML manda tudo como string: usar `z.coerce` nos numéricos e tratar `''`
+como `null` **antes** do coerce (senão `''` vira `0` e um campo em branco viraria
+"nota zero" — exatamente o erro que a regra 1 da fase proíbe).
+
+**Testes**: campo vazio → `null`, nunca `0`; nota 5.1 rejeitada; score 101 rejeitado;
+posição 0 rejeitada; URL inválida rejeitada mas vazia aceita; `digital_score` enviado
+pelo cliente é ignorado.
+
+---
+
+### [ ] 7.4 `lib/actions/digital-audit-core.ts` + wrapper `digital-audit.ts`
+
+Mesmo padrão de `lead-intake-core.ts` (D-020): core recebe `supabase`/`orgId`/`userId`
+prontos, sem `'use server'`, sem `next/headers`.
+
+```
+saveDigitalAuditCore(supabase, orgId, userId, input): Promise<DigitalAuditResult>
+```
+
+Ordem: Zod → `checkBelongsToOrg(supabase, 'leads', lead_id, orgId, 'Lead não
+encontrado.')` → `computeDigitalScore` → `insert` (auditoria nova) ou `update` (quando
+vem `audit_id`, revalidando que a linha é da org) → `logAudit(..., 'lead_digital_audit',
+auditId, 'create' | 'update', diff)`.
+
+`audit_id` vindo do cliente é id não confiável: checar `org_id` antes de gravar, igual
+a todo o resto (D-020). Erro de banco vira erro reportado, ausência vira "não
+encontrado" — `checkBelongsToOrg` já faz essa distinção (Q-005/4.6).
+
+O wrapper `'use server'` resolve sessão/org, chama o core, faz
+`revalidatePath('/leads/[leadId]', 'page')` e devolve o resultado (sem `redirect` —
+salvar dossiê mantém o usuário na mesma tela; é preenchimento incremental).
+
+**Testes** (`tests/actions/digital-audit.test.ts`, com `tests/helpers/stub-client.ts`):
+cria auditoria; atualiza a existente; recusa `lead_id` de outra org; recusa `audit_id`
+de outra org; grava `digital_score`/`digital_score_completeness` calculados e ignora os
+que vierem no input; erro de banco na tabela relacionada não vira "não encontrado".
+
+---
+
+### [ ] 7.5 `lib/queries/digital-audits.ts`
+
+Leitura para Server Components, `import 'server-only'`, colunas listadas (nunca
+`select *` — regra dura do `CLAUDE.md`). Como a lista de colunas é enorme, declarar
+**uma** constante literal `DIGITAL_AUDIT_COLUMNS` e reusar (string literal única — o
+`.select()` do postgrest-js perde o tipo se a string for concatenada, achado já
+registrado em `lib/queries/leads.ts`).
+
+```
+getLatestAuditForLead(leadId): Promise<DigitalAudit | null>
+  // order by researched_at desc, created_at desc, limit 1  -> "auditoria atual" (D-035)
+getAuditById(auditId): Promise<DigitalAudit | null>
+listAuditsForLead(leadId): Promise<DigitalAudit[]>           // histórico (DOSSIE §17)
+listLatestAuditsByLead(leadIds: string[]): Promise<Map<string, DigitalAudit>>
+  // usado pela exportação em massa; uma query só, agrupada em memória
+```
+
+Todas filtram por `org_id` de `requireOrgId()`, sempre.
+
+---
+
+### [ ] 7.6 `lib/domain/digital-labels.ts` + componentes de seção do dossiê
+
+**`digital-labels.ts`** (puro): mapa `valor do enum → rótulo em português` para os 8
+enums, mais a lista de opções de `digital_opportunities`, mais o rótulo de cada campo.
+Fonte única para UI, Markdown e cabeçalho do CSV. Nenhum rótulo escrito à mão dentro de
+componente.
+
+**Componentes** em `components/leads/dossier/`:
+
+- `DossierSection.tsx` — accordion (`<details>`/`<summary>` nativo, sem lib): título,
+  contador "N de M preenchidos", botão **Limpar seção** (só os campos daquela seção) e
+  botão **Marcar não analisado** onde o enum tem esse valor (`DOSSIE.md` §12).
+- `DossierFields.tsx` — primitivos `SelectField`/`TextField`/`NumberField`/
+  `TextareaField`/`MultiCheckField`, no padrão visual já usado em `NewLeadForm.tsx`
+  (mesmas classes `inputClass`/`labelClass`, `font-mono` em **todo** campo numérico —
+  regra visual mais importante do `DESIGN_SYSTEM.md`).
+- `DossierSummary.tsx` — a faixa de resumo do topo (`DOSSIE.md` §11): Empresa · Score
+  digital · Completude · Google Ads · Site · Nota Google · Nº avaliações · Performance
+  Mobile · Performance Desktop · Potencial 0–10. Números em DM Mono; classificação por
+  cor vinda de `pagespeed.ts` (emerald/amber/red dos tokens, sem hex novo).
+- Campos condicionais: `website_exists != 'sim'` esconde os demais campos de site
+  (mantendo no estado o que já foi digitado, sem apagar); idem `instagram_exists`.
+
+Sem animação de entrada, sem glow, sem glassmorphism (`DESIGN_SYSTEM.md` → o que NÃO
+herdar). Responsivo: `grid gap-4 sm:grid-cols-2`, como no formulário atual.
+
+---
+
+### [ ] 7.7 Telas: `/leads/new` com seções recolhidas e `/leads/[leadId]/dossie`
+
+**`/leads/new`** (`components/leads/NewLeadForm.tsx`): os campos comerciais atuais
+continuam **exatamente como estão**, agora dentro da seção 1 "Dados do lead" (aberta
+por padrão). Abaixo, as 7 seções do dossiê, todas recolhidas e opcionais. Se nenhuma
+for tocada, a action grava só o lead — comportamento de hoje, byte a byte. Se qualquer
+campo do dossiê estiver preenchido, `createLeadIntakeCore` cria também a auditoria,
+**depois** do lead, na mesma action; falha na auditoria não desfaz o lead: devolve o
+lead criado com aviso, porque perder o cadastro por causa do anexo seria o pior
+resultado possível (mesmo espírito do `logAudit` best-effort).
+
+**`/leads/[leadId]/dossie`** — página nova de edição do dossiê, reusando os mesmos
+componentes de seção. É onde o preenchimento continua depois. Sem exigir nada completo
+para salvar (`DOSSIE.md` §12).
+
+**`/leads/[leadId]`** — ganha um card compacto "Dossiê digital": ou o `DossierSummary`
+com os botões **Editar dossiê · Copiar dossiê · Exportar JSON**, ou, quando não há
+auditoria, um estado vazio honesto com **Iniciar diagnóstico** (regra 5 do
+`PRODUCT_SPEC.md`: nada de dado mockado em tela).
+
+`lib/navigation.ts` não muda — dossiê não vira item de menu.
+
+---
+
+### [ ] 7.8 `lib/domain/dossier-export.ts` — JSON aninhado, Markdown e CSV
+
+Puro e testável, sem tocar banco.
+
+- `buildDossierJson(lead, audit)` → objeto **aninhado** exatamente nas chaves do
+  `DOSSIE.md` §13: `lead` · `prospecting` · `google` · `website` · `conversion` ·
+  `instagram` · `pagespeed.mobile` · `pagespeed.desktop` · `diagnostic`. Inclui nulos
+  (o nulo é informação: "não encontrado"). Proibido JSON achatado.
+- `buildDossierMarkdown(lead, audit)` → o layout do `DOSSIE.md` §14, com rótulos em
+  português vindos de `digital-labels.ts`, números formatados (segundos para LCP/FCP/
+  TBT/Speed Index, `R$` para valor) e **omissão de campo vazio**; uma seção inteira
+  vazia é omitida, exceto `IDENTIFICAÇÃO` e `DIAGNÓSTICO`, que sempre aparecem (com
+  "não analisado" explícito) — é o que a IA precisa para saber o que falta.
+- `DOSSIER_CSV_COLUMNS` (ordem estável, nomes iguais aos das colunas do banco) +
+  `buildDossierCsvRow(lead, audit)` + `buildDossierCsv(rows)`: achatado
+  (`DOSSIE.md` §15), separador vírgula, aspas duplas escapadas por duplicação
+  (RFC 4180), `\r\n` entre linhas, BOM UTF-8 no início para o Excel pt-BR não comer os
+  acentos. Enum exportado com o **valor** do banco (estável para comparar dezenas de
+  empresas), não com o rótulo.
+
+**Testes** (`tests/domain/dossier-export.test.ts`): JSON tem as 9 chaves e nenhuma
+propriedade solta no topo; Markdown omite vazio e mantém as duas seções obrigatórias;
+CSV escapa vírgula, aspas e quebra de linha dentro de observações; a ordem das colunas
+do CSV não muda quando o dossiê está parcialmente preenchido.
+
+---
+
+### [ ] 7.9 Botões de exportação e rota de exportação em massa
+
+- **Copiar dossiê** (`components/leads/dossier/CopyDossierButton.tsx`, client):
+  `navigator.clipboard.writeText(markdown)` com fallback de `<textarea>` +
+  `document.execCommand('copy')` para contexto sem permissão, e feedback "Copiado" por
+  2s. O Markdown chega pronto do Server Component — o cliente não recalcula nada.
+- **Exportar JSON** (individual): `Blob` + `URL.createObjectURL`, nome
+  `dossie-<slug-da-empresa>-<yyyy-mm-dd>.json`.
+- **Exportação em massa**: `app/api/leads/export/route.ts`, `GET ?format=csv|json`,
+  autenticada **pela sessão do usuário** (`requireOrgId()` + client normal, zero
+  `service_role` — D-041/D-034), respeitando os mesmos filtros da lista
+  (`stage`/`source`/`status`/`search`). Responde com `Content-Type` correto e
+  `Content-Disposition: attachment`. Botão **Exportar** na barra de filtros de
+  `/leads`.
+  **Atenção ao `proxy.ts`:** esta rota **precisa** da sessão, então **não** entra no
+  negative lookahead do matcher (ao contrário de `api/cron`, D-012). Confirmar que
+  continua passando pelo `updateSession`.
+
+**Testes** (`tests/api/leads-export.test.ts`): `format` inválido → 400; CSV começa com
+BOM e com o cabeçalho esperado; JSON é array de dossiês aninhados; sem sessão →
+redirect do proxy (não 200).
+
+---
+
+### [ ] 7.10 `Consultar PageSpeed` — integração oficial, server-side
+
+API oficial: `https://www.googleapis.com/pagespeedonline/v5/runPagespeed`. Chave
+**opcional** (`PAGESPEED_API_KEY`, adicionada a `lib/env.server.ts` como `.optional()`
+— ausência não pode quebrar o boot nem o cadastro) e documentada no `README.md`.
+Nenhum serviço pago, nenhuma chave no cliente, nenhuma API inventada.
+
+- `lib/domain/pagespeed-parse.ts` (**puro**): `parsePagespeedResponse(json, strategy)`
+  → os campos `pagespeed_*` já normalizados. Mapa:
+  - scores: `lighthouseResult.categories.{performance,accessibility,best-practices,seo}.score` × 100, arredondado;
+  - laboratório (ms): `audits['largest-contentful-paint' | 'first-contentful-paint' | 'total-blocking-time' | 'speed-index'].numericValue`; `audits['cumulative-layout-shift'].numericValue` (decimal, sem unidade);
+  - campo/CrUX: `loadingExperience.metrics.{LARGEST_CONTENTFUL_PAINT_MS, INTERACTION_TO_NEXT_PAINT, CUMULATIVE_LAYOUT_SHIFT_SCORE}.percentile`. **INP só existe em campo** — sem CrUX, `pagespeed_*_inp` fica `null`, nunca 0;
+  - `core_web_vitals`: `aprovado` se os três percentis de campo passam (LCP <= 2500 ms,
+    INP <= 200 ms, CLS <= 0.1); `reprovado` se algum falha; `dados_insuficientes`
+    quando não há `loadingExperience`;
+  - `pagespeed_field_data_available`: `sim`/`nao` conforme a presença de CrUX
+    (`DOSSIE.md` §7 — diferenciar campo de laboratório é requisito, não detalhe);
+  - `report_url`: `https://pagespeed.web.dev/analysis?url=<encodeURIComponent(url)>&form_factor=<mobile|desktop>`.
+- `lib/api/pagespeed.ts`: só o `fetch` (timeout por `AbortSignal.timeout(60000)`,
+  `Promise.allSettled` para mobile+desktop em paralelo) devolvendo união discriminada
+  `{ ok: true, data } | { ok: false, reason: 'timeout' | 'unavailable' | 'invalid_url' | 'rate_limited' | 'error', message }`.
+  Uma estratégia pode falhar e a outra ser aproveitada.
+- `lib/actions/pagespeed.ts` (`'use server'`): recebe a URL, **devolve** os valores
+  para o formulário — **não grava sozinho**. O usuário revisa, edita se quiser e
+  salva. `pagespeed_analyzed_at`/`pagespeed_analyzed_url` vêm preenchidos da consulta.
+  Falha aqui **nunca** bloqueia o cadastro nem o salvamento: vira aviso na tela.
+
+**Testes** (`tests/domain/pagespeed-parse.test.ts`): fixture JSON real recortada →
+scores e métricas corretos; resposta sem `loadingExperience` → `dados_insuficientes` +
+`field_data_available: 'nao'` + INP `null`; resposta de erro do Google não vira dado
+parcial silencioso. `tests/actions/pagespeed.test.ts`: timeout e 4xx viram
+`{ ok: false }` com a razão certa, sem lançar.
+
+---
+
+### [ ] 7.11 RLS, advisors e fechamento da fase
+
+- `tests/rls.test.ts`: +6 casos para `lead_digital_audits`, no molde exato dos blocos
+  da 6.4 (A lê a própria linha · B não vê linha de A · B não insere com `org_id` de A ·
+  B não faz `UPDATE` nem `DELETE` de linha de A, checado com `.select()` encadeado,
+  D-016 · `anon` não lê).
+- `get_advisors(type:'security')` e `get_advisors(type:'performance')`: zero alerta
+  novo em `sales`. A FK `lead_digital_audits.lead_id` já nasce indexada pelo índice
+  composto — não somar mais um `unindexed_foreign_keys` a Q-008.
+- Rodar a suíte inteira: `npm run typecheck && npm run lint && npm run test && npm run test:coverage && npm run test:rls && npm run build`.
+- Entrega do `DOSSIE.md` §22: listar arquivos criados/alterados, explicar a migration
+  e as decisões (apontando para D-035…D-041), descrever o fluxo ponta a ponta (criar
+  lead → iniciar diagnóstico → salvar → editar → consultar PageSpeed → copiar dossiê →
+  exportar), reportar testes e limitações.
+
+**Pronto quando:** dá para cadastrar uma clínica odontológica, documentar a presença
+digital pública dela, ver o score com a completude, clicar em **Copiar dossiê** e colar
+o Markdown direto numa IA.
+
+---
+
+# Fases 8+ — pós-MVP (esboço, não especificar ainda)
 
 Deliberadamente sem detalhe. Especificar antes de ter `FIELD_NOTES.md` é escrever
 ficção — a Fase 6.5 vai mudar as prioridades.
 
 | Fase | Módulo | Depende de |
 |---|---|---|
-| 7 | Agendamento + lembretes (Projeto 2 do roadmap) | uso real da Fase 6.5 |
-| 8 | Gerador de propostas + PDF (Projeto 3) | catálogo de serviços |
-| 9 | Kanban visual (Projeto 4) | volume de leads > 50 |
-| 10 | IA conversacional + WhatsApp Cloud API (Projeto 5) | fluxo humano validado |
-| 11 | Dashboard comercial (Projeto 6) | 3+ meses de dado real |
-| 12 | Assistente interno com documentos (Projeto 7) | independente |
+| 8 | Agendamento + lembretes (Projeto 2 do roadmap) | uso real da Fase 6.5 |
+| 9 | Gerador de propostas + PDF (Projeto 3) | catálogo de serviços |
+| 10 | Kanban visual (Projeto 4) | volume de leads > 50 |
+| 11 | IA conversacional + WhatsApp Cloud API (Projeto 5) | fluxo humano validado |
+| 12 | Dashboard comercial (Projeto 6) | 3+ meses de dado real |
+| 13 | Assistente interno com documentos (Projeto 7) | independente |
 
-Ordem provável de mudar. A Fase 9 (Kanban) tende a subir se você tiver muitos leads;
-a Fase 8 (propostas) tende a subir se propostas manuais virarem o gargalo.
+Ordem provável de mudar. A Fase 10 (Kanban) tende a subir se você tiver muitos leads;
+a Fase 9 (propostas) tende a subir se propostas manuais virarem o gargalo.

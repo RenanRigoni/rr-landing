@@ -143,11 +143,13 @@ app/api/cron/*                      cron Vercel, protegido por CRON_SECRET
                                     ATENCAO: excluir do matcher do proxy.ts
 
 # depois do MVP
-app/(app)/pipeline                  Kanban (Fase 9)
-app/(app)/appointments              agenda (Fase 7)
-app/(app)/proposals                 propostas (Fase 8)
-app/(app)/conversations             WhatsApp/simulador (Fase 10)
-app/(app)/dashboard                 KPIs (Fase 11)
+app/(app)/leads/[leadId]/dossie     dossiê digital do lead (Fase 7)
+app/api/leads/export                exportação CSV/JSON com sessão (Fase 7)
+app/(app)/pipeline                  Kanban (Fase 10)
+app/(app)/appointments              agenda (Fase 8)
+app/(app)/proposals                 propostas (Fase 9)
+app/(app)/conversations             WhatsApp/simulador (Fase 11)
+app/(app)/dashboard                 KPIs (Fase 12)
 ```
 
 Menu inicial mostra só: **Hoje · Leads · Contatos · Configurações.** Item de menu só

@@ -1359,6 +1359,187 @@ exceção legítima da regra de `service_role`.
 
 ---
 
+## D-035 — Dossiê digital em tabela própria 1:N, não em colunas de `sales.leads`
+
+`sales.lead_digital_audits` referencia `leads`, com `researched_at` próprio. Um lead
+pode ter N auditorias ao longo do tempo. A "auditoria atual" é a de maior
+`researched_at` (empate por `created_at`), resolvida na query — **sem** flag
+`is_current`.
+
+**Alternativas descartadas:**
+
+- **~116 colunas dentro de `sales.leads`.** Faria a tabela central do produto — lida
+  em toda tela, em toda query de follow-up — carregar o peso de um formulário de
+  pesquisa que a maioria dos leads nunca vai preencher, e mataria de saída o histórico
+  do `DOSSIE.md` §17 (uma auditoria por lead, para sempre). Também obrigaria a listar
+  116 colunas em `LEAD_COLUMNS` (a regra do `CLAUDE.md` proíbe `select *`), inflando
+  toda leitura de lead.
+- **Flag `is_current boolean`.** Segunda fonte de verdade para um fato que já está no
+  dado (`researched_at`). Duas linhas com `is_current = true` é um estado inválido que
+  o banco não impede sozinho e que só aparece quando alguém já está olhando o dossiê
+  errado. Ordenar por data não tem esse modo de falha.
+- **`jsonb` único de dossiê.** Ver D-036.
+
+**Custo aceito:** uma query a mais para exibir o lead com dossiê, e a exportação em
+massa precisa de um segundo `select` agrupado por `lead_id`
+(`listLatestAuditsByLead`). Barato perto de tornar `leads` gorda.
+
+---
+
+## D-036 — Colunas tipadas com enums compartilhados, não `jsonb` por seção
+
+Cada campo do dossiê é uma coluna com tipo e CHECK. Os vocabulários repetidos viram 8
+enums compartilhados (`tri_state`, `quality_level`, `frequency_level`, `speed_level`,
+`activity_level`, `cwv_status`, `google_result_type`, `sales_priority`) em vez de um
+enum por campo.
+
+**Alternativas descartadas:**
+
+- **`jsonb` por seção** (`google jsonb`, `website jsonb`, …). Perde CHECK, perde tipo,
+  perde índice útil, e transforma o CSV achatado do `DOSSIE.md` §15 — cujo propósito é
+  comparar dezenas de empresas — em extração manual de chave. O produto vai querer
+  filtrar por "nota < 4" e ordenar por `digital_score`; em jsonb isso é cast em toda
+  linha.
+- **Um enum por campo** (~40 tipos). `ALTER TYPE` por campo, `database.types.ts`
+  ilegível, e nenhum ganho: os vocabulários são de fato os mesmos.
+- **`text` + CHECK em vez de enum.** Funciona, mas foge do idioma já estabelecido no
+  schema (`lead_status`, `activity_type`, `ai_run_status` são enums) e ocupa mais
+  espaço em 116 colunas × N linhas.
+
+**Custo aceito:** acrescentar uma opção nova de vocabulário exige `ALTER TYPE ... ADD
+VALUE` numa migration. Aceitável: esses vocabulários vêm de um formulário de pesquisa
+manual, não mudam toda semana. E `tri_state` já nasce com o superconjunto das três
+formas de pergunta, então a UI restringe sem precisar de tipo novo.
+
+---
+
+## D-037 — Ausência de dado é primeira classe: `null` ≠ `nao`
+
+Nenhum campo do dossiê é obrigatório. Vazio quer dizer **"não foi possível encontrar
+na internet"**, nunca "o valor é zero/não". No cálculo do score:
+
+| Valor | Significado | Numerador | Denominador |
+|---|---|---|---|
+| `null` | não pesquisado | — | **fora** |
+| `nao_analisado` / `nao_identificado` / `nao_se_aplica` | pesquisado e inconclusivo | — | **fora** |
+| `nao` | pesquisado e ausente | 0 | **dentro** |
+| `sim` / `parcialmente` / valor numérico | pesquisado e presente | peso × conversão | dentro |
+
+Daí sair **dois** números, não um: `digital_score` (qualidade do que foi observado) e
+`digital_score_completeness` (quanto do dossiê foi observado). Um score 90 com 30% de
+completude e um score 90 com 95% dizem coisas muito diferentes para a decisão de
+prospectar, e um número só apagaria essa diferença.
+
+**Alternativa descartada:** tratar campo vazio como zero. É o comportamento default de
+qualquer formulário com `z.coerce.number()` e é exatamente o que produz o pior
+resultado possível aqui — uma empresa com presença digital excelente e dossiê pela
+metade apareceria como oportunidade quente, e o operador ligaria com o argumento
+errado. O `DOSSIE.md` §10 pede isso de forma explícita ("campos 'Não analisado' não
+podem valer automaticamente como zero").
+
+**Custo aceito:** o Zod precisa transformar `''` em `null` **antes** do `coerce` em
+todo campo numérico, e o teste disso é obrigatório. Uma regressão silenciosa aqui
+envenena o score inteiro.
+
+---
+
+## D-038 — `digital_score` é derivado no servidor, persistido, nunca recebido
+
+O score e a completude são colunas (para ordenar, filtrar e exportar em SQL), mas não
+existem no schema Zod de entrada: são recalculados por `computeDigitalScore()` na
+action, a cada gravação, a partir dos campos já validados. Mesmo princípio de `org_id`,
+`status` e dos caches `next_action_at`/`last_contact_at` (**D-006**).
+
+**Alternativas descartadas:**
+
+- **Coluna gerada / trigger em SQL.** Duplicaria em SQL uma regra de negócio de 40
+  linhas com tabela de pesos e cascatas — sem vitest, exatamente o que D-006 já
+  recusou para `next_action_at`.
+- **Calcular só na exibição, sem persistir.** Impede ordenar e filtrar por score no
+  banco, que é o ponto do `DOSSIE.md` §15 (comparar dezenas de empresas).
+
+**Custo aceito:** mudar a tabela de pesos exige recalcular as auditorias existentes
+(um script pontual em `supabase/seed/`, ou reabrir e salvar). Enquanto houver poucas
+dezenas de auditorias, isso é irrelevante; se virar problema, o recálculo em massa vira
+tarefa de manutenção, não trigger.
+
+---
+
+## D-039 — O dossiê aparece no cadastro como seções recolhidas, e tem tela própria
+
+O formulário de `/leads/new` mantém os campos comerciais atuais intactos na seção 1 e
+ganha as 7 seções do dossiê recolhidas, todas opcionais. A continuação do preenchimento
+acontece em `/leads/[leadId]/dossie`, reusando os mesmos componentes.
+
+**Alternativas descartadas:**
+
+- **Só na tela própria** (cadastro sem nenhuma seção de dossiê). Contraria o
+  `DOSSIE.md` §11, que pede o formulário organizado em accordions com "Dados do lead"
+  como seção 1 — e obrigaria dois passos para o caso mais comum, que é pesquisar a
+  empresa e cadastrar tudo de uma vez.
+- **Só no cadastro** (sem tela própria). Contraria o §12: "preciso conseguir criar o
+  lead hoje e continuar preenchendo depois".
+- **Wizard multi-etapa.** Bloqueia o salvamento parcial, que é requisito.
+
+**Custo aceito:** os componentes de seção precisam funcionar em dois contextos
+(criação, onde ainda não há `lead_id`, e edição, onde há). Resolvido mantendo os
+componentes puramente de apresentação/estado e deixando a decisão de insert/update na
+action.
+
+Consequência operacional: se a criação do lead der certo e a da auditoria falhar, o
+lead **não** é desfeito — devolve-se o lead criado com aviso. Perder o cadastro por
+causa do anexo seria pior do que salvar o dossiê depois.
+
+---
+
+## D-040 — PageSpeed via API oficial v5, chave opcional, resultado não grava sozinho
+
+`https://www.googleapis.com/pagespeedonline/v5/runPagespeed`, chamado server-side, com
+`PAGESPEED_API_KEY` **opcional** em `lib/env.server.ts`. A action devolve os valores
+para o formulário; quem grava é o usuário, ao salvar.
+
+Por que a chave é opcional: a API responde sem chave (com cota menor por IP). Tornar a
+env obrigatória quebraria o boot de quem ainda não a configurou, para uma
+funcionalidade acessória — e o `DOSSIE.md` §18 é explícito em não bloquear o cadastro
+se o PageSpeed falhar.
+
+Por que não persistir direto: o §18 exige poder editar os valores manualmente, e o
+CrUX às vezes não tem dado de campo. Gravar sozinho tornaria "consultei e deu ruim"
+indistinguível de "pesquisei e não achei" — de novo D-037.
+
+**Alternativas descartadas:** serviço pago de auditoria (proibido pelo §18); scraping
+do pagespeed.web.dev (não é API oficial, quebra sem aviso); chamada a partir do
+browser (exporia a chave e sofreria CORS).
+
+**Custo aceito:** duas chamadas HTTP de até ~60 s (mobile e desktop, em paralelo por
+`Promise.allSettled`). Sem chave, a cota por IP pode devolver 429 em uso intenso — a
+UI mostra a razão e o operador preenche à mão, que é o caminho normal do resto do
+dossiê de qualquer forma.
+
+---
+
+## D-041 — Exportação roda com a sessão do usuário, nunca com `service_role`
+
+`GET /api/leads/export?format=csv|json` resolve `requireOrgId()` e usa o client normal.
+A RLS `tenant_isolation` é o que garante o recorte por organização — não um filtro
+escrito à mão numa rota privilegiada.
+
+Isto **não** é exceção de D-034: o critério de lá é "a identidade do chamador decide o
+que a query alcança?". Aqui decide, e por isso `service_role` está proibido. A rota
+também **não** entra no negative lookahead do matcher do `proxy.ts` (ao contrário de
+`api/cron`, D-012) — precisamente porque precisa da sessão que o proxy renova.
+
+**Alternativa descartada:** Server Action devolvendo a string do CSV para o browser
+montar o `Blob`. Funciona para o JSON individual (que já está na tela), mas para a
+exportação em massa significa trafegar o dataset inteiro como payload de RSC e montar
+o arquivo no cliente, sem `Content-Disposition` nem nome de arquivo estável.
+
+**Custo aceito:** mais uma rota em `app/api/` que precisa ser lembrada em toda revisão
+do matcher do `proxy.ts`. Mitigado pelo teste de exportação, que cobre "sem sessão não
+devolve 200".
+
+---
+
 ## Questões abertas
 
 Sonnet: adicione aqui o que travar. Opus resolve no próximo checkpoint.
