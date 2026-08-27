@@ -1540,6 +1540,45 @@ devolve 200".
 
 ---
 
+## D-042 — `database.types.ts` é gerado pelo Supabase CLI e verificado por drift check
+
+O arquivo deixa de ser mantido à mão. `npm run gen:types` (Supabase CLI como
+devDependency, `--schema sales`, contra o projeto remoto) gera; `npm run types:check`
+regenera para um temporário e falha se divergir do commitado. A credencial é um
+personal access token **dev-only** em `.env.local`, fora de `lib/env.server.ts` e fora
+da Vercel — não é env de aplicação e não é `service_role` (D-034 não é tocado).
+
+**Por que mudou agora:** manter à mão funcionou por 11 migrations pequenas, mas o
+custo do erro cresce com o tamanho do schema, e a Fase 7 adiciona ~116 colunas numa
+tabela só. O ponto cego é específico e silencioso: `npm run typecheck` valida o código
+**contra o arquivo de tipos**, nunca contra o banco. Coluna esquecida, `not null`
+tipado como opcional, valor de enum a mais — tudo passa verde e falha em runtime, em
+produção, com dado real. Não é hipótese: é a mesma classe de falha silenciosa que
+motivou D-006 (cache reconciliado por job) e a checagem de `security_invoker` das
+views.
+
+**Alternativas descartadas:**
+
+- **Continuar à mão, com mais cuidado.** "Cuidado" não é verificável. Cada migration
+  nova reabre a mesma janela, e a janela agora tem 116 colunas de largura.
+- **MCP `generate_typescript_types`.** Só introspecta `public` nesta sessão — nem o
+  schema `crm` do CRM-RR aparece. Limitação da ferramenta, já registrada no cabeçalho
+  do arquivo desde a 2.1.
+- **Gerar a partir dos arquivos de migration** (parser de `create table` sobre
+  `supabase/migrations/*.sql`). Não precisa de credencial nenhuma e o schema é
+  reproduzível por D-002 — mas exige escrever e manter um parser de SQL, que é código
+  novo com bugs próprios, e não detecta o caso mais perigoso: DDL aplicado no remoto
+  sem arquivo de migration. O gerador oficial lê o banco de verdade.
+- **Só o drift check, sem trocar o gerador.** Sem gerador não há com o que comparar.
+
+**Custo aceito:** um segredo novo na máquina do dev (`SUPABASE_ACCESS_TOKEN`, `.env.local`
+já ignorado pelo git), uma devDependency (`supabase`), e uma reconciliação única do
+arquivo — a saída do gerador difere da versão escrita à mão em `Relationships`,
+helpers e ordem. Essa diferença é informação, não ruído: é o tamanho do desvio que
+existia sem ninguém ver.
+
+---
+
 ## Questões abertas
 
 Sonnet: adicione aqui o que travar. Opus resolve no próximo checkpoint.

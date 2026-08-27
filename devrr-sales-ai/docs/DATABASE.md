@@ -927,5 +927,5 @@ alerta novo → esta doc atualizada → `npm run typecheck` com types regerados.
 - [ ] Trigger de `updated_at` onde a coluna existe
 - [ ] Toda view com `security_invoker = true`
 - [ ] `get_advisors(type:'security')` sem alerta novo
-- [ ] Types TypeScript regerados (`lib/types/database.types.ts`)
+- [ ] Types regenerados por `npm run gen:types` e `npm run types:check` verde (D-042)
 - [ ] Esta doc atualizada no mesmo commit

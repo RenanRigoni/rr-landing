@@ -3368,6 +3368,65 @@ WhatsApp, atendimento comercial, Cliente Oculto. Não implementar nada disso aqu
 
 ---
 
+### [ ] 7.0 Gerador de types + guarda de drift — **antes da 7.1**
+
+**O problema que esta tarefa fecha.** `lib/types/database.types.ts` é escrito à mão
+desde a 2.1 (a ferramenta MCP `generate_typescript_types` só introspecta `public`).
+Com 11 tabelas pequenas isso passou; com as ~116 colunas da 7.1 vira lacuna de
+verdade — `npm run typecheck` valida o código **contra o arquivo**, não contra o
+banco, então uma coluna esquecida, um nullable errado ou um valor de enum a mais
+passam verdes e só explodem em runtime. Fazer a 7.1 antes desta tarefa significaria
+digitar 116 colunas à mão para jogá-las fora depois. Ordem: **7.0 → 7.1**.
+
+Duas partes, as duas obrigatórias.
+
+**(a) Gerador — Supabase CLI como devDependency**
+
+- `npm i -D supabase` (versão pinada, como o resto do `package.json`).
+- **Confirmar a sintaxe na versão instalada** com `npx supabase gen types --help`
+  antes de escrever o script: as versões variam entre
+  `gen types typescript --project-id` e `gen types --lang typescript --project-id`.
+  Não chutar flag; usar o que o `--help` da versão instalada disser.
+- Script no `package.json`, formato aproximado (ajustar ao help real):
+  `"gen:types": "supabase gen types --lang typescript --project-id fvgbbixxcapltudonxqx --schema sales > lib/types/database.types.ts"`.
+  **Não precisa de Docker:** `gen types` com `--project-id` (ou `--db-url`) fala com o
+  projeto remoto; quem sobe stack local é `supabase start`, que não entra aqui.
+- Credencial: `SUPABASE_ACCESS_TOKEN` (personal access token do dashboard, `sbp_...`),
+  **só em `.env.local` e no ambiente do dev** — nunca na Vercel, nunca no bundle do
+  browser. Documentar em `.env.example` marcando que é ferramenta de
+  desenvolvimento e **não** env de aplicação: por isso **não** entra em
+  `lib/env.server.ts` e nenhum código de produção a lê. Não é `service_role`, não
+  toca D-034.
+- Se o token não for possível, alternativa: `--db-url` com a connection string do
+  pooler (`postgresql://postgres.<ref>:<senha>@aws-0-<região>.pooler.supabase.com:5432/postgres`).
+  Se nenhuma das duas funcionar: **parar e reportar** (CLAUDE.md). Não voltar a
+  escrever o arquivo à mão.
+- Adotar a saída do gerador como canônica. Ela **vai** divergir do arquivo atual
+  (`Relationships` completos, helpers `Tables<>`/`TablesInsert<>`, ordem das chaves,
+  possivelmente o tipo `Json`). Ajustar o que o `typecheck` acusar nos imports — é
+  uma reconciliação única, e é justamente o tipo de divergência que hoje ninguém vê.
+  O cabeçalho explicativo atual do arquivo (que descreve a manutenção manual) sai; a
+  instrução "rode `npm run gen:types` depois de toda migration" vai para o
+  `README.md`.
+
+**(b) Guarda — `npm run types:check`**
+
+- Regenera para um arquivo temporário e compara com o commitado; sai != 0 e imprime o
+  diff se divergirem. É isto que transforma "lembrar de regerar" em verificação: se
+  alguém aplicar DDL sem regerar, ou editar o arquivo à mão, o comando acusa.
+- **Opt-in quanto à credencial**, no mesmo espírito de `test:rls`: sem
+  `SUPABASE_ACCESS_TOKEN` no ambiente, pula com aviso e sai 0 — CI sem o segredo não
+  pode dar falso vermelho. Com o segredo presente, divergência é erro.
+- Entra no checklist de migration do `DATABASE.md` e na regra de banco do
+  `CLAUDE.md`.
+
+**Pronto quando:** `npm run gen:types` produz o arquivo; `npm run typecheck` verde com
+a saída do gerador; `npm run types:check` verde; `README.md` e `.env.example`
+documentam a credencial dev-only; a suíte inteira segue verde
+(`test`/`test:coverage`/`test:rls`/`build`).
+
+---
+
 ### [ ] 7.1 Migration `0012_lead_digital_audits.sql` + enums + types
 
 Criar os 8 enums compartilhados e a tabela `sales.lead_digital_audits`, exatamente
@@ -3378,8 +3437,9 @@ a campo do `DOSSIE.md` §2–§10.
 Checklist da migration (o de `DATABASE.md` → Checklist obrigatório por migration):
 arquivo commitado antes de aplicar · `org_id not null` + FK + índice · RLS
 `tenant_isolation` · trigger `fn_set_updated_at` · `get_advisors(type:'security')` sem
-alerta novo · `lib/types/database.types.ts` atualizado à mão (o arquivo é mantido
-manualmente, ver o cabeçalho dele) · `DATABASE.md` atualizado no mesmo commit (a linha
+alerta novo · types regenerados por `npm run gen:types` com `npm run types:check`
+verde (7.0 — o arquivo deixou de ser escrito à mão, D-042) · `DATABASE.md`
+atualizado no mesmo commit (a linha
 `0012` na tabela "Ordem das migrations").
 
 Nenhuma coluna nova em `sales.leads`. Nenhum dado existente é tocado — a tabela nasce
