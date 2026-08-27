@@ -46,10 +46,18 @@ Rodar pelo menos uma vez, com lead real, e marcar cada passo:
 
 ### Job de reconciliação (6.3, D-034) em Production
 
-- [ ] `CRON_SECRET` (≥32 caracteres) presente em **Production**
-- [ ] `GET /api/cron/reconcile` com `Authorization: Bearer $CRON_SECRET` → `200` + contadores
-- [ ] mesma rota sem header → `401` (não `307` — prova a exclusão do matcher do `proxy.ts`)
-- [ ] após ~1 dia: run agendado aparece no histórico de Cron da Vercel
+URL de Production: `https://devrr-sales-ai.vercel.app` (deployment
+`dpl_4SQHY3zSqEhTPWrnVvQ9yADCSfSC`, commit `b75b50d`).
+
+- [x] `CRON_SECRET` (≥32 caracteres) presente em **Production** — verificado 2026-08-27 (len 64)
+- [x] `GET /api/cron/reconcile` com `Authorization: Bearer $CRON_SECRET` → `200` + contadores — 2026-08-27: `{"orgs":2,"leadsChecked":0,"leadsFixed":0,"durationMs":1045,"errors":0}` (sem `org_id`/id de lead no corpo)
+- [x] mesma rota sem header → `401` (não `307`/`302` — prova a exclusão do matcher do `proxy.ts` e que a auth rejeitou) — 2026-08-27
+- [ ] após ~1 dia: run agendado (`0 9 * * *` UTC = 06:00 BRT) aparece no histórico de Cron da Vercel
+
+> A URL de deployment `*-renanrigonis-projects.vercel.app` responde `302` para
+> o SSO da Vercel (Deployment Protection do plano Hobby) — proteção de
+> deployment, não a rota. O Vercel Cron chama o alias público de Production,
+> que responde `401`/`200` como esperado.
 
 ---
 
