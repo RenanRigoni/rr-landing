@@ -1542,11 +1542,12 @@ devolve 200".
 
 ## D-042 — `database.types.ts` é gerado pelo Supabase CLI e verificado por drift check
 
-O arquivo deixa de ser mantido à mão. `npm run gen:types` (Supabase CLI como
-devDependency, `--schema sales`, contra o projeto remoto) gera; `npm run types:check`
-regenera para um temporário e falha se divergir do commitado. A credencial é um
-personal access token **dev-only** em `.env.local`, fora de `lib/env.server.ts` e fora
-da Vercel — não é env de aplicação e não é `service_role` (D-034 não é tocado).
+O arquivo deixa de ser mantido à mão. `npm run gen:types` (script próprio sobre o
+endpoint oficial da Management API, `/v1/projects/{ref}/types/typescript?included_schemas=sales`)
+gera; `npm run types:check` regenera para um temporário e falha se divergir do
+commitado. A credencial é um personal access token **dev-only** em `.env.local`, fora
+de `lib/env.server.ts` e fora da Vercel — não é env de aplicação e não é
+`service_role` (D-034 não é tocado).
 
 **Por que mudou agora:** manter à mão funcionou por 11 migrations pequenas, mas o
 custo do erro cresce com o tamanho do schema, e a Fase 7 adiciona ~116 colunas numa
@@ -1557,6 +1558,14 @@ produção, com dado real. Não é hipótese: é a mesma classe de falha silenci
 motivou D-006 (cache reconciliado por job) e a checagem de `security_invoker` das
 views.
 
+**O desvio que já existia, medido antes de decidir:** comparando o gerado com o
+arquivo à mão, as colunas das duas views (`v_today_actions`, `v_leads_without_action`)
+estavam declaradas não-nulas quando o Postgres as considera nullable — 19 colunas ao
+todo. O resto das diferenças é forma (enum por alias em vez de união inline). Ou seja:
+o arquivo escrito à mão não estava só "desatualizado em potencial"; ele já afirmava
+uma garantia de não-nulidade que o banco não dá, e o `typecheck` ratificava isso
+porque a única fonte que ele conhece é o próprio arquivo.
+
 **Alternativas descartadas:**
 
 - **Continuar à mão, com mais cuidado.** "Cuidado" não é verificável. Cada migration
@@ -1564,6 +1573,10 @@ views.
 - **MCP `generate_typescript_types`.** Só introspecta `public` nesta sessão — nem o
   schema `crm` do CRM-RR aparece. Limitação da ferramenta, já registrada no cabeçalho
   do arquivo desde a 2.1.
+- **Supabase CLI como devDependency** (`supabase gen types`). Resolve o mesmo
+  problema baixando um binário de plataforma e exigindo confirmar sintaxe de flag
+  entre versões; por baixo chama o mesmo endpoint da Management API que o script usa
+  direto. Fica como plano B se o endpoint mudar.
 - **Gerar a partir dos arquivos de migration** (parser de `create table` sobre
   `supabase/migrations/*.sql`). Não precisa de credencial nenhuma e o schema é
   reproduzível por D-002 — mas exige escrever e manter um parser de SQL, que é código
@@ -1572,8 +1585,8 @@ views.
 - **Só o drift check, sem trocar o gerador.** Sem gerador não há com o que comparar.
 
 **Custo aceito:** um segredo novo na máquina do dev (`SUPABASE_ACCESS_TOKEN`, `.env.local`
-já ignorado pelo git), uma devDependency (`supabase`), e uma reconciliação única do
-arquivo — a saída do gerador difere da versão escrita à mão em `Relationships`,
+já ignorado pelo git), um script de ~30 linhas em `scripts/`, e uma reconciliação única
+do arquivo — a saída do gerador difere da versão escrita à mão em `Relationships`,
 helpers e ordem. Essa diferença é informação, não ruído: é o tamanho do desvio que
 existia sem ninguém ver.
 

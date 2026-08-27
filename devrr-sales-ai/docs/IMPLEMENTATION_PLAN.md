@@ -3380,34 +3380,55 @@ digitar 116 colunas à mão para jogá-las fora depois. Ordem: **7.0 → 7.1**.
 
 Duas partes, as duas obrigatórias.
 
-**(a) Gerador — Supabase CLI como devDependency**
+**(a) Gerador — script próprio sobre a Management API (verificado)**
 
-- `npm i -D supabase` (versão pinada, como o resto do `package.json`).
-- **Confirmar a sintaxe na versão instalada** com `npx supabase gen types --help`
-  antes de escrever o script: as versões variam entre
-  `gen types typescript --project-id` e `gen types --lang typescript --project-id`.
-  Não chutar flag; usar o que o `--help` da versão instalada disser.
-- Script no `package.json`, formato aproximado (ajustar ao help real):
-  `"gen:types": "supabase gen types --lang typescript --project-id fvgbbixxcapltudonxqx --schema sales > lib/types/database.types.ts"`.
-  **Não precisa de Docker:** `gen types` com `--project-id` (ou `--db-url`) fala com o
-  projeto remoto; quem sobe stack local é `supabase start`, que não entra aqui.
-- Credencial: `SUPABASE_ACCESS_TOKEN` (personal access token do dashboard, `sbp_...`),
-  **só em `.env.local` e no ambiente do dev** — nunca na Vercel, nunca no bundle do
-  browser. Documentar em `.env.example` marcando que é ferramenta de
-  desenvolvimento e **não** env de aplicação: por isso **não** entra em
-  `lib/env.server.ts` e nenhum código de produção a lê. Não é `service_role`, não
-  toca D-034.
-- Se o token não for possível, alternativa: `--db-url` com a connection string do
-  pooler (`postgresql://postgres.<ref>:<senha>@aws-0-<região>.pooler.supabase.com:5432/postgres`).
-  Se nenhuma das duas funcionar: **parar e reportar** (CLAUDE.md). Não voltar a
-  escrever o arquivo à mão.
-- Adotar a saída do gerador como canônica. Ela **vai** divergir do arquivo atual
-  (`Relationships` completos, helpers `Tables<>`/`TablesInsert<>`, ordem das chaves,
-  possivelmente o tipo `Json`). Ajustar o que o `typecheck` acusar nos imports — é
-  uma reconciliação única, e é justamente o tipo de divergência que hoje ninguém vê.
-  O cabeçalho explicativo atual do arquivo (que descreve a manutenção manual) sai; a
-  instrução "rode `npm run gen:types` depois de toda migration" vai para o
-  `README.md`.
+O endpoint oficial `GET https://api.supabase.com/v1/projects/{ref}/types/typescript?included_schemas=sales`
+devolve o arquivo TypeScript pronto. **Testado nesta máquina em 2026-08-27**: HTTP 200,
+916 linhas, todas as 11 tabelas + as 2 views + os enums do schema `sales`. É o mesmo
+que o `supabase gen types --project-id` chama por baixo.
+
+- `scripts/gen-types.mjs`: `fetch` no endpoint com `Authorization: Bearer
+  $SUPABASE_ACCESS_TOKEN`, escreve `lib/types/database.types.ts` (o corpo vem no campo
+  `types` do JSON). ~30 linhas, zero dependência nova.
+- `package.json`: `"gen:types": "node scripts/gen-types.mjs"`.
+- Falha explícita, nunca silenciosa: sem token → mensagem dizendo o que configurar e
+  exit 1; HTTP != 200 → imprime status e corpo, exit 1. Nunca escrever arquivo parcial.
+- **Por que não o Supabase CLI:** o CLI resolve o mesmo problema baixando um binário de
+  plataforma como devDependency, e ainda exige confirmar sintaxe de flag entre versões.
+  O script é menor, roda igual em qualquer máquina e em CI, e usa exatamente a mesma
+  fonte de verdade (o banco remoto). O CLI (`npm i -D supabase` +
+  `supabase gen types --lang typescript --project-id ... --schema sales`) fica como
+  **plano B** se o endpoint mudar.
+- Credencial: `SUPABASE_ACCESS_TOKEN` (personal access token `sbp_...`), **já
+  configurada em `.env.local`** (confirmado fora do Git: casa com `.env*.local` no
+  `.gitignore`, nunca rastreado, sem histórico). Dev-only: não vai para a Vercel, não
+  entra em `lib/env.server.ts`, nenhum código de produção a lê, não é `service_role`
+  (D-034 intacto). Documentar em `.env.example` com valor vazio e o comentário de que
+  é ferramenta de desenvolvimento.
+- O script precisa carregar `.env.local` sozinho (não roda dentro do Next): reusar
+  `loadEnv` do `vite`, como `tests/setup/load-env.ts` já faz, ou ler o arquivo direto.
+
+**Drift já medido (2026-08-27) — o que a adoção vai acusar**
+
+Comparação campo a campo entre o gerado e o `database.types.ts` escrito à mão, feita
+antes de abrir a tarefa:
+
+| Diferença | Onde | Natureza |
+|---|---|---|
+| `status`/`type`/`role`/`temperature`/`channel` como `Database["sales"]["Enums"][...]` em vez de união inline | `activities`, `ai_runs`, `followup_rules`, `leads`, `org_members` | equivalente, só forma |
+| **Colunas das views tipadas como nullable** | `v_today_actions` (11 colunas), `v_leads_without_action` (8 colunas) | **divergência real** |
+
+A segunda é a que importa e é exatamente o tipo de coisa que o arquivo à mão escondia:
+coluna de view é sempre nullable para o Postgres (o planner não prova que o `join`
+casa), mas o arquivo atual as declara não-nulas. Hoje o código de `lib/queries/today.ts`
+e dos componentes de "Ações de hoje" lê esses campos como se nunca fossem nulos, e o
+`typecheck` concorda — porque está conferindo contra o próprio arquivo.
+
+Ao adotar o gerado, **o `typecheck` vai apontar esses acessos**. Tratar cada um
+explicitamente na camada de `queries` (`null` → erro claro, ou fallback declarado),
+nunca com `!` ou `as` para calar o compilador — silenciar aqui recria o gap que esta
+tarefa existe para fechar. Se o volume disso passar de uma passada pequena, **parar e
+reportar** em vez de improvisar.
 
 **(b) Guarda — `npm run types:check`**
 
@@ -3421,7 +3442,7 @@ Duas partes, as duas obrigatórias.
   `CLAUDE.md`.
 
 **Pronto quando:** `npm run gen:types` produz o arquivo; `npm run typecheck` verde com
-a saída do gerador; `npm run types:check` verde; `README.md` e `.env.example`
+a saída do gerador e com os nulos das views tratados explicitamente; `npm run types:check` verde; `README.md` e `.env.example`
 documentam a credencial dev-only; a suíte inteira segue verde
 (`test`/`test:coverage`/`test:rls`/`build`).
 
