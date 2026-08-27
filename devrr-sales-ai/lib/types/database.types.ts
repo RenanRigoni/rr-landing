@@ -422,6 +422,550 @@ export type Database = {
           },
         ]
       }
+      lead_digital_audits: {
+        Row: {
+          conversion_alternative_capture:
+            | Database["sales"]["Enums"]["tri_state"]
+            | null
+          conversion_clear_contact_path:
+            | Database["sales"]["Enums"]["tri_state"]
+            | null
+          conversion_clicks_to_whatsapp: number | null
+          conversion_cta_above_fold:
+            | Database["sales"]["Enums"]["tri_state"]
+            | null
+          conversion_friction_notes: string | null
+          conversion_has_friction:
+            | Database["sales"]["Enums"]["tri_state"]
+            | null
+          conversion_repeated_cta:
+            | Database["sales"]["Enums"]["tri_state"]
+            | null
+          created_at: string
+          created_by: string | null
+          digital_opportunities: string[]
+          digital_opportunity_reason: string | null
+          digital_opportunity_score: number | null
+          digital_problems: string | null
+          digital_sales_priority:
+            | Database["sales"]["Enums"]["sales_priority"]
+            | null
+          digital_score: number | null
+          digital_score_completeness: number | null
+          digital_strengths: string | null
+          found_on_google: Database["sales"]["Enums"]["tri_state"] | null
+          google_ads_active: Database["sales"]["Enums"]["tri_state"] | null
+          google_ads_position: number | null
+          google_business_category: string | null
+          google_business_name: string | null
+          google_business_profile:
+            | Database["sales"]["Enums"]["tri_state"]
+            | null
+          google_easy_whatsapp: Database["sales"]["Enums"]["tri_state"] | null
+          google_has_booking: Database["sales"]["Enums"]["tri_state"] | null
+          google_has_hours: Database["sales"]["Enums"]["tri_state"] | null
+          google_has_phone: Database["sales"]["Enums"]["tri_state"] | null
+          google_has_photos: Database["sales"]["Enums"]["tri_state"] | null
+          google_has_website: Database["sales"]["Enums"]["tri_state"] | null
+          google_notes: string | null
+          google_organic_position: number | null
+          google_profile_completeness:
+            | Database["sales"]["Enums"]["quality_level"]
+            | null
+          google_rating: number | null
+          google_recent_reviews: Database["sales"]["Enums"]["tri_state"] | null
+          google_replies_reviews:
+            | Database["sales"]["Enums"]["frequency_level"]
+            | null
+          google_result_type:
+            | Database["sales"]["Enums"]["google_result_type"]
+            | null
+          google_reviews_count: number | null
+          google_search_result_url: string | null
+          id: string
+          instagram_active: Database["sales"]["Enums"]["activity_level"] | null
+          instagram_clear_bio: Database["sales"]["Enums"]["tri_state"] | null
+          instagram_content_cta:
+            | Database["sales"]["Enums"]["frequency_level"]
+            | null
+          instagram_easy_website: Database["sales"]["Enums"]["tri_state"] | null
+          instagram_easy_whatsapp:
+            | Database["sales"]["Enums"]["tri_state"]
+            | null
+          instagram_exists: Database["sales"]["Enums"]["tri_state"] | null
+          instagram_has_bio_link: Database["sales"]["Enums"]["tri_state"] | null
+          instagram_has_cta: Database["sales"]["Enums"]["tri_state"] | null
+          instagram_last_post_date: string | null
+          instagram_notes: string | null
+          instagram_services_content:
+            | Database["sales"]["Enums"]["tri_state"]
+            | null
+          instagram_url: string | null
+          instagram_username: string | null
+          instagram_visual_quality:
+            | Database["sales"]["Enums"]["quality_level"]
+            | null
+          lead_id: string
+          org_id: string
+          pagespeed_analyzed_at: string | null
+          pagespeed_analyzed_url: string | null
+          pagespeed_desktop_accessibility: number | null
+          pagespeed_desktop_best_practices: number | null
+          pagespeed_desktop_cls: number | null
+          pagespeed_desktop_core_web_vitals:
+            | Database["sales"]["Enums"]["cwv_status"]
+            | null
+          pagespeed_desktop_fcp: number | null
+          pagespeed_desktop_inp: number | null
+          pagespeed_desktop_lcp: number | null
+          pagespeed_desktop_performance: number | null
+          pagespeed_desktop_report_url: string | null
+          pagespeed_desktop_seo: number | null
+          pagespeed_desktop_speed_index: number | null
+          pagespeed_desktop_tbt: number | null
+          pagespeed_field_data_available:
+            | Database["sales"]["Enums"]["tri_state"]
+            | null
+          pagespeed_mobile_accessibility: number | null
+          pagespeed_mobile_best_practices: number | null
+          pagespeed_mobile_cls: number | null
+          pagespeed_mobile_core_web_vitals:
+            | Database["sales"]["Enums"]["cwv_status"]
+            | null
+          pagespeed_mobile_fcp: number | null
+          pagespeed_mobile_inp: number | null
+          pagespeed_mobile_lcp: number | null
+          pagespeed_mobile_performance: number | null
+          pagespeed_mobile_report_url: string | null
+          pagespeed_mobile_seo: number | null
+          pagespeed_mobile_speed_index: number | null
+          pagespeed_mobile_tbt: number | null
+          pagespeed_notes: string | null
+          researched_at: string
+          search_location: string | null
+          search_query: string | null
+          updated_at: string
+          website_address_visible:
+            | Database["sales"]["Enums"]["tri_state"]
+            | null
+          website_content_updated:
+            | Database["sales"]["Enums"]["tri_state"]
+            | null
+          website_exists: Database["sales"]["Enums"]["tri_state"] | null
+          website_has_clear_cta: Database["sales"]["Enums"]["tri_state"] | null
+          website_has_clear_differentiators:
+            | Database["sales"]["Enums"]["tri_state"]
+            | null
+          website_has_contact_form:
+            | Database["sales"]["Enums"]["tri_state"]
+            | null
+          website_has_online_booking:
+            | Database["sales"]["Enums"]["tri_state"]
+            | null
+          website_has_social_proof:
+            | Database["sales"]["Enums"]["tri_state"]
+            | null
+          website_has_target_service_page:
+            | Database["sales"]["Enums"]["tri_state"]
+            | null
+          website_has_team: Database["sales"]["Enums"]["tri_state"] | null
+          website_has_whatsapp: Database["sales"]["Enums"]["tri_state"] | null
+          website_https: Database["sales"]["Enums"]["tri_state"] | null
+          website_mobile_friendly:
+            | Database["sales"]["Enums"]["tri_state"]
+            | null
+          website_notes: string | null
+          website_perceived_speed:
+            | Database["sales"]["Enums"]["speed_level"]
+            | null
+          website_phone_visible: Database["sales"]["Enums"]["tri_state"] | null
+          website_services_clear: Database["sales"]["Enums"]["tri_state"] | null
+          website_target_service_url: string | null
+          website_url: string | null
+          website_visual_quality:
+            | Database["sales"]["Enums"]["quality_level"]
+            | null
+          website_whatsapp_clickable:
+            | Database["sales"]["Enums"]["tri_state"]
+            | null
+          website_whatsapp_floating:
+            | Database["sales"]["Enums"]["tri_state"]
+            | null
+        }
+        Insert: {
+          conversion_alternative_capture?:
+            | Database["sales"]["Enums"]["tri_state"]
+            | null
+          conversion_clear_contact_path?:
+            | Database["sales"]["Enums"]["tri_state"]
+            | null
+          conversion_clicks_to_whatsapp?: number | null
+          conversion_cta_above_fold?:
+            | Database["sales"]["Enums"]["tri_state"]
+            | null
+          conversion_friction_notes?: string | null
+          conversion_has_friction?:
+            | Database["sales"]["Enums"]["tri_state"]
+            | null
+          conversion_repeated_cta?:
+            | Database["sales"]["Enums"]["tri_state"]
+            | null
+          created_at?: string
+          created_by?: string | null
+          digital_opportunities?: string[]
+          digital_opportunity_reason?: string | null
+          digital_opportunity_score?: number | null
+          digital_problems?: string | null
+          digital_sales_priority?:
+            | Database["sales"]["Enums"]["sales_priority"]
+            | null
+          digital_score?: number | null
+          digital_score_completeness?: number | null
+          digital_strengths?: string | null
+          found_on_google?: Database["sales"]["Enums"]["tri_state"] | null
+          google_ads_active?: Database["sales"]["Enums"]["tri_state"] | null
+          google_ads_position?: number | null
+          google_business_category?: string | null
+          google_business_name?: string | null
+          google_business_profile?:
+            | Database["sales"]["Enums"]["tri_state"]
+            | null
+          google_easy_whatsapp?: Database["sales"]["Enums"]["tri_state"] | null
+          google_has_booking?: Database["sales"]["Enums"]["tri_state"] | null
+          google_has_hours?: Database["sales"]["Enums"]["tri_state"] | null
+          google_has_phone?: Database["sales"]["Enums"]["tri_state"] | null
+          google_has_photos?: Database["sales"]["Enums"]["tri_state"] | null
+          google_has_website?: Database["sales"]["Enums"]["tri_state"] | null
+          google_notes?: string | null
+          google_organic_position?: number | null
+          google_profile_completeness?:
+            | Database["sales"]["Enums"]["quality_level"]
+            | null
+          google_rating?: number | null
+          google_recent_reviews?: Database["sales"]["Enums"]["tri_state"] | null
+          google_replies_reviews?:
+            | Database["sales"]["Enums"]["frequency_level"]
+            | null
+          google_result_type?:
+            | Database["sales"]["Enums"]["google_result_type"]
+            | null
+          google_reviews_count?: number | null
+          google_search_result_url?: string | null
+          id?: string
+          instagram_active?: Database["sales"]["Enums"]["activity_level"] | null
+          instagram_clear_bio?: Database["sales"]["Enums"]["tri_state"] | null
+          instagram_content_cta?:
+            | Database["sales"]["Enums"]["frequency_level"]
+            | null
+          instagram_easy_website?:
+            | Database["sales"]["Enums"]["tri_state"]
+            | null
+          instagram_easy_whatsapp?:
+            | Database["sales"]["Enums"]["tri_state"]
+            | null
+          instagram_exists?: Database["sales"]["Enums"]["tri_state"] | null
+          instagram_has_bio_link?:
+            | Database["sales"]["Enums"]["tri_state"]
+            | null
+          instagram_has_cta?: Database["sales"]["Enums"]["tri_state"] | null
+          instagram_last_post_date?: string | null
+          instagram_notes?: string | null
+          instagram_services_content?:
+            | Database["sales"]["Enums"]["tri_state"]
+            | null
+          instagram_url?: string | null
+          instagram_username?: string | null
+          instagram_visual_quality?:
+            | Database["sales"]["Enums"]["quality_level"]
+            | null
+          lead_id: string
+          org_id: string
+          pagespeed_analyzed_at?: string | null
+          pagespeed_analyzed_url?: string | null
+          pagespeed_desktop_accessibility?: number | null
+          pagespeed_desktop_best_practices?: number | null
+          pagespeed_desktop_cls?: number | null
+          pagespeed_desktop_core_web_vitals?:
+            | Database["sales"]["Enums"]["cwv_status"]
+            | null
+          pagespeed_desktop_fcp?: number | null
+          pagespeed_desktop_inp?: number | null
+          pagespeed_desktop_lcp?: number | null
+          pagespeed_desktop_performance?: number | null
+          pagespeed_desktop_report_url?: string | null
+          pagespeed_desktop_seo?: number | null
+          pagespeed_desktop_speed_index?: number | null
+          pagespeed_desktop_tbt?: number | null
+          pagespeed_field_data_available?:
+            | Database["sales"]["Enums"]["tri_state"]
+            | null
+          pagespeed_mobile_accessibility?: number | null
+          pagespeed_mobile_best_practices?: number | null
+          pagespeed_mobile_cls?: number | null
+          pagespeed_mobile_core_web_vitals?:
+            | Database["sales"]["Enums"]["cwv_status"]
+            | null
+          pagespeed_mobile_fcp?: number | null
+          pagespeed_mobile_inp?: number | null
+          pagespeed_mobile_lcp?: number | null
+          pagespeed_mobile_performance?: number | null
+          pagespeed_mobile_report_url?: string | null
+          pagespeed_mobile_seo?: number | null
+          pagespeed_mobile_speed_index?: number | null
+          pagespeed_mobile_tbt?: number | null
+          pagespeed_notes?: string | null
+          researched_at?: string
+          search_location?: string | null
+          search_query?: string | null
+          updated_at?: string
+          website_address_visible?:
+            | Database["sales"]["Enums"]["tri_state"]
+            | null
+          website_content_updated?:
+            | Database["sales"]["Enums"]["tri_state"]
+            | null
+          website_exists?: Database["sales"]["Enums"]["tri_state"] | null
+          website_has_clear_cta?: Database["sales"]["Enums"]["tri_state"] | null
+          website_has_clear_differentiators?:
+            | Database["sales"]["Enums"]["tri_state"]
+            | null
+          website_has_contact_form?:
+            | Database["sales"]["Enums"]["tri_state"]
+            | null
+          website_has_online_booking?:
+            | Database["sales"]["Enums"]["tri_state"]
+            | null
+          website_has_social_proof?:
+            | Database["sales"]["Enums"]["tri_state"]
+            | null
+          website_has_target_service_page?:
+            | Database["sales"]["Enums"]["tri_state"]
+            | null
+          website_has_team?: Database["sales"]["Enums"]["tri_state"] | null
+          website_has_whatsapp?: Database["sales"]["Enums"]["tri_state"] | null
+          website_https?: Database["sales"]["Enums"]["tri_state"] | null
+          website_mobile_friendly?:
+            | Database["sales"]["Enums"]["tri_state"]
+            | null
+          website_notes?: string | null
+          website_perceived_speed?:
+            | Database["sales"]["Enums"]["speed_level"]
+            | null
+          website_phone_visible?: Database["sales"]["Enums"]["tri_state"] | null
+          website_services_clear?:
+            | Database["sales"]["Enums"]["tri_state"]
+            | null
+          website_target_service_url?: string | null
+          website_url?: string | null
+          website_visual_quality?:
+            | Database["sales"]["Enums"]["quality_level"]
+            | null
+          website_whatsapp_clickable?:
+            | Database["sales"]["Enums"]["tri_state"]
+            | null
+          website_whatsapp_floating?:
+            | Database["sales"]["Enums"]["tri_state"]
+            | null
+        }
+        Update: {
+          conversion_alternative_capture?:
+            | Database["sales"]["Enums"]["tri_state"]
+            | null
+          conversion_clear_contact_path?:
+            | Database["sales"]["Enums"]["tri_state"]
+            | null
+          conversion_clicks_to_whatsapp?: number | null
+          conversion_cta_above_fold?:
+            | Database["sales"]["Enums"]["tri_state"]
+            | null
+          conversion_friction_notes?: string | null
+          conversion_has_friction?:
+            | Database["sales"]["Enums"]["tri_state"]
+            | null
+          conversion_repeated_cta?:
+            | Database["sales"]["Enums"]["tri_state"]
+            | null
+          created_at?: string
+          created_by?: string | null
+          digital_opportunities?: string[]
+          digital_opportunity_reason?: string | null
+          digital_opportunity_score?: number | null
+          digital_problems?: string | null
+          digital_sales_priority?:
+            | Database["sales"]["Enums"]["sales_priority"]
+            | null
+          digital_score?: number | null
+          digital_score_completeness?: number | null
+          digital_strengths?: string | null
+          found_on_google?: Database["sales"]["Enums"]["tri_state"] | null
+          google_ads_active?: Database["sales"]["Enums"]["tri_state"] | null
+          google_ads_position?: number | null
+          google_business_category?: string | null
+          google_business_name?: string | null
+          google_business_profile?:
+            | Database["sales"]["Enums"]["tri_state"]
+            | null
+          google_easy_whatsapp?: Database["sales"]["Enums"]["tri_state"] | null
+          google_has_booking?: Database["sales"]["Enums"]["tri_state"] | null
+          google_has_hours?: Database["sales"]["Enums"]["tri_state"] | null
+          google_has_phone?: Database["sales"]["Enums"]["tri_state"] | null
+          google_has_photos?: Database["sales"]["Enums"]["tri_state"] | null
+          google_has_website?: Database["sales"]["Enums"]["tri_state"] | null
+          google_notes?: string | null
+          google_organic_position?: number | null
+          google_profile_completeness?:
+            | Database["sales"]["Enums"]["quality_level"]
+            | null
+          google_rating?: number | null
+          google_recent_reviews?: Database["sales"]["Enums"]["tri_state"] | null
+          google_replies_reviews?:
+            | Database["sales"]["Enums"]["frequency_level"]
+            | null
+          google_result_type?:
+            | Database["sales"]["Enums"]["google_result_type"]
+            | null
+          google_reviews_count?: number | null
+          google_search_result_url?: string | null
+          id?: string
+          instagram_active?: Database["sales"]["Enums"]["activity_level"] | null
+          instagram_clear_bio?: Database["sales"]["Enums"]["tri_state"] | null
+          instagram_content_cta?:
+            | Database["sales"]["Enums"]["frequency_level"]
+            | null
+          instagram_easy_website?:
+            | Database["sales"]["Enums"]["tri_state"]
+            | null
+          instagram_easy_whatsapp?:
+            | Database["sales"]["Enums"]["tri_state"]
+            | null
+          instagram_exists?: Database["sales"]["Enums"]["tri_state"] | null
+          instagram_has_bio_link?:
+            | Database["sales"]["Enums"]["tri_state"]
+            | null
+          instagram_has_cta?: Database["sales"]["Enums"]["tri_state"] | null
+          instagram_last_post_date?: string | null
+          instagram_notes?: string | null
+          instagram_services_content?:
+            | Database["sales"]["Enums"]["tri_state"]
+            | null
+          instagram_url?: string | null
+          instagram_username?: string | null
+          instagram_visual_quality?:
+            | Database["sales"]["Enums"]["quality_level"]
+            | null
+          lead_id?: string
+          org_id?: string
+          pagespeed_analyzed_at?: string | null
+          pagespeed_analyzed_url?: string | null
+          pagespeed_desktop_accessibility?: number | null
+          pagespeed_desktop_best_practices?: number | null
+          pagespeed_desktop_cls?: number | null
+          pagespeed_desktop_core_web_vitals?:
+            | Database["sales"]["Enums"]["cwv_status"]
+            | null
+          pagespeed_desktop_fcp?: number | null
+          pagespeed_desktop_inp?: number | null
+          pagespeed_desktop_lcp?: number | null
+          pagespeed_desktop_performance?: number | null
+          pagespeed_desktop_report_url?: string | null
+          pagespeed_desktop_seo?: number | null
+          pagespeed_desktop_speed_index?: number | null
+          pagespeed_desktop_tbt?: number | null
+          pagespeed_field_data_available?:
+            | Database["sales"]["Enums"]["tri_state"]
+            | null
+          pagespeed_mobile_accessibility?: number | null
+          pagespeed_mobile_best_practices?: number | null
+          pagespeed_mobile_cls?: number | null
+          pagespeed_mobile_core_web_vitals?:
+            | Database["sales"]["Enums"]["cwv_status"]
+            | null
+          pagespeed_mobile_fcp?: number | null
+          pagespeed_mobile_inp?: number | null
+          pagespeed_mobile_lcp?: number | null
+          pagespeed_mobile_performance?: number | null
+          pagespeed_mobile_report_url?: string | null
+          pagespeed_mobile_seo?: number | null
+          pagespeed_mobile_speed_index?: number | null
+          pagespeed_mobile_tbt?: number | null
+          pagespeed_notes?: string | null
+          researched_at?: string
+          search_location?: string | null
+          search_query?: string | null
+          updated_at?: string
+          website_address_visible?:
+            | Database["sales"]["Enums"]["tri_state"]
+            | null
+          website_content_updated?:
+            | Database["sales"]["Enums"]["tri_state"]
+            | null
+          website_exists?: Database["sales"]["Enums"]["tri_state"] | null
+          website_has_clear_cta?: Database["sales"]["Enums"]["tri_state"] | null
+          website_has_clear_differentiators?:
+            | Database["sales"]["Enums"]["tri_state"]
+            | null
+          website_has_contact_form?:
+            | Database["sales"]["Enums"]["tri_state"]
+            | null
+          website_has_online_booking?:
+            | Database["sales"]["Enums"]["tri_state"]
+            | null
+          website_has_social_proof?:
+            | Database["sales"]["Enums"]["tri_state"]
+            | null
+          website_has_target_service_page?:
+            | Database["sales"]["Enums"]["tri_state"]
+            | null
+          website_has_team?: Database["sales"]["Enums"]["tri_state"] | null
+          website_has_whatsapp?: Database["sales"]["Enums"]["tri_state"] | null
+          website_https?: Database["sales"]["Enums"]["tri_state"] | null
+          website_mobile_friendly?:
+            | Database["sales"]["Enums"]["tri_state"]
+            | null
+          website_notes?: string | null
+          website_perceived_speed?:
+            | Database["sales"]["Enums"]["speed_level"]
+            | null
+          website_phone_visible?: Database["sales"]["Enums"]["tri_state"] | null
+          website_services_clear?:
+            | Database["sales"]["Enums"]["tri_state"]
+            | null
+          website_target_service_url?: string | null
+          website_url?: string | null
+          website_visual_quality?:
+            | Database["sales"]["Enums"]["quality_level"]
+            | null
+          website_whatsapp_clickable?:
+            | Database["sales"]["Enums"]["tri_state"]
+            | null
+          website_whatsapp_floating?:
+            | Database["sales"]["Enums"]["tri_state"]
+            | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_digital_audits_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_digital_audits_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "v_leads_without_action"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_digital_audits_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lead_sources: {
         Row: {
           created_at: string
@@ -762,6 +1306,7 @@ export type Database = {
       seed_org_defaults: { Args: { p_org_id: string }; Returns: undefined }
     }
     Enums: {
+      activity_level: "ativo" | "pouco_ativo" | "inativo" | "nao_analisado"
       activity_status: "pending" | "done" | "cancelled"
       activity_type:
         | "note"
@@ -773,9 +1318,41 @@ export type Database = {
         | "followup"
         | "proposal_sent"
       ai_run_status: "pending_review" | "reviewed" | "discarded" | "error"
+      cwv_status:
+        | "aprovado"
+        | "reprovado"
+        | "dados_insuficientes"
+        | "nao_analisado"
+      frequency_level:
+        | "frequentemente"
+        | "algumas"
+        | "raramente"
+        | "nao"
+        | "nao_analisado"
+      google_result_type:
+        | "organico"
+        | "patrocinado"
+        | "maps"
+        | "outro"
+        | "nao_identificado"
       lead_status: "open" | "won" | "lost"
       lead_temp: "cold" | "warm" | "hot"
       org_role: "owner" | "admin" | "member"
+      quality_level: "excelente" | "boa" | "regular" | "ruim" | "nao_analisado"
+      sales_priority: "muito_alta" | "alta" | "media" | "baixa" | "nao_avaliada"
+      speed_level:
+        | "rapido"
+        | "aceitavel"
+        | "lento"
+        | "muito_lento"
+        | "nao_analisado"
+      tri_state:
+        | "sim"
+        | "nao"
+        | "parcialmente"
+        | "nao_identificado"
+        | "nao_analisado"
+        | "nao_se_aplica"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -903,6 +1480,7 @@ export type CompositeTypes<
 export const Constants = {
   sales: {
     Enums: {
+      activity_level: ["ativo", "pouco_ativo", "inativo", "nao_analisado"],
       activity_status: ["pending", "done", "cancelled"],
       activity_type: [
         "note",
@@ -915,9 +1493,46 @@ export const Constants = {
         "proposal_sent",
       ],
       ai_run_status: ["pending_review", "reviewed", "discarded", "error"],
+      cwv_status: [
+        "aprovado",
+        "reprovado",
+        "dados_insuficientes",
+        "nao_analisado",
+      ],
+      frequency_level: [
+        "frequentemente",
+        "algumas",
+        "raramente",
+        "nao",
+        "nao_analisado",
+      ],
+      google_result_type: [
+        "organico",
+        "patrocinado",
+        "maps",
+        "outro",
+        "nao_identificado",
+      ],
       lead_status: ["open", "won", "lost"],
       lead_temp: ["cold", "warm", "hot"],
       org_role: ["owner", "admin", "member"],
+      quality_level: ["excelente", "boa", "regular", "ruim", "nao_analisado"],
+      sales_priority: ["muito_alta", "alta", "media", "baixa", "nao_avaliada"],
+      speed_level: [
+        "rapido",
+        "aceitavel",
+        "lento",
+        "muito_lento",
+        "nao_analisado",
+      ],
+      tri_state: [
+        "sim",
+        "nao",
+        "parcialmente",
+        "nao_identificado",
+        "nao_analisado",
+        "nao_se_aplica",
+      ],
     },
   },
 } as const

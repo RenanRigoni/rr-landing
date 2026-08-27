@@ -3488,7 +3488,42 @@ documentam a credencial dev-only; a suíte inteira segue verde
 
 ---
 
-### [ ] 7.1 Migration `0012_lead_digital_audits.sql` + enums + types
+### [x] 7.1 Migration `0012_lead_digital_audits.sql` + enums + types
+
+> feito: `supabase/migrations/0012_lead_digital_audits.sql` commitada sozinha
+> (`14f1e7f`) antes de aplicada no remoto (`fvgbbixxcapltudonxqx`, CLAUDE.md
+> regra dura). 8 enums do dossiê (`tri_state`, `quality_level`, `frequency_level`,
+> `speed_level`, `activity_level`, `cwv_status`, `google_result_type`,
+> `sales_priority` — D-036) + `sales.lead_digital_audits` com **109 colunas**,
+> campo a campo conforme `DATABASE.md` → Tabelas — Fase 7 (7 de identidade +
+> 102 do dossiê). Confirmado contra o banco por `information_schema.columns`:
+> só `id/org_id/lead_id/researched_at` e `digital_opportunities` (`text[] not
+> null default '{}'`) são `not null`; todo o resto nullable (D-037). CHECKs de
+> faixa (`>= 1`, `>= 0`, `between 0 and 100`, `between 0 and 10`, rating
+> `between 0 and 5`) e o `<@` de subconjunto de `digital_opportunities`
+> (constraint nomeada `lead_digital_audits_opportunities_subset`). RLS
+> `tenant_isolation` "for all" (dado operacional, D-017 não se aplica), trigger
+> `lead_digital_audits_set_updated_at` → `sales.fn_set_updated_at()`, 2 índices
+> (`(org_id, lead_id, researched_at desc)` — cobre a FK `lead_id`, Q-008; e
+> `(org_id, digital_score desc nulls last)`).
+>
+> **Verificado, não assumido:** `get_advisors(type:'security')` idêntico à
+> baseline pré-migration — zero alerta novo em `sales` (sem função nova, sem
+> view, RLS + policy presentes). `npm run gen:types` regenerou
+> `lib/types/database.types.ts` (+615 linhas: tabela + 8 enums + `Constants`);
+> `npm run types:check` verde (exit 0). Tabela nasce com 0 linhas; nenhuma
+> coluna nova em `sales.leads` (D-035).
+>
+> **Sem alteração em `tests/rls.test.ts`** — os 6 casos de RLS para
+> `lead_digital_audits` são escopo explícito da 7.11, não desta tarefa. Suíte
+> `test:rls` rodada como regressão: 201/201 (inalterada).
+>
+> `DATABASE.md` já trazia a seção completa da Fase 7 e a linha `0012` na tabela
+> "Ordem das migrations" (commit de spec do Opus `482b3f0`); conferido que bate
+> com o schema aplicado — nada a alterar no doc.
+>
+> Validação: `typecheck` / `lint` / `test` (144/144) / `types:check` (exit 0) /
+> `test:rls` (201/201) / `build` (8 rotas + Proxy) verdes.
 
 Criar os 8 enums compartilhados e a tabela `sales.lead_digital_audits`, exatamente
 como especificados em `docs/DATABASE.md` → **Tabelas — Fase 7 (dossiê digital)**. Não
