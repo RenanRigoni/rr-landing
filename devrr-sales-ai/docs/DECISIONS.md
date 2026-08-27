@@ -1284,6 +1284,28 @@ Sonnet: adicione aqui o que travar. Opus resolve no próximo checkpoint.
   de fases anteriores — vale a pena fazer antes da Fase 6.4 (que revalida RLS de
   `audit_logs`) ou junto dela? Também aberto: endurecer a RLS de `audit_logs` para
   append-only (sem `update`/`delete`).
+- **Q-007** — **A 6.3 (`app/api/cron/reconcile`) precisa de acesso privilegiado ao
+  banco e a regra da tarefa proíbe `service_role` fora de seed/test.** A rota
+  recalcula `next_action_at`/`last_contact_at` de **todos** os leads abertos, de
+  **todos** os tenants, a partir de um Cron da Vercel — request sem cookie, sem
+  `auth.uid()`, então a RLS (`org_id in current_org_ids()`) devolve vazio. Não há
+  como reconciliar cross-tenant sem elevação. Opções, todas decisão de arquitetura:
+  **(a)** `service_role` na rota (contradiz a regra "`service_role` apenas em
+  seed/test fixture"; `ARCHITECTURE.md` linha 57 permite `admin.ts` em código
+  `server-only`, e route handler é server-only — mas os checkpoints das Fases 1–2
+  registraram `createAdminClient()` como "só para os seeds da 6.x");
+  **(b)** migration nova com `sales.reconcile_lead_caches()` `security definer`
+  (bypassa RLS por dentro), invocada pela rota — mas invocar via PostgREST ainda
+  exige uma identidade: `anon` está fora (`DATABASE.md` linha 115: "não conceder
+  nada a `anon`"; e função que reescreve tabela exposta a `anon` é vetor de abuso
+  mesmo com guarda de `CRON_SECRET` na rota, porque a RPC continua alcançável
+  direto), `authenticated` não existe sem sessão → sobra `service_role` de novo;
+  **(c)** `pg_cron` dentro do Postgres, sem rota HTTP — mas o plano especifica
+  `app/api/cron/reconcile/route.ts` + "Roda diário" (Vercel Cron).
+  Precisa também de: `vercel.json`/`vercel.ts` com o `crons` (não existe hoje),
+  e decidir se a reconciliação **só loga** divergência ou **corrige** o cache.
+  Nada foi implementado; `proxy.ts` não foi tocado (o fix do matcher — D-012 —
+  entra junto da rota). **Devolvido pro Opus.**
 - ~~**Q-005**~~ — **implementada na tarefa 4.6.** `belongsToOrg`
   (`lib/actions/leads-core.ts`) passou a devolver `{ exists: boolean; error:
   string | null }` em vez de `boolean`; novo helper `checkBelongsToOrg` (mesmo

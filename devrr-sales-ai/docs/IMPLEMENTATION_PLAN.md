@@ -2963,6 +2963,16 @@ constante. Recalcula `next_action_at` e `last_contact_at` de todos os leads aber
 loga divergências. Roda diário. É a rede de segurança do cache denormalizado
 (`DATABASE.md` → nota sobre caches).
 
+> ⛔ **BLOQUEADO — aguardando Opus. Ver `DECISIONS.md` → Q-007.** A rota
+> reconcilia "todos os leads abertos" **cross-tenant**, sem sessão. O único
+> caminho que faz isso é acesso privilegiado ao banco (`service_role` na rota,
+> ou uma função `security definer` nova + `service_role` para invocá-la, ou
+> `pg_cron` sem rota HTTP). As três são decisão de arquitetura, e a regra desta
+> tarefa é "`service_role` apenas em seed/test fixture". `proxy.ts` **não** foi
+> tocado (o fix do matcher só faz sentido junto da rota — D-012).
+> Inconsistência à parte: `DATABASE.md` (linha ~418) ainda diz que o job de
+> reconciliação é "tarefa 6.4"; o plano diz 6.3.
+
 ### [ ] 6.4 Validar RLS de novo, com tudo pronto
 
 Reexecutar `tests/rls.test.ts` estendido para todas as tabelas criadas nas Fases 3-5,
