@@ -248,7 +248,15 @@ const digitalAuditObject = z.object({
   // Diagnóstico digital (DOSSIE §9)
   digital_problems: optionalText,
   digital_strengths: optionalText,
-  digital_opportunities: z.array(z.enum(DIGITAL_OPPORTUNITY)).default([]),
+  // SEM `.default([])`: `.default` faz o Zod gravar `[]` no output mesmo
+  // quando a chave não veio no request, quebrando a semântica de "campo
+  // ausente não altera o valor persistido" que todo o resto do schema segue
+  // (7.4, revisão corretiva — achado 1). Ausente aqui vira `undefined`, igual
+  // a qualquer outro campo opcional; `buildColumns` só grava a coluna quando
+  // a chave está presente em `parsed.data`. Insert sem a chave cai no
+  // default do próprio banco (`text[] not null default '{}'`, migration
+  // 0012) — resultado observável idêntico, sem duplicar a regra aqui.
+  digital_opportunities: z.array(z.enum(DIGITAL_OPPORTUNITY)).optional(),
   digital_sales_priority: optionalEnum(SALES_PRIORITY),
   digital_opportunity_score: optionalInt(0, 10),
   digital_opportunity_reason: optionalText,

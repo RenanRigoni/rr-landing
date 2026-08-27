@@ -21,7 +21,9 @@ describe('digitalAuditSchema — lead_id', () => {
     expect(result.success).toBe(true)
     if (result.success) {
       expect(result.data.lead_id).toBe(LEAD_ID)
-      expect(result.data.digital_opportunities).toEqual([])
+      // Ausente, igual a qualquer outro campo opcional — não é `[]` por
+      // default (revisão corretiva 7.4, achado 1: ver describe abaixo).
+      expect(result.data.digital_opportunities).toBeUndefined()
     }
   })
 })
@@ -158,10 +160,26 @@ describe('digitalAuditSchema — URLs', () => {
 })
 
 describe('digitalAuditSchema — digital_opportunities', () => {
-  it('default [] quando ausente', () => {
+  // Revisão corretiva da 7.4 (achado 1): `.default([])` fazia o Zod gravar
+  // `[]` no output mesmo com a chave ausente do request, o que um update
+  // parcial lia como "limpar o array" — quebra a mesma invariante que todo
+  // outro campo do schema respeita (campo ausente não altera o persistido).
+  it('ausente → chave não aparece no output (não vira [] sozinho)', () => {
     const result = parse({})
     expect(result.success).toBe(true)
-    if (result.success) expect(result.data.digital_opportunities).toEqual([])
+    if (result.success) {
+      expect('digital_opportunities' in result.data).toBe(false)
+      expect(result.data.digital_opportunities).toBeUndefined()
+    }
+  })
+
+  it('presente e vazio (limpeza explícita) → []', () => {
+    const result = parse({ digital_opportunities: [] })
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect('digital_opportunities' in result.data).toBe(true)
+      expect(result.data.digital_opportunities).toEqual([])
+    }
   })
 
   it('aceita subconjunto válido do vocabulário', () => {

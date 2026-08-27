@@ -23,9 +23,22 @@ export async function saveDigitalAudit(
 
   // `digital_opportunities` é multi-valor (checkboxes): `Object.fromEntries`
   // guarda só o último, `getAll` devolve todos. O resto do formulário é 1:1.
-  const raw: Record<string, unknown> = {
-    ...Object.fromEntries(formData),
-    digital_opportunities: formData.getAll('digital_opportunities'),
+  //
+  // `FormData.getAll('digital_opportunities')` sozinho não distingue "grupo
+  // não fazia parte deste submit" de "grupo participou e nenhuma opção foi
+  // marcada" — as duas situações devolvem `[]`, porque checkbox não marcado
+  // não é enviado. Sem essa distinção, todo submit apagaria o array salvo
+  // antes (revisão corretiva 7.4, achado 1). `digital_opportunities_present`
+  // é o sinal explícito de presença que resolve isso: a 7.6 deve renderizar
+  // esse campo oculto sempre que a seção de oportunidades aparecer na tela,
+  // marcado ou não o grupo de checkboxes — é o contrato entre a UI futura e
+  // este wrapper. Sem o sentinel, a chave nem entra em `raw`, e o core (que
+  // já trata chave ausente como "não altera") preserva o valor persistido.
+  const raw: Record<string, unknown> = { ...Object.fromEntries(formData) }
+  delete raw.digital_opportunities
+  delete raw.digital_opportunities_present
+  if (formData.has('digital_opportunities_present')) {
+    raw.digital_opportunities = formData.getAll('digital_opportunities')
   }
 
   const result = await saveDigitalAuditCore(supabase, orgId, user?.id ?? null, raw)

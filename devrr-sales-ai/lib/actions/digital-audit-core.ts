@@ -23,6 +23,7 @@ const SAVE_ERROR = 'Não foi possível salvar o dossiê digital.'
 const VERIFY_ERROR = 'Não foi possível verificar a entidade relacionada.'
 const NOT_FOUND_ERROR = 'Auditoria não encontrada.'
 const LEAD_MISMATCH_ERROR = 'Esta auditoria pertence a outro lead.'
+const CONFLICT_ERROR = 'Esta auditoria foi alterada por outra operação. Recarregue e tente novamente.'
 
 /**
  * Estado necessário para recalcular o score do jeito certo num update: os 46
@@ -35,9 +36,14 @@ const LEAD_MISMATCH_ERROR = 'Esta auditoria pertence a outro lead.'
  *
  * Não é a lista de leitura da 7.5: aqui só entra o que o **caminho de
  * escrita** precisa para não gravar um score que descreve outra coisa.
+ *
+ * `updated_at` entra por um motivo diferente dos outros 46: é o lock
+ * otimista do update (revisão corretiva, achado 2) — o valor lido aqui vai
+ * para o `.eq('updated_at', ...)` do `UPDATE`, então a escrita só aplica se
+ * ninguém alterou a linha entre esta leitura e aquela escrita.
  */
 const AUDIT_STATE_COLUMNS =
-  'lead_id, google_business_profile, google_rating, google_reviews_count, google_recent_reviews, google_replies_reviews, google_has_photos, google_has_hours, google_has_phone, google_has_website, google_easy_whatsapp, google_has_booking, website_exists, website_https, website_mobile_friendly, website_visual_quality, website_perceived_speed, website_services_clear, website_has_target_service_page, website_has_clear_cta, website_has_whatsapp, website_has_contact_form, website_has_online_booking, website_phone_visible, website_has_social_proof, conversion_clear_contact_path, conversion_clicks_to_whatsapp, conversion_cta_above_fold, conversion_repeated_cta, conversion_alternative_capture, conversion_has_friction, pagespeed_mobile_performance, pagespeed_mobile_core_web_vitals, pagespeed_mobile_seo, pagespeed_mobile_accessibility, pagespeed_mobile_best_practices, pagespeed_desktop_performance, pagespeed_desktop_core_web_vitals, instagram_exists, instagram_has_bio_link, instagram_clear_bio, instagram_has_cta, instagram_easy_whatsapp, instagram_easy_website, instagram_active, instagram_visual_quality, instagram_services_content'
+  'lead_id, updated_at, google_business_profile, google_rating, google_reviews_count, google_recent_reviews, google_replies_reviews, google_has_photos, google_has_hours, google_has_phone, google_has_website, google_easy_whatsapp, google_has_booking, website_exists, website_https, website_mobile_friendly, website_visual_quality, website_perceived_speed, website_services_clear, website_has_target_service_page, website_has_clear_cta, website_has_whatsapp, website_has_contact_form, website_has_online_booking, website_phone_visible, website_has_social_proof, conversion_clear_contact_path, conversion_clicks_to_whatsapp, conversion_cta_above_fold, conversion_repeated_cta, conversion_alternative_capture, conversion_has_friction, pagespeed_mobile_performance, pagespeed_mobile_core_web_vitals, pagespeed_mobile_seo, pagespeed_mobile_accessibility, pagespeed_mobile_best_practices, pagespeed_desktop_performance, pagespeed_desktop_core_web_vitals, instagram_exists, instagram_has_bio_link, instagram_clear_bio, instagram_has_cta, instagram_easy_whatsapp, instagram_easy_website, instagram_active, instagram_visual_quality, instagram_services_content'
 
 /**
  * `audit_id` (quando existe) chega junto do payload — não faz parte de
@@ -225,6 +231,10 @@ export async function saveDigitalAuditCore(
   }
 
   let current: Partial<DigitalAuditInput> | null = null
+  // Lock otimista (achado 2): `updated_at` lido nesta consulta é a versão
+  // que o UPDATE mais abaixo exige no `WHERE`. Só existe quando `auditId`
+  // existe — permanece `undefined` no insert, que não tem lock a fazer.
+  let lockUpdatedAt: string | undefined
 
   if (auditId) {
     // Substitui o `checkBelongsToOrg` da versão anterior: além de provar que a
@@ -249,7 +259,9 @@ export async function saveDigitalAuditCore(
     if (data.lead_id !== parsed.data.lead_id) {
       return { error: LEAD_MISMATCH_ERROR }
     }
-    current = data
+    const { updated_at: loadedUpdatedAt, ...stateColumns } = data
+    current = stateColumns
+    lockUpdatedAt = loadedUpdatedAt
   }
 
   // Estado final = o que já estava persistido, sobrescrito pelo que o request
@@ -284,6 +296,13 @@ export async function saveDigitalAuditCore(
   }
 
   if (auditId) {
+    // Defensivo: só é `undefined` se `auditId` não tivesse entrado no `if` de
+    // leitura acima, o que não acontece (mesma condição). Guarda em vez de
+    // `as`/`!` para não escrever um update sem lock por engano.
+    if (!lockUpdatedAt) {
+      return { error: SAVE_ERROR }
+    }
+
     const { data, error } = await supabase
       .from('lead_digital_audits')
       .update(payload)
@@ -293,15 +312,43 @@ export async function saveDigitalAuditCore(
       // mudasse a linha entre a leitura acima e este update, o `WHERE` não
       // alcança uma auditoria de outro lead.
       .eq('lead_id', parsed.data.lead_id)
+      // Lock otimista (achado 2): a escrita só aplica se `updated_at`
+      // continua sendo o valor lido acima. Duas requisições que leem a mesma
+      // versão e escrevem patches diferentes não podem as duas "vencer" —
+      // sem isso, a segunda grava seu patch sobre uma linha que já tinha
+      // mudado, e o score calculado por ELA descreve um estado que nunca
+      // existiu de fato (nem o da primeira escrita, nem o seu próprio).
+      .eq('updated_at', lockUpdatedAt)
       .select('id')
-      .single()
 
-    if (error || !data) {
+    if (error) {
       return { error: SAVE_ERROR }
     }
 
-    await logAudit(supabase, orgId, userId, 'lead_digital_audit', data.id, 'update', diff)
-    return { error: null, auditId: data.id, digitalScore: score.score, completeness: score.completeness }
+    const updatedRow = data?.[0]
+    if (!updatedRow) {
+      // Zero linhas afetadas: `id`/`org_id`/`lead_id` já foram confirmados
+      // na leitura acima, então só sobram dois motivos — `updated_at` mudou
+      // (conflito real) ou a linha deixou de existir/pertencer a este lead
+      // entre a leitura e aqui. Uma segunda leitura, sem o filtro de lock,
+      // distingue os dois. Em nenhum dos dois casos algo foi persistido por
+      // esta chamada, então nenhum audit_log é gravado.
+      const { data: stillThere, error: recheckError } = await supabase
+        .from('lead_digital_audits')
+        .select('id')
+        .eq('id', auditId)
+        .eq('org_id', orgId)
+        .eq('lead_id', parsed.data.lead_id)
+        .maybeSingle()
+
+      if (recheckError) {
+        return { error: VERIFY_ERROR }
+      }
+      return { error: stillThere ? CONFLICT_ERROR : NOT_FOUND_ERROR }
+    }
+
+    await logAudit(supabase, orgId, userId, 'lead_digital_audit', updatedRow.id, 'update', diff)
+    return { error: null, auditId: updatedRow.id, digitalScore: score.score, completeness: score.completeness }
   }
 
   const insertPayload: AuditInsert = {

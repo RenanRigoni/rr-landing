@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/lib/types/database.types'
 import { TEST_USER_A, TEST_USER_B, ensureTestUser, signInTestClient, cleanupOrgsForUser } from '../helpers/rls-fixtures'
-import { stubTableError } from '../helpers/stub-client'
+import { stubTableError, stubBeforeExecute } from '../helpers/stub-client'
 import { createLeadIntakeCore } from '@/lib/actions/lead-intake-core'
 import { saveDigitalAuditCore } from '@/lib/actions/digital-audit-core'
 import { computeDigitalScore, type DigitalAuditFields } from '@/lib/domain/digital-score'
@@ -803,6 +803,166 @@ describe('lib/actions/digital-audit-core', () => {
         .single()
       expect(row?.website_https).toBe('sim')
       expect(new Date(row?.pagespeed_analyzed_at ?? '').toISOString()).toBe('2026-08-27T10:30:00.000Z')
+    })
+  })
+
+  describe('G · digital_opportunities: ausência preserva, presença substitui, vazio explícito limpa', () => {
+    it('cria com array, update parcial de outro campo preserva, update explícito substitui, update com [] limpa', async () => {
+      const created = await saveDigitalAuditCore(clientA, orgAId, userAId, {
+        lead_id: leadAId,
+        digital_opportunities: ['website', 'conversao'],
+      })
+      expect(created.error).toBeNull()
+
+      const readOpportunities = async () => {
+        const { data } = await clientA
+          .from('lead_digital_audits')
+          .select('digital_opportunities')
+          .eq('id', created.auditId ?? '')
+          .single()
+        return data?.digital_opportunities
+      }
+      expect(await readOpportunities()).toEqual(['website', 'conversao'])
+
+      // Update parcial de OUTRO campo, sem mandar digital_opportunities: o
+      // array persistido tem que sobreviver (achado 1 da revisão corretiva —
+      // `.default([])` apagava isto em todo update parcial).
+      const patched = await saveDigitalAuditCore(clientA, orgAId, userAId, {
+        lead_id: leadAId,
+        audit_id: created.auditId,
+        website_has_clear_cta: 'nao',
+      })
+      expect(patched.error).toBeNull()
+      expect(await readOpportunities()).toEqual(['website', 'conversao'])
+
+      // Update enviando explicitamente um array novo: substitui.
+      const replaced = await saveDigitalAuditCore(clientA, orgAId, userAId, {
+        lead_id: leadAId,
+        audit_id: created.auditId,
+        digital_opportunities: ['crm'],
+      })
+      expect(replaced.error).toBeNull()
+      expect(await readOpportunities()).toEqual(['crm'])
+
+      // Update com intenção explícita de limpar ([] presente, não ausente).
+      const cleared = await saveDigitalAuditCore(clientA, orgAId, userAId, {
+        lead_id: leadAId,
+        audit_id: created.auditId,
+        digital_opportunities: [],
+      })
+      expect(cleared.error).toBeNull()
+      expect(await readOpportunities()).toEqual([])
+    })
+
+    it('insert mínimo (sem digital_opportunities) continua persistindo []', async () => {
+      const result = await saveDigitalAuditCore(clientA, orgAId, userAId, { lead_id: leadAId })
+      expect(result.error).toBeNull()
+
+      const { data: row } = await clientA
+        .from('lead_digital_audits')
+        .select('digital_opportunities')
+        .eq('id', result.auditId ?? '')
+        .single()
+      expect(row?.digital_opportunities).toEqual([])
+    })
+  })
+
+  describe('H · lock otimista: escrita concorrente com updated_at obsoleto é rejeitada', () => {
+    it('duas leituras da mesma versão: a primeira grava, a segunda é rejeitada e não aplica nem parcialmente', async () => {
+      const created = await saveDigitalAuditCore(clientA, orgAId, userAId, {
+        lead_id: leadAId,
+        website_exists: 'sim',
+        google_business_profile: 'sim',
+        google_rating: '4.0',
+      })
+      expect(created.error).toBeNull()
+
+      const expectedFields: DigitalAuditFields = {
+        ...emptyScoreFields(),
+        website_exists: 'nao',
+        google_business_profile: 'sim',
+        google_rating: 4.0,
+      }
+
+      // O client "perdedor" (B) lê a mesma versão que o "vencedor" (A): o
+      // stub injeta a chamada completa de A no instante em que B já leu seu
+      // `updated_at` e está prestes a escrever — determinístico, sem
+      // depender de timing real de rede.
+      let winnerError: string | null = 'não executou'
+      const raceClient = stubBeforeExecute(clientA, 'lead_digital_audits', 'update', async () => {
+        const winner = await saveDigitalAuditCore(clientA, orgAId, userAId, {
+          lead_id: leadAId,
+          audit_id: created.auditId,
+          website_exists: 'nao', // dispara cascata + recalcula score
+        })
+        winnerError = winner.error
+      })
+
+      const loserResult = await saveDigitalAuditCore(raceClient, orgAId, userAId, {
+        lead_id: leadAId,
+        audit_id: created.auditId,
+        google_business_profile: 'nao',
+      })
+
+      expect(winnerError).toBeNull()
+      expect(loserResult.error).toBe('Esta auditoria foi alterada por outra operação. Recarregue e tente novamente.')
+
+      const { data: row } = await clientA
+        .from('lead_digital_audits')
+        .select('website_exists, google_business_profile, google_rating, digital_score, digital_score_completeness')
+        .eq('id', created.auditId ?? '')
+        .single()
+
+      // A venceu por completo.
+      expect(row?.website_exists).toBe('nao')
+      // O patch do perdedor (google_business_profile: 'nao') NÃO foi
+      // aplicado — nem parcialmente.
+      expect(row?.google_business_profile).toBe('sim')
+      expect(row?.google_rating).toBe(4.0)
+
+      const expected = computeDigitalScore(expectedFields)
+      expect(row?.digital_score).toBe(expected.score)
+      expect(row?.digital_score_completeness).toBe(expected.completeness)
+    })
+
+    it('conflito não grava audit_log', async () => {
+      const created = await saveDigitalAuditCore(clientA, orgAId, userAId, {
+        lead_id: leadAId,
+        google_has_photos: 'sim',
+      })
+      expect(created.error).toBeNull()
+
+      const raceClient = stubBeforeExecute(clientA, 'lead_digital_audits', 'update', async () => {
+        await saveDigitalAuditCore(clientA, orgAId, userAId, {
+          lead_id: leadAId,
+          audit_id: created.auditId,
+          google_has_photos: 'nao',
+        })
+      })
+
+      const before = await clientA
+        .from('audit_logs')
+        .select('id')
+        .eq('org_id', orgAId)
+        .eq('entity', 'lead_digital_audit')
+        .eq('entity_id', created.auditId ?? '')
+
+      const loser = await saveDigitalAuditCore(raceClient, orgAId, userAId, {
+        lead_id: leadAId,
+        audit_id: created.auditId,
+        google_easy_whatsapp: 'sim',
+      })
+      expect(loser.error).toBe('Esta auditoria foi alterada por outra operação. Recarregue e tente novamente.')
+
+      const after = await clientA
+        .from('audit_logs')
+        .select('id')
+        .eq('org_id', orgAId)
+        .eq('entity', 'lead_digital_audit')
+        .eq('entity_id', created.auditId ?? '')
+
+      // Só o log da escrita vencedora (update) — o conflito não acrescentou nada.
+      expect(after.data?.length).toBe((before.data?.length ?? 0) + 1)
     })
   })
 })

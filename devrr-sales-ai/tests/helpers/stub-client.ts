@@ -41,3 +41,79 @@ export function stubTableError(realClient: SalesClient, table: string, message =
     },
   })
 }
+
+/**
+ * Injeta um passo assíncrono logo ANTES da query builder de `method` (ex.:
+ * `'update'`) na tabela indicada executar de verdade contra o Postgres —
+ * usado para simular, de forma determinística, uma escrita concorrente que
+ * aconteceu entre a leitura e a escrita de outra chamada (revisão corretiva
+ * 7.4, achado 2 — lock otimista de `lead_digital_audits`).
+ *
+ * O truque: o builder do postgrest-js é "thenable" e a maioria dos métodos
+ * de encadeamento (`.eq()`, `.select()`, ...) devolve `this`. Envolvendo o
+ * objeto retornado por `method(...)` num Proxy que (a) intercepta só `then`
+ * para rodar `onBeforeExecute` antes de delegar pro `then` real, e (b)
+ * devolve o próprio Proxy (não o `target`) quando uma chamada encadeada
+ * devolve `this`, a interceptação sobrevive até o `await`/`.then()` final da
+ * cadeia — não importa quantos `.eq()`/`.select()` vierem depois.
+ */
+export function stubBeforeExecute(
+  realClient: SalesClient,
+  table: string,
+  method: 'update' | 'insert',
+  onBeforeExecute: () => Promise<void>,
+): SalesClient {
+  function wrapThenable(target: object): unknown {
+    const proxy: unknown = new Proxy(target, {
+      get(innerTarget, prop, innerReceiver) {
+        if (prop === 'then') {
+          return (onFulfilled: unknown, onRejected: unknown) => {
+            const realThen = Reflect.get(innerTarget, 'then', innerTarget) as (
+              a: unknown,
+              b: unknown,
+            ) => unknown
+            return onBeforeExecute().then(
+              () => realThen.call(innerTarget, onFulfilled, onRejected),
+              onRejected as (reason: unknown) => unknown,
+            )
+          }
+        }
+        const value = Reflect.get(innerTarget, prop, innerReceiver)
+        if (typeof value !== 'function') {
+          return value
+        }
+        return (...args: unknown[]) => {
+          const result = value.apply(innerTarget, args)
+          return result === innerTarget ? innerReceiver : result
+        }
+      },
+    })
+    return proxy
+  }
+
+  return new Proxy(realClient, {
+    get(target, prop, receiver) {
+      if (prop !== 'from') {
+        return Reflect.get(target, prop, receiver)
+      }
+      return (t: string) => {
+        const tableBuilder = target.from(t as never)
+        if (t !== table) {
+          return tableBuilder
+        }
+        return new Proxy(tableBuilder, {
+          get(builderTarget, builderProp, builderReceiver) {
+            const value = Reflect.get(builderTarget, builderProp, builderReceiver)
+            if (builderProp !== method || typeof value !== 'function') {
+              return typeof value === 'function' ? value.bind(builderTarget) : value
+            }
+            return (...args: unknown[]) => {
+              const queryBuilder = value.apply(builderTarget, args)
+              return wrapThenable(queryBuilder)
+            }
+          },
+        })
+      }
+    },
+  })
+}
