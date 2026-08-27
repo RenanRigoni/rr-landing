@@ -2847,13 +2847,58 @@ WhatsApp e marcar como enviada — e o `ai_run` fica registrado com tokens e lat
 
 # FASE 6 — Testes e validação com dados reais
 
-### [ ] 6.1 Seed de demonstração
+### [x] 6.1 Seed de demonstração
 
 - `supabase/seed/run.ts` e `purge.ts` (padrão do CRM-RR, via service role):
   1 organização demo, 12 contatos, 18 leads espalhados pelos estágios, atividades
   com datas realistas (algumas atrasadas, algumas hoje, algumas futuras).
 - **Tudo com `is_demo = true`.** `purge.ts` remove só `is_demo` — nunca toca em dado
   real. Confirmação explícita antes de rodar purge.
+
+> feito: `supabase/seed/{load-env,client,demo-data,run,purge}.ts`. Nenhuma
+> migration, nenhuma mudança de schema — `is_demo` já existia em
+> `contacts`/`leads`/`activities` desde as Fases 3–4. **D-032** para os desvios.
+>
+> `demo-data.ts` é puro (geradores testáveis, zero I/O); `run.ts`/`purge.ts`
+> são a orquestração que fala com o banco. `client.ts` monta o próprio client
+> de `service_role` lendo `process.env` — não importa `lib/supabase/admin.ts`
+> (tem `import 'server-only'`, que lança sob `tsx` puro; mesma razão de
+> `tests/helpers/rls-fixtures.ts`). `load-env.ts` popula `process.env` a
+> partir de `.env.local` via `loadEnv` do Vite (igual a
+> `tests/setup/load-env.ts`).
+>
+> **Org demo:** `create_organization` não serve (precisa de `auth.uid()`), então
+> `run.ts` faz insert direto em `organizations` (slug fixo `devrr-demo`, service
+> role bypassa RLS) + `rpc('seed_org_defaults', ...)` para catálogos/regras/
+> prompt — `service_role` tem execute nessa função (default privileges da 0001,
+> `authenticated` não tem). `seed_org_defaults` foi adicionada ao bloco
+> `Functions` de `lib/types/database.types.ts` (existia desde a 0004, sem call
+> site até agora).
+>
+> **Idempotente:** cada `seed:demo` apaga o dado `is_demo` da org e reinsere
+> (ids gerados no cliente com `randomUUID`, sem depender da ordem de retorno do
+> insert). `leads.next_action_at` recalculado com `resolveNextAction`
+> (`lib/domain/followup`, D-006).
+>
+> **Sem `org_member`:** a org demo não é vinculada a nenhum usuário por padrão
+> (não há convite no MVP) — fica invisível no app até alguém ser adicionado.
+> `SEED_DEMO_OWNER_EMAIL` (opcional) faz `run.ts` vincular um usuário existente
+> como `owner`.
+>
+> **`purge.ts`:** apaga `is_demo = true` de `activities`/`leads`/`contacts` no
+> schema inteiro. Sem `--yes` (ou `SEED_PURGE_CONFIRM=yes`) só mostra a
+> contagem que seria removida e sai. Não remove a org demo nem os catálogos
+> (não têm `is_demo`).
+>
+> Validado no projeto real: `seed:demo` → 1 org, 7 estágios / 6 fontes / 3
+> regras / 1 prompt, 12 contatos + 18 leads (7 estágios distintos, 5 sem
+> valor, 15 abertos com `next_action_at`) + 41 atividades (5 pendências
+> atrasadas, 10 futuras, 26 de histórico). Segunda execução: contagens
+> idênticas (idempotência). `seed:purge` dry-run mostrou 71 linhas; `--yes`
+> removeu as 71, org + catálogos preservados; zero linha real tocada (o schema
+> `sales` não tinha dado não-demo). Testes: `tests/seed/demo-data.test.ts` (11,
+> puro). `typecheck`/`lint`/`test` (110/110)/`test:rls` (166/166, sem
+> regressão)/`build` verdes. `advisors`/`replay` não aplicável (sem DDL).
 
 ### [ ] 6.2 Testes de fluxo
 

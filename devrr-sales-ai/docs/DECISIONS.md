@@ -1171,6 +1171,62 @@ anteriores em `pending_review` (só o usado vira `reviewed`, só o descartado vi
 
 ---
 
+## D-032 — Seed de demonstração (6.1): org por insert direto + `seed_org_defaults`; `is_demo` só nas 3 tabelas transacionais; purge com `--yes`; owner opcional
+
+**Data:** 2026-08-27 · **Status:** decidido, tarefa 6.1 · **Aplica a:** `supabase/seed/*.ts`, `lib/types/database.types.ts` (bloco `Functions`), `package.json` (scripts `seed:demo`/`seed:purge`, já existentes desde a 1.1)
+
+A 6.1 pede `supabase/seed/run.ts` + `purge.ts` "padrão do CRM-RR". O CRM-RR **não
+tem** esses arquivos (`supabase/seed/` vazio — é a falha que o `CLAUDE.md` deste
+projeto cita). "Padrão do CRM-RR" aqui é só o formato: dois scripts `tsx`, service
+role, flag `is_demo`, purge que só toca `is_demo`. Cinco pontos que o texto não
+fechava.
+
+**1. Criação da org demo: insert direto + `seed_org_defaults`, não `create_organization`.**
+A RPC `create_organization` insere `auth.uid()` como `owner` em `org_members` — sob
+service role `auth.uid()` é `null` e o insert viola `not null`. O seed faz insert
+direto em `sales.organizations` (slug fixo `devrr-demo`; service role tem BYPASSRLS,
+não precisa de policy de insert) e chama `rpc('seed_org_defaults', { p_org_id })`
+para catálogos/regras/prompt. `service_role` mantém `execute` em `seed_org_defaults`
+(default privileges da 0001; `authenticated` teve o `execute` revogado na 0004) —
+confirmado por `has_function_privilege` antes de implementar. A função foi
+acrescentada ao bloco `Functions` de `database.types.ts` (existe desde a 0004, nunca
+teve call site tipado).
+
+**2. `is_demo` só existe em `contacts`/`leads`/`activities`.** `organizations` e os
+catálogos (`lead_sources`/`pipeline_stages`/`followup_rules`/`ai_prompts`) não têm a
+coluna (`DATABASE.md` → "nunca nas de configuração"). Consequência: `purge.ts`
+remove o dado transacional demo mas **não** a org demo nem os catálogos. É o
+comportamento que o texto da 6.1 descreve ("remove só `is_demo`"). O shell
+`devrr-demo` fica no projeto de propósito — `run.ts` é idempotente sobre ele.
+
+**3. `run.ts` é idempotente.** Cada execução apaga o `is_demo` da org e reinsere.
+Ids gerados no cliente (`node:crypto` `randomUUID`) e passados explícitos no insert —
+não depende da ordem de retorno do PostgREST para ligar lead↔contato↔atividade.
+`leads.next_action_at` (cache mantido pela app, D-006) é recalculado com
+`resolveNextAction` de `lib/domain/followup` — o mesmo helper das actions, não uma
+segunda regra.
+
+**4. Org demo sem `org_member` por padrão.** Não há convite/multi-usuário no MVP
+(Q-003), então vincular um usuário exigiria hardcodar um e-mail. `run.ts` só vincula
+se `SEED_DEMO_OWNER_EMAIL` estiver setado (busca o usuário via Admin API, `upsert`
+`owner` com `ignoreDuplicates`). Sem isso, a org demo **não aparece no app** para
+ninguém (nada em `current_org_ids()`) — o seed serve para inspeção via SQL /
+exploração local, não para abrir o app já povoado. Aceitável no MVP; revisitar na
+6.5 se atrapalhar o uso real.
+
+**5. `purge.ts` exige confirmação explícita.** Sessão não-interativa não tem
+`readline` confiável: a confirmação é o argumento `--yes` (ou
+`SEED_PURGE_CONFIRM=yes`). Sem ele, o script imprime a contagem que **seria**
+apagada e sai sem tocar em nada. O filtro é sempre `is_demo = true` nas 3 tabelas —
+nunca há caminho que alcance dado real.
+
+**Escopo:** nenhuma migration, nenhum DDL — `advisors`/`replay` não se aplicam. Os
+scripts usam `service_role`, mas são código de seed server-only (exceção já prevista
+em `ARCHITECTURE.md` → Segurança e no doc de `admin.ts`), nunca acionados por
+request de usuário.
+
+---
+
 ## Questões abertas
 
 Sonnet: adicione aqui o que travar. Opus resolve no próximo checkpoint.

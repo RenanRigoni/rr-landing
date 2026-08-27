@@ -760,6 +760,14 @@ export interface Database {
         Args: { p_org_id: string }
         Returns: 'owner' | 'admin' | 'member' | null
       }
+      // Existe desde a migration 0004; sem call site até a tarefa 6.1
+      // (script de seed de demonstração, via service role). Estendida por
+      // 0007 e 0010. `revoke execute ... from authenticated` — só
+      // `create_organization` (0002) e o service_role a executam.
+      seed_org_defaults: {
+        Args: { p_org_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       org_role: 'owner' | 'admin' | 'member'

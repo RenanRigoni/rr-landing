@@ -11,6 +11,29 @@ cp .env.example .env.local   # preencher com as credenciais reais
 npm run dev
 ```
 
+## Seed de demonstração (`supabase/seed/`)
+
+Popula uma organização de demonstração para inspeção e exploração local. Roda
+via `tsx` com `SUPABASE_SERVICE_ROLE_KEY` (lida de `.env.local`). Ver
+`docs/IMPLEMENTATION_PLAN.md` → 6.1 e `docs/DECISIONS.md` → D-032.
+
+```bash
+npm run seed:demo              # cria/recarrega a org "devrr-demo": 12 contatos, 18 leads, ~40 atividades
+npm run seed:purge             # mostra quantas linhas is_demo existem (não apaga nada)
+npm run seed:purge -- --yes    # apaga todo dado is_demo de contacts/leads/activities
+```
+
+- **Idempotente:** cada `seed:demo` apaga o dado `is_demo` da org e reinsere.
+  Tudo entra com `is_demo = true`.
+- **`purge` só toca `is_demo`** — nunca dado real. Não remove a org demo nem os
+  catálogos (não têm coluna `is_demo`); `seed:demo` reaproveita o mesmo shell.
+- **A org demo não aparece no app por padrão** — não é vinculada a nenhum
+  usuário. Para vê-la logado, rode com o e-mail de uma conta existente:
+
+  ```bash
+  SEED_DEMO_OWNER_EMAIL=voce@exemplo.com npm run seed:demo
+  ```
+
 ## Testes de RLS (`tests/rls.test.ts`)
 
 Prova que o isolamento multi-tenant funciona de verdade — não que as policies
