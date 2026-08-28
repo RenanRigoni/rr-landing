@@ -56,6 +56,9 @@ export default async function LeadDetailPage({ params }: LeadDetailPageProps) {
   const dossierJson = digitalAudit
     ? JSON.stringify(buildDossierJson(dossierInput, digitalAudit), null, 2)
     : null
+  // Data do nome do arquivo em UTC — decisão deliberada (mesma da rota de
+  // exportação em massa): sem fuso do usuário confiável no servidor, e o
+  // produto não assume `America/Sao_Paulo` para todo mundo. É só rótulo.
   const dossierJsonFilename = `dossie-${dossierFilenameSlug(lead.contact.company_name)}-${new Date()
     .toISOString()
     .slice(0, 10)}.json`

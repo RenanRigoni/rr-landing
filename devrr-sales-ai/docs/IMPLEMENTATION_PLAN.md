@@ -4650,6 +4650,40 @@ do CSV não muda quando o dossiê está parcialmente preenchido.
 > (`lib/domain/` 100% — 7.9 não adiciona domínio) / `test:rls` / `build`
 > (`/api/leads/export` listada) verdes. Sem migration/DDL/RLS/`gen:types`.
 > Verificação visual no browser fica para o operador (não é gate).
+>
+> **Revisão de fechamento 7.8/7.9** (commit corretivo separado, sem push):
+> - **CSV formula injection** — `lib/domain/dossier-export.ts` ganhou
+>   `guardCsvFormula` no único ponto de serialização de célula (`serializeCsvCell`
+>   = guard + escape RFC 4180). Célula textual cujo 1º caractere significativo
+>   (após espaço/controle C0) seja `= + - @` recebe prefixo `'` (Excel/LibreOffice
+>   tratam como texto). Número real do sistema (`value_cents`, scores, métricas,
+>   negativos) NÃO é afetado (`/^-?\d+(\.\d+)?$/`). **JSON e Markdown intactos** —
+>   a defesa é só da representação CSV.
+> - **"Sem auditoria" ≠ "auditoria vazia"** — antes, `buildDossierJson(lead, null)`
+>   e `buildDossierJson(lead, <linha toda null>)` davam objetos idênticos. Agora
+>   `DossierJson.audit_exists: boolean` (topo, após `lead`); coluna `audit_exists`
+>   (`true`/`false`) no CSV após as 8 de identificação; linha `Auditoria digital:
+>   iniciada|não iniciada` no `## DIAGNÓSTICO` do Markdown. Mesma semântica no
+>   export individual e no em massa (ambos passam por `buildDossierJson` /
+>   `buildDossierCsvRow`). Nenhuma auditoria sintética criada.
+> - **Data do nome do arquivo (`leads-YYYY-MM-DD`, `dossie-…-YYYY-MM-DD`)** — segue
+>   UTC via `toISOString().slice(0,10)`, agora **decisão documentada** em comentário
+>   nas duas chamadas: sem fuso do usuário confiável no servidor, e o produto não
+>   fixa `America/Sao_Paulo`. É rótulo de arquivo, não afeta conteúdo.
+> - **`CopyDossierButton` fallback** — `copyViaTextarea` passou a usar `finally`:
+>   remove o `<textarea>` mesmo se `execCommand` lançar e devolve o foco a quem o
+>   tinha (antes: nó órfão no DOM + foco no `<body>` quando lançava).
+> - `ExportJsonButton` já revogava o object URL (`URL.revokeObjectURL` pós-clique) —
+>   nada a mudar. Paridade schema × export da 7.8 (compile-time `Exclude<…> extends
+>   never` + runtime `DOSSIER_DATA_COLUMNS` = `DIGITAL_AUDIT_FIELD_NAMES − lead_id`)
+>   intacta — `audit_exists` é coluna sintética de export, fora de
+>   `DOSSIER_DATA_COLUMNS`, não entra na paridade.
+> - Testes: `tests/domain/dossier-export.test.ts` +9 (formula injection: `=`/`+`/
+>   `-`/`@`, whitespace antes do gatilho, número real/negativo intacto, telefone
+>   `+…`, JSON/Markdown não neutralizam; `audit_exists` JSON/CSV/Markdown distinguindo
+>   os dois casos). `tests/api/leads-export.test.ts` +1 (export em massa carrega a
+>   mesma semântica). `test` 456/456, `test:coverage` `dossier-export.ts` 100/100/
+>   100/100, `test:rls` / `build` verdes.
 
 - **Copiar dossiê** (`components/leads/dossier/CopyDossierButton.tsx`, client):
   `navigator.clipboard.writeText(markdown)` com fallback de `<textarea>` +

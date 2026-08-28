@@ -165,6 +165,7 @@ describe('buildLeadsExport — JSON', () => {
     expect(parsed).toHaveLength(2)
     expect(Object.keys(parsed[0] as object)).toEqual([
       'lead',
+      'audit_exists',
       'prospecting',
       'google',
       'website',
@@ -175,6 +176,28 @@ describe('buildLeadsExport — JSON', () => {
     ])
     expect((parsed[0] as { diagnostic: { digital_score: number } }).diagnostic.digital_score).toBe(55)
     expect((parsed[1] as { diagnostic: { digital_score: number | null } }).diagnostic.digital_score).toBeNull()
+  })
+
+  it('export em massa carrega a mesma semântica de existência da auditoria', () => {
+    // lead "a" tem linha de auditoria (mesmo sem score); lead "b" não tem.
+    const auditVazia = {
+      digital_score: null,
+      digital_score_completeness: null,
+      digital_opportunities: [],
+    } as unknown as DigitalAudit
+    const leads = [makeLead({ id: 'a' }), makeLead({ id: 'b' })]
+
+    const json = JSON.parse(
+      buildLeadsExport(leads, new Map([['a', auditVazia]]), 'json', '2026-08-28').body,
+    ) as { audit_exists: boolean }[]
+    expect(json[0]?.audit_exists).toBe(true)
+    expect(json[1]?.audit_exists).toBe(false)
+
+    const csv = buildLeadsExport(leads, new Map([['a', auditVazia]]), 'csv', '2026-08-28').body
+    const [, rowA, rowB] = csv.slice(1).split('\r\n')
+    const col = DOSSIER_CSV_COLUMNS.indexOf('audit_exists')
+    expect((rowA ?? '').split(',')[col]).toBe('true')
+    expect((rowB ?? '').split(',')[col]).toBe('false')
   })
 })
 

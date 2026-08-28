@@ -235,6 +235,7 @@ describe('buildDossierJson', () => {
     const json = buildDossierJson(makeLead(), makeRichAudit())
     expect(Object.keys(json)).toEqual([
       'lead',
+      'audit_exists',
       'prospecting',
       'google',
       'website',
@@ -360,6 +361,24 @@ describe('buildDossierJson', () => {
     expect(json.pagespeed.mobile.performance).toBeNull()
     expect(json.diagnostic.digital_score).toBeNull()
   })
+
+  it('distingue "sem auditoria" de "auditoria existente vazia" via audit_exists', () => {
+    const semAuditoria = buildDossierJson(makeLead(), null)
+    // makeAudit() = uma linha real de lead_digital_audits, quase toda null
+    // (score null, completude null) — auditoria iniciada e não preenchida.
+    const auditoriaVazia = buildDossierJson(
+      makeLead(),
+      makeAudit({ digital_score: null, digital_score_completeness: null }),
+    )
+
+    expect(semAuditoria.audit_exists).toBe(false)
+    expect(auditoriaVazia.audit_exists).toBe(true)
+    // As seções de dado coincidem (tudo null dos dois lados), mas os objetos
+    // NÃO são semanticamente iguais: o marcador os separa.
+    expect(semAuditoria.diagnostic.digital_score).toBeNull()
+    expect(auditoriaVazia.diagnostic.digital_score).toBeNull()
+    expect(JSON.stringify(semAuditoria)).not.toBe(JSON.stringify(auditoriaVazia))
+  })
 })
 
 // ---------------------------------------------------------------------------
@@ -442,10 +461,19 @@ describe('buildDossierMarkdown', () => {
     expect(md).toContain('## DIAGNÓSTICO')
     expect(md).not.toContain('## ORIGEM')
     expect(md).not.toContain('## GOOGLE')
+    expect(md).toContain('Auditoria digital: não iniciada')
     expect(md).toContain('Data da análise: Não analisado')
     expect(md).toContain('Score digital: Não analisado')
     expect(md).toContain('Completude: Não analisado')
     expect(md).toContain('Principais problemas digitais encontrados: Não analisado')
+  })
+
+  it('auditoria existente vazia é "iniciada" — distinta de "não iniciada"', () => {
+    const iniciada = buildDossierMarkdown(makeLead(), makeAudit())
+    const naoIniciada = buildDossierMarkdown(makeLead(), null)
+    expect(iniciada).toContain('Auditoria digital: iniciada')
+    expect(naoIniciada).toContain('Auditoria digital: não iniciada')
+    expect(iniciada).not.toBe(naoIniciada)
   })
 
   it('identificação sem dado do lead → "Não informado", sem inventar', () => {
@@ -523,7 +551,7 @@ describe('buildDossierMarkdown', () => {
 // ---------------------------------------------------------------------------
 
 describe('CSV', () => {
-  it('DOSSIER_CSV_COLUMNS: identificação + colunas de dado + score, ordem estável', () => {
+  it('DOSSIER_CSV_COLUMNS: identificação + audit_exists + colunas de dado + score, ordem estável', () => {
     expect(DOSSIER_CSV_COLUMNS.slice(0, 8)).toEqual([
       'lead_title',
       'company_name',
@@ -534,8 +562,15 @@ describe('CSV', () => {
       'source',
       'value_cents',
     ])
+    expect(DOSSIER_CSV_COLUMNS[8]).toBe('audit_exists')
     expect(DOSSIER_CSV_COLUMNS.slice(-2)).toEqual(['digital_score', 'digital_score_completeness'])
-    expect(DOSSIER_CSV_COLUMNS).toHaveLength(8 + 101 + 2)
+    expect(DOSSIER_CSV_COLUMNS).toHaveLength(8 + 1 + 101 + 2)
+  })
+
+  it('audit_exists na linha: "true" com auditoria (mesmo vazia), "false" sem', () => {
+    const at = (cells: string[], name: string) => cells[DOSSIER_CSV_COLUMNS.indexOf(name)]
+    expect(at(buildDossierCsvRow(makeLead(), makeAudit()), 'audit_exists')).toBe('true')
+    expect(at(buildDossierCsvRow(makeLead(), null), 'audit_exists')).toBe('false')
   })
 
   it('buildDossierCsvRow alinha à contagem de colunas, cheio ou parcial', () => {
@@ -608,6 +643,76 @@ describe('CSV', () => {
     const csv = buildDossierCsv([])
     expect(csv.charCodeAt(0)).toBe(0xfeff)
     expect(csv.slice(1)).toBe(`${DOSSIER_CSV_COLUMNS.join(',')}\r\n`)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// CSV — neutralização de spreadsheet formula injection (só o CSV)
+// ---------------------------------------------------------------------------
+
+describe('CSV formula injection', () => {
+  /** Linha de dados (sem BOM, sem cabeçalho) do CSV de um único lead. */
+  function dataLine(lead: DossierLeadInput, audit: DigitalAudit | null): string {
+    return buildDossierCsv([buildDossierCsvRow(lead, audit)]).slice(1).split('\r\n')[1] ?? ''
+  }
+  function cellAt(line: string, name: string): string {
+    // split simples: nenhum dos casos abaixo tem vírgula/aspas dentro da célula.
+    return line.split(',')[DOSSIER_CSV_COLUMNS.indexOf(name)] ?? ''
+  }
+
+  it('prefixa `\'` quando a célula textual começa com = + - @', () => {
+    for (const raw of ['=SUM(1,1)', '+1+1', '-1+1', '@SUM(A1:A2)']) {
+      const line = dataLine(makeLead(), makeAudit({ google_notes: raw }))
+      // vírgula em '=SUM(1,1)' faz a célula ser citada — checa via CSV inteiro.
+      const csv = buildDossierCsv([buildDossierCsvRow(makeLead(), makeAudit({ google_notes: raw }))])
+      expect(csv, raw).toContain(`'${raw.split(',')[0]}`) // começa com '  + o texto
+      expect(line.length).toBeGreaterThan(0)
+    }
+  })
+
+  it('cobre whitespace/controle antes do gatilho ("   =SUM(1,1)")', () => {
+    const csv = buildDossierCsv([
+      buildDossierCsvRow(makeLead(), makeAudit({ digital_problems: '   =SUM(1,1)' })),
+    ])
+    // a célula citada (tem vírgula) preserva os espaços e ganha o apóstrofo
+    expect(csv).toContain('"\'   =SUM(1')
+  })
+
+  it('não toca número real do sistema — inclusive negativo e decimal', () => {
+    const line = dataLine(
+      makeLead({ valueCents: 250000 }),
+      makeAudit({
+        digital_score: 57,
+        digital_opportunity_score: 8,
+        pagespeed_mobile_cls: 0.21,
+        // valor negativo cru: o gatilho `-` NÃO deve prefixar um número real.
+        google_organic_position: -3,
+      }),
+    )
+    expect(cellAt(line, 'value_cents')).toBe('250000')
+    expect(cellAt(line, 'digital_score')).toBe('57')
+    expect(cellAt(line, 'digital_opportunity_score')).toBe('8')
+    expect(cellAt(line, 'pagespeed_mobile_cls')).toBe('0.21')
+    expect(cellAt(line, 'google_organic_position')).toBe('-3')
+  })
+
+  it('telefone iniciado por + é neutralizado (o Excel também o quebraria)', () => {
+    const line = dataLine(makeLead({ phone: '+5534999990000' }), null)
+    expect(cellAt(line, 'phone')).toBe("'+5534999990000")
+  })
+
+  it('JSON NÃO neutraliza — entrega o valor original', () => {
+    const json = buildDossierJson(makeLead(), makeAudit({ google_notes: '=SUM(1,1)' }))
+    expect(json.google.google_notes).toBe('=SUM(1,1)')
+  })
+
+  it('Markdown NÃO neutraliza — entrega o valor original', () => {
+    const md = buildDossierMarkdown(
+      makeLead(),
+      makeAudit({ google_business_name: 'x', google_notes: '=SUM(1,1)' }),
+    )
+    expect(md).toContain('=SUM(1,1)')
+    expect(md).not.toContain("'=SUM(1,1)")
   })
 })
 

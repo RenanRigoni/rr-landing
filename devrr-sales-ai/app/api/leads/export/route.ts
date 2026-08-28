@@ -67,6 +67,12 @@ export async function GET(request: Request): Promise<Response> {
   })
   const auditsByLead = await listLatestAuditsByLead(leads.map((lead) => lead.id))
 
+  // Data do NOME do arquivo (`leads-YYYY-MM-DD.csv`), em UTC — decisão
+  // deliberada: não há fuso do usuário confiável no servidor (a org tem
+  // `timezone`, mas é da organização, não de quem baixa) e o texto da 7.9
+  // proíbe fixar `America/Sao_Paulo` para todo mundo. Perto da meia-noite o
+  // nome pode cair no dia UTC, não no dia local — é só rótulo de arquivo, não
+  // afeta o conteúdo. Se um fuso confiável entrar no modelo, trocar aqui.
   const today = new Date().toISOString().slice(0, 10)
   const { body, contentType, filename } = buildLeadsExport(leads, auditsByLead, format, today)
 

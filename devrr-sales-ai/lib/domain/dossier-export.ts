@@ -429,6 +429,15 @@ export interface DossierJson {
     source: string | null
     value_cents: number
   }
+  /**
+   * `true` quando existe uma linha em `sales.lead_digital_audits` para o lead —
+   * inclusive a auditoria "iniciada e não preenchida", em que quase toda coluna
+   * está `null`. `false` = lead nunca analisado (sem linha). Sem este campo, os
+   * dois casos gerariam objetos idênticos (todas as seções nulas + `digital_score`
+   * null), apagando a distinção que o resto do produto preserva de propósito
+   * (plano 7.7 / D-035). Mesma semântica no export individual e no em massa.
+   */
+  audit_exists: boolean
   prospecting: DossierJsonSection
   google: DossierJsonSection
   website: DossierJsonSection
@@ -483,6 +492,7 @@ export function buildDossierJson(lead: DossierLeadInput, audit: DigitalAudit | n
       source: lead.source,
       value_cents: lead.valueCents,
     },
+    audit_exists: audit !== null,
     prospecting: pickSection(audit, PROSPECTING_COLUMNS),
     google: pickSection(audit, GOOGLE_COLUMNS),
     website: pickSection(audit, WEBSITE_COLUMNS),
@@ -556,6 +566,10 @@ function diagnosticLines(audit: DigitalAudit | null): string[] {
   const completeness = audit ? audit.digital_score_completeness : null
   const lines = [
     '## DIAGNÓSTICO',
+    // Auditoria "iniciada e vazia" tem score null igual a "nunca analisada" — a
+    // IA precisa saber qual é o caso (pedir para completar vs. pedir para
+    // começar). Ver `audit_exists` no JSON.
+    `Auditoria digital: ${audit ? 'iniciada' : 'não iniciada'}`,
     `Score digital: ${score === null ? NOT_ANALYZED_LABEL : String(score)}`,
     `Completude: ${completeness === null ? NOT_ANALYZED_LABEL : `${completeness}%`}`,
   ]
@@ -604,14 +618,20 @@ const CSV_LEAD_COLUMNS = [
 ] as const
 
 /**
- * Ordem estável das colunas do CSV: identificação do lead, depois todas as
- * colunas de dado do dossiê na ordem das seções, depois os dois campos de
- * score. Nomes iguais aos das colunas do banco (menos o prefixo `lead_` da
- * identificação). Não muda quando o dossiê está parcialmente preenchido —
- * campo ausente vira célula vazia, nunca coluna a menos.
+ * Ordem estável das colunas do CSV: identificação do lead, o marcador
+ * `audit_exists`, depois todas as colunas de dado do dossiê na ordem das
+ * seções, depois os dois campos de score. Nomes iguais aos das colunas do
+ * banco (menos o prefixo `lead_` da identificação). Não muda quando o dossiê
+ * está parcialmente preenchido — campo ausente vira célula vazia, nunca coluna
+ * a menos.
+ *
+ * `audit_exists` (`true`/`false`): mesma distinção do JSON — linha de auditoria
+ * existente (mesmo que vazia) vs. lead nunca analisado. Sem ela, os dois casos
+ * dariam linhas idênticas de células vazias.
  */
 export const DOSSIER_CSV_COLUMNS: readonly string[] = [
   ...CSV_LEAD_COLUMNS,
+  'audit_exists',
   ...DOSSIER_DATA_COLUMNS,
   ...DIAGNOSTIC_SCORE_COLUMNS,
 ]
@@ -651,6 +671,8 @@ function csvAuditCell(value: DossierValue): string {
  */
 export function buildDossierCsvRow(lead: DossierLeadInput, audit: DigitalAudit | null): string[] {
   const cells: string[] = CSV_LEAD_COLUMNS.map((column) => csvLeadCell(column, lead))
+  // Mesma string que uma coluna booleana do banco renderiza (`String(true)`).
+  cells.push(audit !== null ? 'true' : 'false')
   for (const column of DOSSIER_DATA_COLUMNS) {
     cells.push(csvAuditCell(auditValue(audit, column)))
   }
@@ -662,11 +684,48 @@ export function buildDossierCsvRow(lead: DossierLeadInput, audit: DigitalAudit |
 
 /** Escapa uma célula por RFC 4180: aspas, vírgula ou quebra de linha → toda a
  * célula entre aspas duplas, com as aspas internas duplicadas. */
-function escapeCsvCell(cell: string): string {
+function escapeRfc4180Cell(cell: string): string {
   if (/["\r\n,]/.test(cell)) {
     return `"${cell.replace(/"/g, '""')}"`
   }
   return cell
+}
+
+/** Caracteres que abrem fórmula em Excel / LibreOffice Calc / Google Sheets. */
+const CSV_FORMULA_LEADS = new Set(['=', '+', '-', '@'])
+
+/**
+ * Neutraliza spreadsheet formula injection numa célula: se o primeiro
+ * caractere significativo (ignorando espaços e caracteres de controle à
+ * esquerda) for `=` `+` `-` `@`, prefixa `'` (apóstrofo). Excel e LibreOffice
+ * passam a tratar a célula inteira como texto literal e não avaliam a fórmula;
+ * o apóstrofo inicial não aparece na célula. `"   =SUM(1,1)"` também é coberto
+ * (o espaço à esquerda não protege a fórmula no Excel).
+ *
+ * Número real gerado pelo sistema NÃO é afetado — `value_cents`, scores,
+ * métricas, inclusive negativos (`-15`): `/^-?\d+(\.\d+)?$/` sobre o valor
+ * aparado devolve `true` e a célula passa intacta. Só texto que *parece*
+ * fórmula (`-1+1`, `=HYPERLINK(...)`, `@x`, telefone `+55 ...` — que o Excel
+ * também quebra) recebe o prefixo. É a representação CSV que carrega essa
+ * defesa; JSON e Markdown entregam o valor original.
+ */
+function guardCsvFormula(cell: string): string {
+  // Primeiro caractere que nao seja espaco/controle C0 (code point <= 0x20).
+  let i = 0
+  while (i < cell.length && cell.charCodeAt(i) <= 0x20) i += 1
+  const lead = cell.charAt(i)
+  if (lead === '' || !CSV_FORMULA_LEADS.has(lead)) return cell
+  // Número real do sistema (inclusive negativo) passa intacto.
+  if (/^-?\d+(\.\d+)?$/.test(cell.trim())) return cell
+  return `'${cell}`
+}
+
+/**
+ * Único ponto de serialização de célula do CSV: primeiro neutraliza formula
+ * injection (dado textual), depois aplica o escape RFC 4180.
+ */
+function serializeCsvCell(cell: string): string {
+  return escapeRfc4180Cell(guardCsvFormula(cell))
 }
 
 /** BOM UTF-8 (U+FEFF) para o Excel pt-BR não comer os acentos. */
@@ -678,6 +737,6 @@ const CSV_BOM = String.fromCharCode(0xfeff) // '﻿'
  */
 export function buildDossierCsv(rows: readonly string[][]): string {
   const allRows: readonly (readonly string[])[] = [DOSSIER_CSV_COLUMNS, ...rows]
-  const body = allRows.map((row) => row.map(escapeCsvCell).join(',')).join('\r\n')
+  const body = allRows.map((row) => row.map(serializeCsvCell).join(',')).join('\r\n')
   return `${CSV_BOM}${body}\r\n`
 }
