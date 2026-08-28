@@ -14,6 +14,13 @@ type AuditUpdate = Database['sales']['Tables']['lead_digital_audits']['Update']
 export interface DigitalAuditResult {
   error: string | null
   auditId?: string
+  /**
+   * `updated_at` da linha efetivamente persistida. O formulário reenvia este
+   * valor como `expected_updated_at` no próximo submit — é o que renova a
+   * versão do lock otimista depois de um save (revisão da 7.6). Ausente
+   * quando a operação falhou.
+   */
+  updatedAt?: string
   /** Score calculado no servidor (D-038). `null` quando nada foi avaliável. */
   digitalScore?: number | null
   completeness?: number
@@ -64,6 +71,31 @@ function readAuditId(input: unknown): { auditId: string | null; error: string | 
     return { auditId: null, error: 'Auditoria inválida.' }
   }
   return { auditId: null, error: null }
+}
+
+/**
+ * `expected_updated_at` — a versão da linha que o FORMULÁRIO viu quando foi
+ * renderizado. Chega junto do payload (não é coluna de `digitalAuditSchema`,
+ * igual a `audit_id`). É o que fecha o lost update de tela desatualizada: o
+ * lock por `.eq('updated_at', ...)` sozinho só protege contra escrita
+ * concorrente ENTRE o SELECT e o UPDATE desta execução — não sabe que o
+ * formulário já estava velho antes do SELECT.
+ *
+ * Ausente (insert, ou form antigo antes desta revisão) → `null`, sem
+ * pré-checagem. Presente porém não parseável como data → erro.
+ */
+function readExpectedUpdatedAt(input: unknown): { expected: string | null; error: string | null } {
+  if (typeof input === 'object' && input !== null && 'expected_updated_at' in input) {
+    const raw = input.expected_updated_at
+    if (raw === null || raw === undefined || raw === '') {
+      return { expected: null, error: null }
+    }
+    if (typeof raw === 'string' && !Number.isNaN(new Date(raw).getTime())) {
+      return { expected: raw, error: null }
+    }
+    return { expected: null, error: 'Versão do formulário inválida.' }
+  }
+  return { expected: null, error: null }
 }
 
 /**
@@ -220,6 +252,11 @@ export async function saveDigitalAuditCore(
     return { error: auditIdError }
   }
 
+  const { expected: expectedUpdatedAt, error: expectedError } = readExpectedUpdatedAt(input)
+  if (expectedError) {
+    return { error: expectedError }
+  }
+
   // D-020: `lead_id` é só um uuid do cliente. A FK prova que a linha existe
   // em algum lugar, não que é desta organização; a RLS de
   // `lead_digital_audits` filtra pelo `org_id` da própria linha, não cruza
@@ -260,6 +297,18 @@ export async function saveDigitalAuditCore(
       return { error: LEAD_MISMATCH_ERROR }
     }
     const { updated_at: loadedUpdatedAt, ...stateColumns } = data
+
+    // Stale-form check: se o formulário foi renderizado na versão V1 e o banco
+    // já está em V2 (outra pessoa/processo gravou nesse meio-tempo), rejeita
+    // ANTES de mesclar — o `.eq('updated_at', ...)` abaixo, sozinho, não pegaria
+    // isso porque ele trava contra a V2 que este próprio SELECT acabou de ler.
+    if (
+      expectedUpdatedAt !== null &&
+      new Date(loadedUpdatedAt).getTime() !== new Date(expectedUpdatedAt).getTime()
+    ) {
+      return { error: CONFLICT_ERROR }
+    }
+
     current = stateColumns
     lockUpdatedAt = loadedUpdatedAt
   }
@@ -319,7 +368,7 @@ export async function saveDigitalAuditCore(
       // mudado, e o score calculado por ELA descreve um estado que nunca
       // existiu de fato (nem o da primeira escrita, nem o seu próprio).
       .eq('updated_at', lockUpdatedAt)
-      .select('id')
+      .select('id, updated_at')
 
     if (error) {
       return { error: SAVE_ERROR }
@@ -348,7 +397,13 @@ export async function saveDigitalAuditCore(
     }
 
     await logAudit(supabase, orgId, userId, 'lead_digital_audit', updatedRow.id, 'update', diff)
-    return { error: null, auditId: updatedRow.id, digitalScore: score.score, completeness: score.completeness }
+    return {
+      error: null,
+      auditId: updatedRow.id,
+      updatedAt: updatedRow.updated_at,
+      digitalScore: score.score,
+      completeness: score.completeness,
+    }
   }
 
   const insertPayload: AuditInsert = {
@@ -361,7 +416,7 @@ export async function saveDigitalAuditCore(
   const { data, error } = await supabase
     .from('lead_digital_audits')
     .insert(insertPayload)
-    .select('id')
+    .select('id, updated_at')
     .single()
 
   if (error || !data) {
@@ -369,5 +424,11 @@ export async function saveDigitalAuditCore(
   }
 
   await logAudit(supabase, orgId, userId, 'lead_digital_audit', data.id, 'create', diff)
-  return { error: null, auditId: data.id, digitalScore: score.score, completeness: score.completeness }
+  return {
+    error: null,
+    auditId: data.id,
+    updatedAt: data.updated_at,
+    digitalScore: score.score,
+    completeness: score.completeness,
+  }
 }

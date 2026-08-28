@@ -4126,6 +4126,67 @@ Todas filtram por `org_id` de `requireOrgId()`, sempre.
 > inalterado) / `build` verdes. Sem migration/DDL/RLS/`gen:types` — nada
 > aplicável nesta tarefa. Nada de 7.7 (rota `/leads/[leadId]/dossie`) nem
 > exportação/PageSpeed API.
+>
+> ---
+>
+> **Revisão corretiva de integridade UI 7.6 × contratos 7.3/7.4 (fechamento).**
+> Três defeitos reais confirmados no commit `aa6feb9` e corrigidos:
+>
+> 1. **Lost update de formulário desatualizado.** O lock otimista da 7.4
+>    (`.eq('updated_at', …)`) usa o `updated_at` que o PRÓPRIO request acabou
+>    de ler — protege só a corrida entre SELECT e UPDATE, não uma tela aberta
+>    em V1 enquanto o banco já foi para V2. Novo campo de controle
+>    `expected_updated_at` (fora de `digitalAuditSchema`, lido como `audit_id`):
+>    o `DossierForm` o envia na edição a partir de `audit.updated_at`; o core
+>    valida o formato, compara com a versão atual **antes** de mesclar e
+>    devolve `CONFLICT_ERROR` se divergir; o `.eq('updated_at', …)` interno
+>    fica como defesa final da corrida SELECT↔UPDATE. `saveDigitalAudit` passou
+>    a retornar `updatedAt` (linha persistida) — o form usa
+>    `state.updatedAt ?? audit.updated_at` para renovar a versão do próximo
+>    submit (inclusive na transição create→update). Insert não exige o campo.
+>    Menor alteração na 7.4: `+updatedAt` no `DigitalAuditResult`,
+>    `.select('id, updated_at')`, `readExpectedUpdatedAt`, uma pré-checagem.
+>    Nenhuma action nova.
+> 2. **`pagespeed_analyzed_at` com ambiguidade de fuso.** `datetime-local` não
+>    carrega offset; `new Date("2026-08-27T10:00")` no runtime (UTC) puxava o
+>    instante 3h. `lib/domain/dossier-datetime.ts` (puro, 100% coberto):
+>    `datetimeLocalToIso` converte o relógio local → ISO com `Z` usando o
+>    offset explícito do usuário; `isoToDatetimeLocal` faz o inverso;
+>    `resolvePagespeedAnalyzedAt` devolve o ISO **original verbatim** quando o
+>    campo não foi tocado (idempotência até nos segundos). O `DossierForm`
+>    submete o valor por um `<input type="hidden">` já como instante; o input
+>    visível vira só display. `researched_at`/`instagram_last_post_date`
+>    seguem `AAAA-MM-DD`, sem fuso.
+> 3. **Valor de enum perdido ao abrir+salvar.** `buildInitialValues`
+>    colapsava para `''` qualquer valor persistido fora do vocabulário curado
+>    do campo (`nao_analisado`, `nao_identificado`, `nao_se_aplica`,
+>    `parcialmente`, `raramente`, `dados_insuficientes`…) → submit → `null`:
+>    data loss silencioso num round-trip. Agora `buildInitialValues`
+>    (extraído para `components/leads/dossier/form-state.ts`, puro) preserva o
+>    valor verbatim; `SelectField` injeta uma `<option>` para valores fora da
+>    lista (rótulo de `ENUM_LABELS`; ` (registrado)` quando coincidiria com a
+>    opção vazia). `null` continua virando `''` (D-037 — ausência não é valor).
+>
+> `digital_opportunities` (#5): o array persistido inicializa os checkboxes e
+> um save sem alteração preserva o mesmo conjunto (a ordem passa a ser a
+> canônica dos checkboxes — mesma membership). Revisão sistemática
+> load→save-sem-alterar por tipo (texto/URL/textarea/número/enum/data/
+> timestamptz/multicheck): sem transformação silenciosa após as correções.
+>
+> Testes novos: `tests/domain/dossier-datetime.test.ts` (27 — UTC-3 10:00 →
+> 13:00Z comprovado, UTC+2, ida e volta, verbatim quando intocado),
+> `tests/domain/dossier-form-state.test.ts` (24 — round-trip de cada valor
+> especial de enum preservado no estado + aceito pelo schema; números/datas),
+> `tests/actions/digital-audit.test.ts` +bloco `I` (5 — form V1 × banco V2 →
+> conflito sem sobrescrever; versão atual salva e devolve nova versão;
+> encadeamento; insert devolve `updatedAt`; `expected_updated_at` malformado
+> rejeitado), `tests/validation/digital-audit.test.ts` +2 (`audit_id` /
+> `expected_updated_at` descartados do parse). Bloco `H` (corrida
+> SELECT↔UPDATE) mantido e passando.
+>
+> Validação: `typecheck` / `lint` / `test` (348/348, +42) / `test:coverage`
+> (`lib/domain/` 100%, `dossier-datetime.ts` incluído) / `test:rls` (253/253,
+> +5) / `build` verdes.
 
 **`digital-labels.ts`** (puro): mapa `valor do enum → rótulo em português` para os 8
 enums, mais a lista de opções de `digital_opportunities`, mais o rótulo de cada campo.

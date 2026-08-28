@@ -965,5 +965,124 @@ describe('lib/actions/digital-audit-core', () => {
       expect(after.data?.length).toBe((before.data?.length ?? 0) + 1)
     })
   })
+
+  // --- Revisão corretiva da 7.6 ---
+
+  describe('I · lock otimista de tela desatualizada (expected_updated_at)', () => {
+    it('form em V1, banco já em V2: save é rejeitado e nenhum campo é sobrescrito', async () => {
+      const created = await saveDigitalAuditCore(clientA, orgAId, userAId, {
+        lead_id: leadAId,
+        google_business_profile: 'sim',
+        google_notes: 'estado V1',
+      })
+      expect(created.error).toBeNull()
+      const v1 = created.updatedAt
+      expect(typeof v1).toBe('string')
+
+      // Outra operação avança a linha para V2 (o trigger bumpa updated_at).
+      const bump = await saveDigitalAuditCore(clientA, orgAId, userAId, {
+        lead_id: leadAId,
+        audit_id: created.auditId,
+        expected_updated_at: v1,
+        google_notes: 'estado V2',
+      })
+      expect(bump.error).toBeNull()
+      const v2 = bump.updatedAt
+      expect(v2).not.toBe(v1)
+
+      // O primeiro usuário, com o formulário ainda em V1, tenta salvar.
+      const stale = await saveDigitalAuditCore(clientA, orgAId, userAId, {
+        lead_id: leadAId,
+        audit_id: created.auditId,
+        expected_updated_at: v1,
+        google_business_profile: 'nao',
+        google_notes: 'patch de tela velha',
+      })
+      expect(stale.error).toBe(
+        'Esta auditoria foi alterada por outra operação. Recarregue e tente novamente.',
+      )
+
+      // Nada do patch obsoleto entrou — nem parcialmente.
+      const { data: row } = await clientA
+        .from('lead_digital_audits')
+        .select('google_business_profile, google_notes, updated_at')
+        .eq('id', created.auditId ?? '')
+        .single()
+      expect(row?.google_business_profile).toBe('sim')
+      expect(row?.google_notes).toBe('estado V2')
+      expect(new Date(row?.updated_at ?? '').getTime()).toBe(new Date(v2 ?? '').getTime())
+    })
+
+    it('form com a versão atual: salva e devolve a nova versão para o próximo submit', async () => {
+      const created = await saveDigitalAuditCore(clientA, orgAId, userAId, {
+        lead_id: leadAId,
+        google_has_photos: 'sim',
+      })
+      const v1 = created.updatedAt
+
+      const ok = await saveDigitalAuditCore(clientA, orgAId, userAId, {
+        lead_id: leadAId,
+        audit_id: created.auditId,
+        expected_updated_at: v1,
+        google_has_photos: 'nao',
+      })
+      expect(ok.error).toBeNull()
+      expect(ok.updatedAt).toBeDefined()
+      expect(ok.updatedAt).not.toBe(v1)
+
+      // A versão devolvida serve para o PRÓXIMO submit sem conflito.
+      const chained = await saveDigitalAuditCore(clientA, orgAId, userAId, {
+        lead_id: leadAId,
+        audit_id: created.auditId,
+        expected_updated_at: ok.updatedAt,
+        google_has_photos: 'nao_analisado',
+      })
+      expect(chained.error).toBeNull()
+
+      const { data: row } = await clientA
+        .from('lead_digital_audits')
+        .select('google_has_photos')
+        .eq('id', created.auditId ?? '')
+        .single()
+      expect(row?.google_has_photos).toBe('nao_analisado')
+    })
+
+    it('insert não exige expected_updated_at e ainda assim devolve updatedAt', async () => {
+      const result = await saveDigitalAuditCore(clientA, orgAId, userAId, { lead_id: leadAId })
+      expect(result.error).toBeNull()
+      expect(typeof result.updatedAt).toBe('string')
+
+      const { data: row } = await clientA
+        .from('lead_digital_audits')
+        .select('updated_at')
+        .eq('id', result.auditId ?? '')
+        .single()
+      expect(new Date(row?.updated_at ?? '').getTime()).toBe(new Date(result.updatedAt ?? '').getTime())
+    })
+
+    it('expected_updated_at malformado é rejeitado antes de qualquer escrita', async () => {
+      const created = await saveDigitalAuditCore(clientA, orgAId, userAId, { lead_id: leadAId })
+      const bad = await saveDigitalAuditCore(clientA, orgAId, userAId, {
+        lead_id: leadAId,
+        audit_id: created.auditId,
+        expected_updated_at: 'não-é-timestamp',
+      })
+      expect(bad.error).toBe('Versão do formulário inválida.')
+    })
+
+    it('update sem expected_updated_at continua válido (compat) e devolve updatedAt', async () => {
+      const created = await saveDigitalAuditCore(clientA, orgAId, userAId, {
+        lead_id: leadAId,
+        google_easy_whatsapp: 'sim',
+      })
+      const updated = await saveDigitalAuditCore(clientA, orgAId, userAId, {
+        lead_id: leadAId,
+        audit_id: created.auditId,
+        google_easy_whatsapp: 'nao',
+      })
+      expect(updated.error).toBeNull()
+      expect(updated.updatedAt).toBeDefined()
+    })
+  })
 })
 

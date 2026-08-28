@@ -167,6 +167,22 @@ export function SelectField({
 }: BaseFieldProps & { options: readonly string[]; enumGroup: DossierEnumGroup }) {
   const { fieldId, helpId } = useFieldIds(name, help)
   const labels = ENUM_LABELS[enumGroup] as Record<string, string>
+
+  // Preservação de dado (revisão da 7.6): se a auditoria já tem um valor de
+  // enum válido que este campo não oferece no vocabulário curado
+  // (`nao_analisado`, `nao_identificado`, `nao_se_aplica`, `parcialmente`,
+  // `raramente`, `dados_insuficientes`…), injeta uma opção para ele. Sem isto,
+  // o `<select>` não conseguiria reenviar o valor e um simples abrir+salvar o
+  // apagaria (vira `''` → `null`). O usuário continua livre para trocar.
+  const known = new Set<string>(options)
+  const legacyValue = value !== '' && !known.has(value) ? value : null
+  const legacyLabel =
+    legacyValue === null
+      ? ''
+      : (labels[legacyValue] ?? legacyValue) +
+        // desambigua da opção vazia quando o rótulo coincidiria
+        (labels[legacyValue] === NOT_ANALYZED_LABEL ? ' (registrado)' : '')
+
   return (
     <FieldShell fieldId={fieldId} helpId={helpId} label={label} help={help}>
       <select
@@ -180,6 +196,7 @@ export function SelectField({
       >
         {/* Opção vazia = "não analisado" (D-037): grava `null`, nunca `nao`. */}
         <option value="">{NOT_ANALYZED_LABEL}</option>
+        {legacyValue !== null ? <option value={legacyValue}>{legacyLabel}</option> : null}
         {options.map((option) => (
           <option key={option} value={option}>
             {labels[option] ?? option}

@@ -204,6 +204,26 @@ describe('digitalAuditSchema — digital_score não é input (D-038)', () => {
   })
 })
 
+describe('digitalAuditSchema — campos de controle fora do schema (revisão 7.6)', () => {
+  it('audit_id e expected_updated_at são descartados do parse (lidos fora do schema pela action)', () => {
+    const result = parse({
+      audit_id: 'a3f1c2d4-0000-4000-8000-000000000000',
+      expected_updated_at: '2026-08-27T13:00:00.000Z',
+      google_business_profile: 'sim',
+    })
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect('audit_id' in result.data).toBe(false)
+      expect('expected_updated_at' in result.data).toBe(false)
+      expect(result.data.google_business_profile).toBe('sim')
+    }
+  })
+
+  it('expected_updated_at com formato qualquer não quebra a validação (a action é que valida o formato)', () => {
+    expect(parse({ expected_updated_at: 'qualquer-coisa' }).success).toBe(true)
+  })
+})
+
 describe('digitalAuditSchema — estados contraditórios', () => {
   it("website_exists='nao' + campo interno afirmativo → rejeitado no path do campo", () => {
     const result = parse({ website_exists: 'nao', website_has_whatsapp: 'sim' })

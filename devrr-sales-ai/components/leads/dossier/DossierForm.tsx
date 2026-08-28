@@ -5,15 +5,15 @@ import { saveDigitalAudit } from '@/lib/actions/digital-audit'
 import type { DigitalAuditResult } from '@/lib/actions/digital-audit-core'
 import type { DigitalAudit } from '@/lib/queries/digital-audits-core'
 import { FIELD_LABELS } from '@/lib/domain/digital-labels'
+import { resolvePagespeedAnalyzedAt } from '@/lib/domain/dossier-datetime'
 import {
   DOSSIER_SECTIONS,
-  ALL_DOSSIER_FIELDS,
   countSectionFilled,
   isFieldVisible,
-  type DossierFieldName,
   type DossierFieldSpec,
   type DossierSectionSpec,
 } from './sections'
+import { buildInitialValues, initialOpportunities } from './form-state'
 import { DossierSection } from './DossierSection'
 import { DossierSummary } from './DossierSummary'
 import {
@@ -25,20 +25,33 @@ import {
   MultiCheckField,
 } from './DossierFields'
 
-// Formulário do Dossiê Digital (7.6). Serve criação E edição: a única
-// diferença é o campo oculto `audit_id`, presente só quando já existe
-// auditoria — a decisão insert × update é 100% da action da 7.4
-// (`saveDigitalAudit`), nunca do cliente. Não há segunda action.
+// Formulário do Dossiê Digital (7.6). Serve criação E edição: a decisão
+// insert × update é 100% da action da 7.4 (`saveDigitalAudit`) a partir de
+// `audit_id`; não há segunda action.
 //
-// Semântica preservada (regra central da tarefa): "não analisado" (campo em
-// branco → `null`), "não" (`nao`) e "valor preenchido" são três estados
-// distintos. Selects têm sempre a opção vazia "Não analisado" (= `null`);
-// nunca `nao` como default.
+// Três invariantes que a revisão corretiva da 7.6 travou:
+//
+// 1. **Lock otimista contra tela desatualizada.** `expected_updated_at` (a
+//    versão que ESTE formulário viu) vai como campo oculto no submit de
+//    edição. A action rejeita se o banco já avançou — não basta o
+//    `.eq('updated_at')` interno, que só cobre corrida entre SELECT e UPDATE.
+//    Depois de um save, `state.updatedAt` renova essa versão para o próximo.
+// 2. **`pagespeed_analyzed_at` sem ambiguidade de fuso.** O `datetime-local`
+//    não carrega offset; o valor submetido é convertido para instante ISO com
+//    `Z` no cliente (`resolvePagespeedAnalyzedAt`), nunca deixado para o
+//    `new Date()` do runtime interpretar.
+// 3. **Nenhum valor de enum some no round-trip.** `buildInitialValues`
+//    preserva o valor persistido verbatim; `SelectField` injeta uma opção
+//    para valores fora do vocabulário curado (`nao_analisado`,
+//    `nao_identificado`, `nao_se_aplica`, `parcialmente`, `raramente`,
+//    `dados_insuficientes`…). Abrir + salvar sem tocar = identidade.
+//
+// Semântica preservada: "não analisado" (opção vazia → `null`), "não" (`nao`)
+// e "valor preenchido" são três estados distintos; `nao` nunca é default.
 //
 // Cascata: a UI só ESCONDE campos dependentes quando a base muda; quem limpa
-// o dado contraditório já gravado é o servidor (7.4, `resolveClearedFields`).
-// Campo escondido não é renderizado → não entra no FormData → o submit manda
-// a mudança da base sem os dependentes obsoletos.
+// o dado contraditório já gravado é o servidor (7.4). Campo escondido não é
+// renderizado → não entra no FormData.
 
 interface DossierFormProps {
   leadId: string
@@ -56,55 +69,6 @@ function todayLocal(): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 }
 
-/** ISO de `timestamptz` → valor local `AAAA-MM-DDTHH:mm` para `datetime-local`. */
-function toDatetimeLocalValue(raw: string | null): string {
-  if (!raw) return ''
-  const d = new Date(raw)
-  if (Number.isNaN(d.getTime())) return ''
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
-}
-
-/**
- * Estado inicial dos campos escalares a partir da auditoria (ou vazio).
- *
- * Selects: qualquer valor persistido que não esteja no vocabulário oferecido
- * pelo campo — incluindo `nao_analisado` — colapsa para a opção vazia "Não
- * analisado". `null` também. Assim a UI nunca mostra um select "em branco por
- * acidente": vazio SEMPRE quer dizer "não analisado" (D-037), e nunca é `nao`.
- */
-function buildInitialValues(audit: DigitalAudit | null | undefined): Record<string, string> {
-  const row: Partial<Record<DossierFieldName, unknown>> = audit ?? {}
-  const values: Record<string, string> = {}
-
-  for (const field of ALL_DOSSIER_FIELDS) {
-    if (field.type === 'multicheck') continue
-    const raw = row[field.name]
-
-    if (field.type === 'date') {
-      values[field.name] = typeof raw === 'string' ? raw.slice(0, 10) : ''
-    } else if (field.type === 'datetime') {
-      values[field.name] = toDatetimeLocalValue(typeof raw === 'string' ? raw : null)
-    } else if (field.type === 'select') {
-      const stored = typeof raw === 'string' ? raw : ''
-      values[field.name] = field.options?.includes(stored) ? stored : ''
-    } else if (field.type === 'number') {
-      values[field.name] = raw === null || raw === undefined ? '' : String(raw)
-    } else {
-      values[field.name] = typeof raw === 'string' ? raw : ''
-    }
-  }
-
-  if (!audit && values.researched_at === '') {
-    values.researched_at = todayLocal()
-  }
-
-  return values
-}
-
-function initialOpportunities(audit: DigitalAudit | null | undefined): string[] {
-  return audit?.digital_opportunities ? [...audit.digital_opportunities] : []
-}
-
 function helpFor(spec: DossierFieldSpec): string | undefined {
   if (spec.type === 'number' && /_(lcp|inp|fcp|tbt|speed_index)$/.test(spec.name)) return 'Em milissegundos'
   if (spec.name.endsWith('_cls')) return 'Valor decimal (ex.: 0,08)'
@@ -114,10 +78,20 @@ function helpFor(spec: DossierFieldSpec): string | undefined {
 
 export function DossierForm({ leadId, companyName, audit }: DossierFormProps) {
   const [state, formAction, pending] = useActionState(saveDigitalAudit, initialState)
-  const [values, setValues] = useState<Record<string, string>>(() => buildInitialValues(audit))
+  // Offset do fuso do usuário, congelado na montagem (UTC-3 → 180). Usado para
+  // converter `pagespeed_analyzed_at` entre instante e relógio de parede local.
+  const [tzOffsetMinutes] = useState(() => new Date().getTimezoneOffset())
+  const [values, setValues] = useState<Record<string, string>>(() =>
+    buildInitialValues(audit, tzOffsetMinutes, todayLocal()),
+  )
   const [opportunities, setOpportunities] = useState<string[]>(() => initialOpportunities(audit))
 
   const effectiveAuditId = audit?.id ?? state.auditId ?? null
+  // Versão do lock otimista: depois de um save é a que a action acabou de
+  // persistir (`state.updatedAt`); antes, a que veio na prop.
+  const expectedUpdatedAt = state.updatedAt ?? audit?.updated_at ?? null
+  const originalAnalyzedAt = audit?.pagespeed_analyzed_at ?? null
+
   const didSave = Boolean(state.auditId)
   const shownScore = didSave ? state.digitalScore ?? null : audit?.digital_score ?? null
   const shownCompleteness = didSave ? state.completeness ?? 0 : audit?.digital_score_completeness ?? 0
@@ -186,8 +160,29 @@ export function DossierForm({ leadId, companyName, audit }: DossierFormProps) {
           <DateField key={spec.name} name={spec.name} label={label} value={value} onChange={setField(spec.name)} help={help} />
         )
       case 'datetime':
+        // O input visível é só display (nome descartado pelo schema). O valor
+        // real vai no oculto, já como instante ISO com `Z` — sem depender do
+        // fuso do runtime.
         return (
-          <DateField key={spec.name} withTime name={spec.name} label={label} value={value} onChange={setField(spec.name)} help={help} />
+          <div key={spec.name}>
+            <DateField
+              withTime
+              name={`${spec.name}__local`}
+              label={label}
+              value={value}
+              onChange={setField(spec.name)}
+              help={help}
+            />
+            <input
+              type="hidden"
+              name={spec.name}
+              value={resolvePagespeedAnalyzedAt({
+                localValue: value,
+                originalIso: originalAnalyzedAt,
+                tzOffsetMinutes,
+              })}
+            />
+          </div>
         )
       case 'textarea':
         return (
@@ -221,6 +216,11 @@ export function DossierForm({ leadId, companyName, audit }: DossierFormProps) {
     <form action={formAction} className="flex flex-col gap-6">
       <input type="hidden" name="lead_id" value={leadId} />
       {effectiveAuditId ? <input type="hidden" name="audit_id" value={effectiveAuditId} /> : null}
+      {expectedUpdatedAt ? (
+        // Contrato do lock: a versão que este formulário está editando. Não é
+        // coluna de `digitalAuditSchema` — a action lê fora do schema.
+        <input type="hidden" name="expected_updated_at" value={expectedUpdatedAt} />
+      ) : null}
 
       <DossierSummary
         companyName={companyName}
