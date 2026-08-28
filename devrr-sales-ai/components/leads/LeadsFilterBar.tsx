@@ -41,6 +41,17 @@ function buildHref(current: FilterState, key: keyof FilterState, value: string |
   return query ? `/leads?${query}` : '/leads'
 }
 
+// Exportação em massa (7.9): baixa CSV/JSON dos leads que casam com os
+// filtros ATUAIS. Rota autenticada pela sessão (`/api/leads/export`, D-041) —
+// `<a>` simples, é navegação de download, não roteamento de app.
+function buildExportHref(current: FilterState, format: 'csv' | 'json'): string {
+  const params = new URLSearchParams({ format })
+  if (current.stage) params.set('stage', current.stage)
+  if (current.source) params.set('source', current.source)
+  if (current.status) params.set('status', current.status)
+  return `/api/leads/export?${params.toString()}`
+}
+
 function FilterChip({ href, isActive, children }: { href: string; isActive: boolean; children: React.ReactNode }) {
   return (
     <Link
@@ -101,6 +112,24 @@ export function LeadsFilterBar({ stages, sources, activeStageKey, activeSourceId
               {option.label}
             </FilterChip>
           ))}
+        </div>
+      </div>
+
+      <div>
+        <p className="mb-2 text-[10px] uppercase tracking-[0.12em] text-content-muted">Exportar</p>
+        <div className="flex flex-wrap gap-1.5">
+          <a
+            href={buildExportHref(current, 'csv')}
+            className="rounded-pill bg-white/[0.04] px-2.5 py-1 text-xs font-medium text-content-secondary transition-colors ease-spring hover:bg-white/[0.08] hover:text-content-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+          >
+            CSV
+          </a>
+          <a
+            href={buildExportHref(current, 'json')}
+            className="rounded-pill bg-white/[0.04] px-2.5 py-1 text-xs font-medium text-content-secondary transition-colors ease-spring hover:bg-white/[0.08] hover:text-content-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+          >
+            JSON
+          </a>
         </div>
       </div>
     </div>

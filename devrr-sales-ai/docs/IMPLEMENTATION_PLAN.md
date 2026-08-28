@@ -4284,9 +4284,18 @@ herdar). Responsivo: `grid gap-4 sm:grid-cols-2`, como no formulário atual.
 
 ---
 
-### [ ] 7.7 Telas: `/leads/new` com seções recolhidas e `/leads/[leadId]/dossie`
+### [x] 7.7 Telas: `/leads/new` com seções recolhidas e `/leads/[leadId]/dossie`
 
-> feito, em dois commits, **exceto um item** (ver "Ainda aberto" no fim):
+> **Fechada no fim da 7.9.** O último item aberto (botões **Copiar dossiê** /
+> **Exportar JSON** no card de `/leads/[leadId]`) dependia do R8 —
+> `lib/domain/dossier-export.ts` (7.8) + a UI/rota de exportação (7.9). Com a
+> 7.9 entregue, o card monta `buildDossierMarkdown` / `buildDossierJson` no
+> servidor e renderiza **Editar dossiê · Copiar dossiê · Exportar JSON**.
+> Nenhuma funcionalidade de fase posterior foi antecipada — a 7.9 foi de fato
+> implementada antes de a 7.7 fechar.
+>
+> feito, em dois commits, **exceto um item** (ver "Ainda aberto" no fim), esse
+> item resolvido depois pela 7.9:
 >
 > **(1) rota do dossiê + ponto de acesso** — commit `4926902`:
 >
@@ -4436,20 +4445,17 @@ herdar). Responsivo: `grid gap-4 sm:grid-cols-2`, como no formulário atual.
 > no SELECT quebraria o typecheck; `gen:types` + `types:check` (obrigatórios
 > após toda migration, D-042) fecham o outro lado. Nada a mudar.
 >
-> **Ainda aberto na 7.7 — bloqueado por R8 (exportação do dossiê)**: os botões
-> **Copiar dossiê** e **Exportar JSON** do card em `/leads/[leadId]` são o
-> único requisito do texto da 7.7 não implementado, e por isso a tarefa segue
-> `[ ]`. Dependência em duas etapas:
-> - `lib/domain/dossier-export.ts` (**7.8**) — o domínio puro que gera o
->   Markdown do "Copiar dossiê" e o objeto do "Exportar JSON". **Entregue** no
->   fechamento da 7.8 (`buildDossierMarkdown` / `buildDossierJson`).
-> - `components/leads/dossier/CopyDossierButton.tsx` + a rota
->   `app/api/leads/export/route.ts` (**7.9**) — a UI cliente e o endpoint que
->   ainda não existem. Enquanto a 7.9 não fecha, os dois botões não podem ser
->   ligados e a 7.7 não fecha.
+> **Item que estava aberto na 7.7 — RESOLVIDO pela 7.9.** Os botões **Copiar
+> dossiê** e **Exportar JSON** do card em `/leads/[leadId]` eram o único
+> requisito do texto da 7.7 não implementado, bloqueado pelo R8 em duas etapas:
+> - `lib/domain/dossier-export.ts` (**7.8**) — domínio puro que gera o Markdown
+>   e o objeto JSON. Entregue no fechamento da 7.8.
+> - `CopyDossierButton.tsx` / `ExportJsonButton.tsx` + a rota
+>   `app/api/leads/export/route.ts` (**7.9**) — UI cliente + endpoint.
+>   Entregues no fechamento da 7.9, que ligou os botões ao Server Component.
 >
-> **Editar dossiê** / **Iniciar diagnóstico** já estão no card. (O indicador de
-> status do dossiê na listagem `/leads` NÃO é requisito da 7.7 — não está no
+> **Editar dossiê** / **Iniciar diagnóstico** já estavam no card. (O indicador
+> de status do dossiê na listagem `/leads` NÃO é requisito da 7.7 — não está no
 > texto.)
 
 **`/leads/new`** (`components/leads/NewLeadForm.tsx`): os campos comerciais atuais
@@ -4580,7 +4586,70 @@ do CSV não muda quando o dossiê está parcialmente preenchido.
 
 ---
 
-### [ ] 7.9 Botões de exportação e rota de exportação em massa
+### [x] 7.9 Botões de exportação e rota de exportação em massa
+
+> feito. Fecha o R8 e, com ele, **a 7.7** (os dois botões do card eram o único
+> requisito da 7.7 pendente).
+>
+> **`lib/api/leads-export.ts`** (novo, puro — sem `server-only`/`next`/
+> Supabase; só `import type` de `@/lib/queries/leads`): `parseExportFormat`
+> (`'csv'|'json'|null`), `leadToDossierInput(LeadWithDisplay)` →
+> `DossierLeadInput` da 7.8 (`companyName` = `contact.company_name`),
+> `dossierFilenameSlug` (NFD + strip diacríticos → `[a-z0-9-]`, vazio →
+> `lead`), `buildLeadsExport(leads, auditsByLead, format, today)` → `{ body,
+> contentType, filename }` (JSON = array de `buildDossierJson`; CSV =
+> `buildDossierCsv(rows.map(buildDossierCsvRow))`). Nada recalculado.
+>
+> **`app/api/leads/export/route.ts`** (novo) — `GET ?format=csv|json`.
+> `format` ausente/inválido → `400` **antes** de tocar a sessão. Depois:
+> `requireOrgId()` + `listStages`/`listSources`/`listLeadsForDisplay`/
+> `listLatestAuditsByLead` (todas de sessão, `org_id` + RLS — zero
+> `service_role`, D-041). Filtros iguais aos de `/leads`: `stage` por `key`
+> (resolvido a id), `source` por id, `status` enum, `search` por título.
+> `today = new Date().toISOString().slice(0,10)`. Responde
+> `Content-Type` + `Content-Disposition: attachment; filename="leads-<data>.<ext>"`
+> + `Cache-Control: no-store`. `export const dynamic = 'force-dynamic'`.
+> `proxy.ts` **não** mudou: o matcher já cobre `/api/leads/export` (só
+> `api/cron` sai) — sem sessão o proxy responde `307 /login` antes do handler.
+>
+> **`components/leads/dossier/CopyDossierButton.tsx`** (client) — copia o
+> Markdown (pronto do Server Component) via `navigator.clipboard.writeText`
+> com fallback `<textarea>` + `document.execCommand('copy')`; feedback
+> "Copiado" / "Não deu para copiar" por 2 s.
+> **`components/leads/dossier/ExportJsonButton.tsx`** (client) — `Blob` +
+> `URL.createObjectURL` + `<a download>` programático + `revokeObjectURL`;
+> `filename` (`dossie-<slug>-<data>.json`) vem montado do servidor.
+>
+> **`app/(app)/leads/[leadId]/page.tsx`** — quando há auditoria, o card do
+> dossiê monta `buildDossierMarkdown` / `buildDossierJson` (7.8, no servidor) e
+> renderiza a fileira **Editar dossiê · Copiar dossiê · Exportar JSON**. Sem
+> auditoria: só **Iniciar diagnóstico** (inalterado). **Isto fecha o item
+> "Ainda aberto na 7.7".**
+> **`components/leads/LeadsFilterBar.tsx`** — bloco **Exportar** com `<a>`
+> `CSV` / `JSON` para `/api/leads/export?format=…` carregando os filtros
+> ativos (`stage`/`source`/`status`).
+> **`lib/queries/leads.ts`** — `LeadContactSummary` ganhou `email`
+> (`contacts.email` entrou no `.select()`) — é campo de identificação do
+> dossiê (`DOSSIE.md` §1), antes não carregado.
+>
+> **Testes**: `tests/api/leads-export.test.ts` (+17) — `parseExportFormat`;
+> `leadToDossierInput` (empresa do contato, fonte nula); `dossierFilenameSlug`
+> (acento/separadores/vazio); `buildLeadsExport` CSV (BOM + cabeçalho estável +
+> 1 linha/lead; sem leads = só cabeçalho; usa a auditoria do mapa) e JSON
+> (array de dossiês aninhados, score persistido, lead sem auditoria →
+> `digital_score` null); rota `GET` com deps de sessão mockadas (sem `format` →
+> 400 sem tocar sessão; `format` inválido → 400; `?format=csv` → 200 `text/csv`,
+> BOM nos **bytes** — `res.text()` do Fetch remove o BOM ao decodificar —,
+> cabeçalho, `Content-Disposition` attachment; `?format=json` → 200
+> `application/json`, array aninhado; `stage=<key>` resolvido a `stageId` antes
+> do `listLeadsForDisplay`; estágio/status inválidos ignorados).
+> `tests/proxy-matcher.test.ts` (+1) — `/api/leads/export` casa o matcher (passa
+> pelo `updateSession`).
+>
+> Validação: `typecheck` / `lint` / `test` (446/446, +18) / `test:coverage`
+> (`lib/domain/` 100% — 7.9 não adiciona domínio) / `test:rls` / `build`
+> (`/api/leads/export` listada) verdes. Sem migration/DDL/RLS/`gen:types`.
+> Verificação visual no browser fica para o operador (não é gate).
 
 - **Copiar dossiê** (`components/leads/dossier/CopyDossierButton.tsx`, client):
   `navigator.clipboard.writeText(markdown)` com fallback de `<textarea>` +

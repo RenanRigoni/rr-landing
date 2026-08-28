@@ -72,6 +72,12 @@ export interface LeadContactSummary {
   full_name: string
   phone: string | null
   /**
+   * E-mail do contato (`contacts.email`). Entrou na 7.9: é um dos campos de
+   * identificação do dossiê exportado (`DOSSIE.md` §1). Nulo quando o operador
+   * não informou.
+   */
+  email: string | null
+  /**
    * Nome comercial da empresa do contato (`contacts.company_name`, preenchido
    * pelo campo "Empresa" de `/leads/new`). Entrou na 7.7: é a fonte REAL de
    * "Empresa" no dossiê — `leads.title` é o título do lead ("Landing page para
@@ -122,7 +128,7 @@ async function attachDisplayData(supabase: SalesClient, orgId: string, leads: Le
   const sourceIds = [...new Set(leads.map((lead) => lead.source_id).filter((id): id is string => id !== null))]
 
   const [contactsResult, stagesResult, sourcesResult] = await Promise.all([
-    supabase.from('contacts').select('id, full_name, phone, company_name').eq('org_id', orgId).in('id', contactIds),
+    supabase.from('contacts').select('id, full_name, phone, email, company_name').eq('org_id', orgId).in('id', contactIds),
     supabase.from('pipeline_stages').select('id, key, label, color').eq('org_id', orgId).in('id', stageIds),
     sourceIds.length > 0
       ? supabase.from('lead_sources').select('id, name').eq('org_id', orgId).in('id', sourceIds)

@@ -27,6 +27,10 @@ describe('proxy config.matcher', () => {
     expect(regex.test('/api/qualquer-outra')).toBe(true)
   })
 
+  it('casa /api/leads/export (7.9 — precisa da sessão que o proxy renova; D-041)', () => {
+    expect(regex.test('/api/leads/export')).toBe(true)
+  })
+
   it('continua excluindo assets estáticos', () => {
     expect(regex.test('/_next/static/chunk.js')).toBe(false)
     expect(regex.test('/favicon.ico')).toBe(false)

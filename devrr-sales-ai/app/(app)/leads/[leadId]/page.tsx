@@ -11,6 +11,10 @@ import { StageMover } from '@/components/leads/StageMover'
 import { MarkRespondedButton } from '@/components/leads/MarkRespondedButton'
 import { ActivityTimeline } from '@/components/leads/ActivityTimeline'
 import { DossierSummary } from '@/components/leads/dossier/DossierSummary'
+import { CopyDossierButton } from '@/components/leads/dossier/CopyDossierButton'
+import { ExportJsonButton } from '@/components/leads/dossier/ExportJsonButton'
+import { buildDossierJson, buildDossierMarkdown } from '@/lib/domain/dossier-export'
+import { leadToDossierInput, dossierFilenameSlug } from '@/lib/api/leads-export'
 import { FollowupGenerator } from '@/components/ai/FollowupGenerator'
 import type { Database } from '@/lib/types/database.types'
 
@@ -43,6 +47,18 @@ export default async function LeadDetailPage({ params }: LeadDetailPageProps) {
   // deste lead — é a mensagem que o usuário está prestes a mandar. Sem
   // nenhum pendente, o botão não aparece (nada pra escrever).
   const pendingFollowup = activities.find((activity) => activity.status === 'pending')
+
+  // Dossiê para os botões "Copiar dossiê" / "Exportar JSON" (7.9): gerado aqui,
+  // no servidor, pela representação pura da 7.8 — os componentes cliente só
+  // recebem as strings prontas e disparam clipboard/download.
+  const dossierInput = leadToDossierInput(lead)
+  const dossierMarkdown = digitalAudit ? buildDossierMarkdown(dossierInput, digitalAudit) : null
+  const dossierJson = digitalAudit
+    ? JSON.stringify(buildDossierJson(dossierInput, digitalAudit), null, 2)
+    : null
+  const dossierJsonFilename = `dossie-${dossierFilenameSlug(lead.contact.company_name)}-${new Date()
+    .toISOString()
+    .slice(0, 10)}.json`
 
   return (
     <div className="max-w-3xl">
@@ -112,14 +128,20 @@ export default async function LeadDetailPage({ params }: LeadDetailPageProps) {
       </div>
 
       <div className="mt-6 rounded-lg border border-white/[0.08] bg-surface-elevated p-4">
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
           <h2 className="text-sm font-semibold text-content-primary">Dossiê digital</h2>
-          <Link
-            href={`/leads/${lead.id}/dossie`}
-            className="text-xs font-semibold text-brand-400 hover:text-brand-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
-          >
-            {digitalAudit ? 'Editar dossiê' : 'Iniciar diagnóstico'}
-          </Link>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <Link
+              href={`/leads/${lead.id}/dossie`}
+              className="text-xs font-semibold text-brand-400 hover:text-brand-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+            >
+              {digitalAudit ? 'Editar dossiê' : 'Iniciar diagnóstico'}
+            </Link>
+            {dossierMarkdown !== null ? <CopyDossierButton markdown={dossierMarkdown} /> : null}
+            {dossierJson !== null ? (
+              <ExportJsonButton json={dossierJson} filename={dossierJsonFilename} />
+            ) : null}
+          </div>
         </div>
         {digitalAudit ? (
           <div className="mt-3">
