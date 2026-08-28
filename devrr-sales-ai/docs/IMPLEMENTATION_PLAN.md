@@ -4436,12 +4436,21 @@ herdar). Responsivo: `grid gap-4 sm:grid-cols-2`, como no formulário atual.
 > no SELECT quebraria o typecheck; `gen:types` + `types:check` (obrigatórios
 > após toda migration, D-042) fecham o outro lado. Nada a mudar.
 >
-> **Ainda aberto na 7.7**: os botões **Copiar dossiê** e **Exportar JSON** do
-> card em `/leads/[leadId]` — dependem de `lib/domain/dossier-export.ts` (7.8)
-> e da rota de exportação (7.9), que ainda não existem. É o único requisito do
-> texto da 7.7 não implementado, e por isso a tarefa segue `[ ]`. **Editar
-> dossiê** / **Iniciar diagnóstico** já estão no card. (O indicador de status do
-> dossiê na listagem `/leads` NÃO é requisito da 7.7 — não está no texto.)
+> **Ainda aberto na 7.7 — bloqueado por R8 (exportação do dossiê)**: os botões
+> **Copiar dossiê** e **Exportar JSON** do card em `/leads/[leadId]` são o
+> único requisito do texto da 7.7 não implementado, e por isso a tarefa segue
+> `[ ]`. Dependência em duas etapas:
+> - `lib/domain/dossier-export.ts` (**7.8**) — o domínio puro que gera o
+>   Markdown do "Copiar dossiê" e o objeto do "Exportar JSON". **Entregue** no
+>   fechamento da 7.8 (`buildDossierMarkdown` / `buildDossierJson`).
+> - `components/leads/dossier/CopyDossierButton.tsx` + a rota
+>   `app/api/leads/export/route.ts` (**7.9**) — a UI cliente e o endpoint que
+>   ainda não existem. Enquanto a 7.9 não fecha, os dois botões não podem ser
+>   ligados e a 7.7 não fecha.
+>
+> **Editar dossiê** / **Iniciar diagnóstico** já estão no card. (O indicador de
+> status do dossiê na listagem `/leads` NÃO é requisito da 7.7 — não está no
+> texto.)
 
 **`/leads/new`** (`components/leads/NewLeadForm.tsx`): os campos comerciais atuais
 continuam **exatamente como estão**, agora dentro da seção 1 "Dados do lead" (aberta
@@ -4465,7 +4474,86 @@ auditoria, um estado vazio honesto com **Iniciar diagnóstico** (regra 5 do
 
 ---
 
-### [ ] 7.8 `lib/domain/dossier-export.ts` — JSON aninhado, Markdown e CSV
+### [x] 7.8 `lib/domain/dossier-export.ts` — JSON aninhado, Markdown e CSV
+
+> feito: **`lib/domain/dossier-export.ts`** (puro — `import type` de
+> `database.types.ts` só; zero runtime de supabase/next/ai). É REPRESENTAÇÃO da
+> linha persistida: não chama `computeDigitalScore`, não normaliza, não infere,
+> não converte `null`→`nao`; datas de calendário e `pagespeed_analyzed_at`
+> passam verbatim.
+>
+> **API:**
+> - `buildDossierJson(lead, audit): DossierJson` — objeto aninhado nas chaves do
+>   `DOSSIE.md` §13: topo `lead · prospecting · google · website · conversion ·
+>   instagram · pagespeed · diagnostic` (8), com `pagespeed.mobile` /
+>   `pagespeed.desktop` separados (prefixo removido) + `analyzed_url` /
+>   `analyzed_at` / `field_data_available` / `notes` na raiz de `pagespeed` — as
+>   "9 chaves" do plano. `null` sempre presente (ausência é informação).
+>   `diagnostic` carrega `digital_score` / `digital_score_completeness`
+>   persistidos (D-038 — nunca recalculados). `lead` vem de `DossierLeadInput`
+>   (o domínio declara a própria entrada, como `digital-score.ts`):
+>   `companyName` = `contact.company_name`, `title` à parte.
+> - `buildDossierMarkdown(lead, audit): string` — layout `DOSSIE.md` §14.
+>   `# DOSSIÊ DIGITAL DO LEAD` + `## IDENTIFICAÇÃO` (sempre; lead + `R$` do valor
+>   + "Data da análise" = `researched_at`; ausência → "Não informado"/"Não
+>   analisado") + as seções de dado (`## ORIGEM/GOOGLE/WEBSITE/CONVERSÃO/
+>   INSTAGRAM/PAGESPEED/PAGESPEED MOBILE/PAGESPEED DESKTOP` — campo vazio some,
+>   seção 100% vazia some) + `## DIAGNÓSTICO` (sempre; score/completude
+>   persistidos, campo vazio → "Não analisado"). Rótulos PT de
+>   `digital-labels.ts` (`FIELD_LABELS`/`ENUM_LABELS`, nada reescrito aqui);
+>   LCP/FCP/TBT/Speed Index via `formatMsAsSeconds` (`pagespeed.ts`), INP em ms,
+>   CLS decimal, valor via `formatBRL` (`money.ts`). `## PAGESPEED` (geral) é um
+>   cabeçalho a mais que os 9 do texto — necessário para não perder
+>   `analyzed_url`/`analyzed_at`/`field_data_available`/`pagespeed_notes`, que o
+>   §14 não acomoda; omitido quando os 4 estão vazios.
+> - `DOSSIER_CSV_COLUMNS` + `buildDossierCsvRow(lead, audit): string[]` +
+>   `buildDossierCsv(rows): string` — achatado (`DOSSIE.md` §15). Ordem:
+>   8 colunas de identificação (`lead_title`, `company_name`, … `value_cents`) +
+>   101 colunas de dado na ordem das seções + `digital_score` /
+>   `digital_score_completeness`. Enum com o **valor** do banco (não o rótulo),
+>   `digital_opportunities` juntado por `|`, `null` → célula vazia, `0`
+>   preservado. `buildDossierCsv`: BOM U+FEFF + cabeçalho + `\r\n` entre linhas
+>   e ao final; escape RFC 4180 (`"` `,` CR LF → célula entre aspas, aspas
+>   internas duplicadas). Ordem estável independente de preenchimento parcial.
+>
+> **Paridade schema × export (obrigatória, >100 campos):**
+> - Mapa `SECTION_COLUMN_GROUPS` (9 grupos) + `DIAGNOSTIC_SCORE_COLUMNS` (2) +
+>   `DOSSIER_TECHNICAL_COLUMNS` (`id`, `org_id`, `lead_id`, `created_by`,
+>   `created_at`, `updated_at` — exclusão explícita).
+> - **Compile-time:** `type UnmappedAuditColumn = Exclude<keyof DigitalAudit,
+>   MappedAuditColumn>` + atribuição `[UnmappedAuditColumn] extends [never] ?
+>   true : never = true` — uma coluna nova em `lead_digital_audits` (via
+>   `gen:types`, D-042) sem destino quebra o `typecheck`.
+> - **Runtime:** `DOSSIER_DATA_COLUMNS` (101, ordem de saída) é comparada, já
+>   ordenada, com `DIGITAL_AUDIT_FIELD_NAMES` (derivado de
+>   `digitalAuditObject.shape`, nunca escrito à mão) menos `lead_id` — campo de
+>   entrada novo sem seção quebra o teste. Sem duplicata (Set), todo campo com
+>   rótulo em `FIELD_LABELS`.
+> - `DOSSIER_ENUM_COLUMN_GROUP` (51 colunas de enum → grupo de `ENUM_LABELS`)
+>   com anotação `Partial<Record<keyof DigitalAudit, DossierEnumGroup>>` e teste
+>   de cobertura contra a lista fixa das 51.
+>
+> **Testes** (`tests/domain/dossier-export.test.ts`, +42, `npm run test`):
+> paridade (data-columns = schema − lead_id; 101 sem repetição; técnicas
+> explícitas; score fora da entrada; enum-map = 51); JSON (8 chaves +
+> pagespeed.mobile/desktop, não achatado, nulos inclusos, datas verbatim, `0`
+> preservado, `nao`≠`null`, enums especiais `nao_identificado`/`nao_se_aplica`/
+> `nao_analisado`/`dados_insuficientes` verbatim, score persistido +
+> `vi.spyOn(computeDigitalScore)` não chamado, sem auditoria); Markdown
+> (completo com agrupamento; parcial omite vazio e seção vazia; obrigatórias
+> sempre; "Não informado"/"Não analisado"; ms→s / INP ms / CLS decimal; mobile
+> ≠ desktop; oportunidade e enum fora do vocabulário preservados; `0`
+> permanece); CSV (ordem estável cheia/parcial/sem auditoria; enum cru; `|`;
+> `null`→vazio; BOM+CRLF; escape de `,`/`"`/`\n`; sem linhas = só cabeçalho);
+> determinismo (mesmo input → saída idêntica nos três).
+>
+> Validação: `typecheck` / `lint` / `test` (428/428, +42) / `test:coverage`
+> (`lib/domain/` 100%, `dossier-export.ts` 100/100/100/100) / `test:rls`
+> (274/274, inalterado — 7.8 não toca queries/actions/RLS) / `build` verdes.
+> Sem migration/DDL/RLS/`gen:types`. **Nada de 7.9** (botão `CopyDossierButton`,
+> rota `app/api/leads/export`, download `Blob`, `Content-Disposition`) —
+> `dossier-export.ts` é o domínio puro que a 7.9 vai consumir. **7.7 segue
+> `[ ]`**, bloqueada por R8 até a 7.9 ligar os botões.
 
 Puro e testável, sem tocar banco.
 
