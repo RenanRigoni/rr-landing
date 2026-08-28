@@ -4053,7 +4053,79 @@ Todas filtram por `org_id` de `requireOrgId()`, sempre.
 
 ---
 
-### [ ] 7.6 `lib/domain/digital-labels.ts` + componentes de seção do dossiê
+### [x] 7.6 `lib/domain/digital-labels.ts` + componentes de seção do dossiê
+
+> feito: **`lib/domain/digital-labels.ts`** (puro, só dados, zero função —
+> `test:coverage` em `lib/domain/` segue 100%): `ENUM_LABELS` (os 8
+> vocabulários D-036, chaves = valores exatos do Postgres), `FIELD_LABELS`
+> (rótulo PT dos 101 campos de entrada — `lead_id` de fora), `NOT_ANALYZED_LABEL`,
+> `DIGITAL_OPPORTUNITY_OPTIONS` (16 opções, `value` canônico), `PAGESPEED_RATING_LABELS`.
+> Fonte única — Markdown (7.8) e CSV (7.8) importam daqui.
+>
+> **`components/leads/dossier/`:**
+> - `sections.ts` — config declarativa das 7 seções (Origem · Google ·
+>   Website · Conversão · Instagram · PageSpeed · Diagnóstico), spec por campo
+>   (tipo/vocabulário/min-max-step/`dependsOn`). `DossierFieldName = keyof
+>   DigitalAuditInput` prova em compile-time que todo campo é chave real do
+>   schema (7.3); `satisfies` reforça que as listas de cascata (7.4) são
+>   campos reais. Helpers puros `isFieldVisible`/`visibleFields`/
+>   `countSectionFilled`. Sem React — testável em `environment: node`.
+> - `DossierFields.tsx` (`'use client'`) — primitivos `TextField`/`NumberField`
+>   (`font-mono`)/`DateField` (date e datetime-local, `font-mono`)/
+>   `TextareaField`/`SelectField` (sempre com opção vazia `Não analisado` =
+>   `null`, nunca `nao` como default)/`MultiCheckField` (16 checkboxes
+>   `name="digital_opportunities"` com `value` canônico). Classes `inputClass`/
+>   `labelClass` no padrão do `NewLeadForm.tsx`. `aria-describedby` no texto de
+>   ajuda; foco visível herdado do `:focus-visible` global.
+> - `DossierSection.tsx` (`'use client'`) — accordion `<details>`/`<summary>`
+>   nativo, contador "N de M preenchidos" (`font-mono`), botões **Limpar
+>   seção** e **Marcar não analisado** (só onde há select), `type="button"`.
+> - `DossierSummary.tsx` — faixa de resumo somente leitura (DOSSIE §11):
+>   Empresa · Score · Completude · Google Ads · Site · Nota · Nº avaliações ·
+>   Performance Mobile/Desktop (cor de `classifyLighthouseScore` → tokens
+>   `success`/`warning`/`danger`, com texto junto — cor nunca é sinal único) ·
+>   Potencial 0–10. `digital_score`/`completeness` NUNCA são input (D-038) —
+>   o form passa só o que o servidor devolveu; nada é recalculado no cliente.
+> - `DossierForm.tsx` (`'use client'`) — compõe tudo, `useActionState(
+>   saveDigitalAudit)`. Criação e edição no mesmo componente: `<input
+>   type="hidden" name="lead_id">` sempre; `name="audit_id"` só quando já há
+>   auditoria (ou após o primeiro save) — a decisão insert × update é 100% da
+>   7.4. `digital_opportunities_present=1` oculto na seção Diagnóstico
+>   (contrato do wrapper 7.4). Campos condicionais (Website/Instagram/PageSpeed
+>   com `website_exists='sim'`; atributos do GBP escondidos só em
+>   `google_business_profile='nao'`) são **não renderizados** quando ocultos —
+>   não entram no FormData, então o submit manda a mudança da base sem
+>   dependentes obsoletos; a cascata server-side da 7.4 limpa o que já estava
+>   gravado. Estado local preserva o que foi digitado ao esconder. Datas de
+>   calendário como string `AAAA-MM-DD` (sem `toISOString`); `pagespeed_analyzed_at`
+>   convertido para/de `datetime-local` como instante. Erros da action
+>   (validação, conflito otimista, lead divergente) exibidos via
+>   `state.error` com `role="alert"`; botão com estado `Salvando…`/`disabled`.
+>   Selects carregam qualquer valor persistido fora do vocabulário oferecido
+>   (inclusive `nao_analisado`) como a opção vazia "Não analisado".
+>
+> **Conferência schema × UI:** `tests/domain/dossier-sections.test.ts` cruza
+> `digitalAuditSchema.innerType().shape` com `ALL_DOSSIER_FIELDS` campo a
+> campo — 101 renderizados, `lead_id` explicitamente listado em
+> `DELIBERATELY_UNRENDERED_FIELDS` (vínculo imutável, campo oculto).
+> `digital_score`/`digital_score_completeness` não existem no schema de
+> entrada (D-038), logo não podem faltar. Nenhum outro campo fora.
+>
+> **Testes** (44 novos, `environment: node` — sem RTL/jsdom no projeto, então
+> a lógica testável mora nos módulos puros): `tests/domain/digital-labels.test.ts`
+> (18 — `ENUM_LABELS` = vocabulários do banco; `DIGITAL_OPPORTUNITY_OPTIONS`
+> round-trip no `digitalAuditSchema`; `FIELD_LABELS` sem sobra nem falta) +
+> `tests/domain/dossier-sections.test.ts` (26 — cobertura 101 campos;
+> datas × datetime; sentinel na seção certa; visibilidade Website/Instagram/
+> Google; contadores; toda opção de select aceita pelo schema e valor
+> inválido rejeitado; limites numéricos DOSSIE §19). 7.6 não introduziu
+> suíte de componente própria (falta infra de render no projeto).
+>
+> Validação: `typecheck` / `lint` / `test` (306/306, +44) / `test:coverage`
+> (`lib/domain/` 100%, `digital-labels.ts` incluído) / `test:rls` (248/248,
+> inalterado) / `build` verdes. Sem migration/DDL/RLS/`gen:types` — nada
+> aplicável nesta tarefa. Nada de 7.7 (rota `/leads/[leadId]/dossie`) nem
+> exportação/PageSpeed API.
 
 **`digital-labels.ts`** (puro): mapa `valor do enum → rótulo em português` para os 8
 enums, mais a lista de opções de `digital_opportunities`, mais o rótulo de cada campo.
