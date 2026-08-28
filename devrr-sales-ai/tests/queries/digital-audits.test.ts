@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/lib/types/database.types'
 import { TEST_USER_A, TEST_USER_B, ensureTestUser, signInTestClient, cleanupOrgsForUser, testAdminClient } from '../helpers/rls-fixtures'
+import { stubTableError } from '../helpers/stub-client'
 import { createLeadIntakeCore } from '@/lib/actions/lead-intake-core'
 import { saveDigitalAuditCore } from '@/lib/actions/digital-audit-core'
 import {
@@ -12,6 +13,47 @@ import {
 } from '@/lib/queries/digital-audits-core'
 
 type SalesClient = SupabaseClient<Database, 'sales'>
+
+/**
+ * Client que não vai à rede: registra os argumentos de cada `.in(...)` na
+ * tabela indicada e resolve a cadeia com um resultado vazio de sucesso.
+ * Mesma técnica de Proxy "chainable" de `stubTableError`
+ * (`tests/helpers/stub-client.ts`), só que gravando em vez de falhar — serve
+ * para provar o que de fato entra no filtro `lead_id=in.(...)`, não só o
+ * formato do resultado devolvido.
+ */
+function recordInArgs(realClient: SalesClient, table: string): { client: SalesClient; inCalls: string[][] } {
+  const inCalls: string[][] = []
+  const emptyResult = { data: [], error: null }
+
+  const chainable: object = new Proxy(
+    {},
+    {
+      get(_target, prop) {
+        if (prop === 'then') {
+          return (resolve: (value: typeof emptyResult) => void) => resolve(emptyResult)
+        }
+        return (...args: unknown[]) => {
+          if (prop === 'in') {
+            inCalls.push(args[1] as string[])
+          }
+          return chainable
+        }
+      },
+    },
+  )
+
+  const client = new Proxy(realClient, {
+    get(target, prop, receiver) {
+      if (prop === 'from') {
+        return (t: string) => (t === table ? chainable : target.from(t as never))
+      }
+      return Reflect.get(target, prop, receiver)
+    },
+  })
+
+  return { client, inCalls }
+}
 
 /**
  * Testa `lib/queries/digital-audits-core.ts` (7.5) contra o Supabase real —
@@ -119,6 +161,13 @@ describe('lib/queries/digital-audits-core', () => {
       const latest = await getLatestAuditForLeadCore(clientA, orgAId, leadA2Id)
       expect(latest).toBeNull()
     })
+
+    it('erro de banco propaga como exceção — nunca vira null (que significaria "lead sem auditoria")', async () => {
+      const broken = stubTableError(clientA, 'lead_digital_audits', 'falha simulada na leitura da auditoria atual')
+      await expect(getLatestAuditForLeadCore(broken, orgAId, leadAId)).rejects.toThrow(
+        /falha simulada na leitura da auditoria atual/,
+      )
+    })
   })
 
   describe('2 · ordenação determinística — desempate por id quando researched_at e created_at empatam', () => {
@@ -179,6 +228,13 @@ describe('lib/queries/digital-audits-core', () => {
       const seenByOutsider = await getAuditByIdCore(clientA, orgAId, auditB.auditId)
       expect(seenByOutsider).toBeNull()
     })
+
+    it('erro de banco propaga como exceção — nunca vira null (que significaria "auditoria inexistente")', async () => {
+      const broken = stubTableError(clientA, 'lead_digital_audits', 'falha simulada na leitura por id')
+      await expect(
+        getAuditByIdCore(broken, orgAId, '00000000-0000-4000-8000-000000000000'),
+      ).rejects.toThrow(/falha simulada na leitura por id/)
+    })
   })
 
   describe('listAuditsForLeadCore', () => {
@@ -209,6 +265,13 @@ describe('lib/queries/digital-audits-core', () => {
       const historyFromOutsider = await listAuditsForLeadCore(clientA, orgAId, leadBId)
       expect(historyFromOutsider).toEqual([])
     })
+
+    it('erro de banco propaga como exceção — nunca vira [] (que significaria "lead sem histórico")', async () => {
+      const broken = stubTableError(clientA, 'lead_digital_audits', 'falha simulada na leitura do histórico')
+      await expect(listAuditsForLeadCore(broken, orgAId, leadAId)).rejects.toThrow(
+        /falha simulada na leitura do histórico/,
+      )
+    })
   })
 
   describe('listLatestAuditsByLeadCore', () => {
@@ -230,6 +293,27 @@ describe('lib/queries/digital-audits-core', () => {
       expect(latestByLead.get(leadXId)?.researched_at).toBe('2026-08-20')
       expect(latestByLead.get(leadYId)?.id).toBe(y2.auditId)
       expect(latestByLead.get(leadYId)?.researched_at).toBe('2026-08-18')
+    })
+
+    it('leadIds duplicados: o filtro `in` vai deduplicado e o resultado não duplica', async () => {
+      // O que de fato chega ao filtro `lead_id=in.(...)`, sem ir à rede.
+      const { client, inCalls } = recordInArgs(clientA, 'lead_digital_audits')
+      await listLatestAuditsByLeadCore(client, orgAId, [leadXId, leadXId, leadYId, leadXId])
+      expect(inCalls).toHaveLength(1)
+      expect(inCalls[0]).toEqual([leadXId, leadYId])
+
+      // E contra o banco real: a mesma lista repetida devolve uma entrada por
+      // lead, exatamente como a lista sem repetição (item 8 acima).
+      const latestByLead = await listLatestAuditsByLeadCore(clientA, orgAId, [leadXId, leadXId, leadYId, leadXId])
+      expect(latestByLead.size).toBe(2)
+      expect([...latestByLead.keys()].sort()).toEqual([leadXId, leadYId].sort())
+    })
+
+    it('erro de banco propaga como exceção — nunca vira Map vazia (que significaria "nenhuma auditoria")', async () => {
+      const broken = stubTableError(clientA, 'lead_digital_audits', 'falha simulada na leitura em lote')
+      await expect(listLatestAuditsByLeadCore(broken, orgAId, [leadXId, leadYId])).rejects.toThrow(
+        /falha simulada na leitura em lote/,
+      )
     })
 
     it('leadIds vazio devolve Map vazia sem consultar o banco', async () => {

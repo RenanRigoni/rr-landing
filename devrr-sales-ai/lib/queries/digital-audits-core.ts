@@ -61,6 +61,13 @@ const DIGITAL_AUDIT_COLUMNS =
  * primeira ordenação e o filtro; os dois desempates recaem sobre um
  * conjunto já pequeno (as auditorias de um único lead). `org_id` é filtro
  * explícito aqui — nunca implícito via join na FK `lead_id`.
+ *
+ * Ordem da cadeia importa: `.limit(1)` **antes** de `.maybeSingle()`. O corte
+ * é do Postgres (vira `Range: 0-0`), então o `maybeSingle` nunca vê mais de
+ * uma linha — histórico com N auditorias não é "múltiplas linhas" para ele.
+ * Nenhuma variante de `.single()` aqui: lead sem auditoria é estado normal
+ * (`null`), não erro. Erro do banco continua erro — nunca vira `null` (o
+ * `if (error) throw` abaixo roda antes do `return data`).
  */
 export async function getLatestAuditForLeadCore(
   supabase: SalesClient,
@@ -90,6 +97,11 @@ export async function getLatestAuditForLeadCore(
  * cliente, D-020). `audit_id` de outra organização e `audit_id` inexistente
  * são indistinguíveis por design: os dois voltam `null`, nunca um erro que
  * revele "existe, mas não é seu".
+ *
+ * `maybeSingle()` sem `limit` aqui é proposital: `id` é PK, então o filtro
+ * devolve zero ou uma linha por definição do schema — não há "N linhas" a
+ * cortar. Se um dia devolvesse mais de uma, o `maybeSingle` levantaria
+ * `PGRST116` e o `throw` abaixo propagaria, em vez de mascarar em `null`.
  */
 export async function getAuditByIdCore(
   supabase: SalesClient,
@@ -150,6 +162,23 @@ export async function listAuditsForLeadCore(
  * Lead sem nenhuma auditoria simplesmente não aparece na Map — é o mesmo
  * "estado vazio" de `getLatestAuditForLeadCore` (`null`), só que expresso
  * como ausência de chave em vez de valor nulo.
+ *
+ * `leadIds` vazio é estado normal (nenhum lead selecionado na listagem), não
+ * erro: devolve a Map vazia **antes** de tocar o Supabase — nada a consultar,
+ * e o resultado não fica dependendo do que `.in('lead_id', [])` gera do outro
+ * lado (`lead_id=in.()`), que é ida à rede sem propósito.
+ *
+ * `leadIds` repetido também é estado normal (a mesma lista de leads podendo
+ * conter o mesmo id duas vezes): o `Set` deduplica antes do `.in(...)` para
+ * não mandar o id repetido no filtro. O contrato não muda — a Map já era
+ * chaveada por `lead_id`, então repetição nunca duplicou resultado; o que se
+ * evita é a consulta maior à toa.
+ *
+ * Limitação conhecida, aceita nesta fase: esta query carrega **todo** o
+ * histórico de auditorias dos leads pedidos para ficar com a primeira linha
+ * de cada um. É o preço de manter uma única query sem `distinct on`/view/RPC
+ * (fora do escopo da 7.5). Escala com o número total de auditorias, não com o
+ * de leads — aceitável no volume de um dossiê por lead a cada pesquisa.
  */
 export async function listLatestAuditsByLeadCore(
   supabase: SalesClient,
@@ -157,8 +186,9 @@ export async function listLatestAuditsByLeadCore(
   leadIds: string[],
 ): Promise<Map<string, DigitalAudit>> {
   const latestByLead = new Map<string, DigitalAudit>()
+  const uniqueLeadIds = [...new Set(leadIds)]
 
-  if (leadIds.length === 0) {
+  if (uniqueLeadIds.length === 0) {
     return latestByLead
   }
 
@@ -166,7 +196,7 @@ export async function listLatestAuditsByLeadCore(
     .from('lead_digital_audits')
     .select(DIGITAL_AUDIT_COLUMNS)
     .eq('org_id', orgId)
-    .in('lead_id', leadIds)
+    .in('lead_id', uniqueLeadIds)
     .order('researched_at', { ascending: false })
     .order('created_at', { ascending: false })
     .order('id', { ascending: false })
