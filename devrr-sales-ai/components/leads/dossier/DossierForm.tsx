@@ -1,38 +1,21 @@
 'use client'
 
-import { useActionState, useState } from 'react'
+import { useActionState } from 'react'
 import { saveDigitalAudit } from '@/lib/actions/digital-audit'
 import type { DigitalAuditResult } from '@/lib/actions/digital-audit-core'
 import type { DigitalAudit } from '@/lib/queries/digital-audits-core'
-import { FIELD_LABELS } from '@/lib/domain/digital-labels'
-import { resolvePagespeedAnalyzedAt } from '@/lib/domain/dossier-datetime'
-import {
-  DOSSIER_SECTIONS,
-  countSectionFilled,
-  isFieldVisible,
-  type DossierFieldSpec,
-  type DossierSectionSpec,
-} from './sections'
-import {
-  buildInitialValues,
-  initialOpportunities,
-  clearSectionValues,
-  markSectionNotAnalyzedValues,
-} from './form-state'
-import { DossierSection } from './DossierSection'
+import { DossierSections } from './DossierSections'
 import { DossierSummary } from './DossierSummary'
-import {
-  TextField,
-  NumberField,
-  DateField,
-  TextareaField,
-  SelectField,
-  MultiCheckField,
-} from './DossierFields'
+import { useDossierState } from './useDossierState'
 
 // Formulário do Dossiê Digital (7.6). Serve criação E edição: a decisão
 // insert × update é 100% da action da 7.4 (`saveDigitalAudit`) a partir de
 // `audit_id`; não há segunda action.
+//
+// Os 101 campos e o estado deles moram em `DossierSections`/`useDossierState`
+// desde a 7.7, porque `/leads/new` renderiza as mesmas 7 seções. Aqui ficou o
+// que é próprio da tela do dossiê: identidade da linha, lock otimista, faixa de
+// resumo e submit.
 //
 // Três invariantes que a revisão corretiva da 7.6 travou:
 //
@@ -53,10 +36,6 @@ import {
 //
 // Semântica preservada: "não analisado" (opção vazia → `null`), "não" (`nao`)
 // e "valor preenchido" são três estados distintos; `nao` nunca é default.
-//
-// Cascata: a UI só ESCONDE campos dependentes quando a base muda; quem limpa
-// o dado contraditório já gravado é o servidor (7.4). Campo escondido não é
-// renderizado → não entra no FormData.
 
 interface DossierFormProps {
   leadId: string
@@ -67,42 +46,10 @@ interface DossierFormProps {
 
 const initialState: DigitalAuditResult = { error: null }
 
-const pad = (n: number): string => String(n).padStart(2, '0')
-
-function todayLocal(): string {
-  const d = new Date()
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
-}
-
-function helpFor(spec: DossierFieldSpec): string | undefined {
-  if (spec.type === 'number' && /_(lcp|inp|fcp|tbt|speed_index)$/.test(spec.name)) return 'Em milissegundos'
-  if (spec.name.endsWith('_cls')) return 'Valor decimal (ex.: 0,08)'
-  if (spec.type === 'datetime') return 'Instante da consulta'
-  return undefined
-}
-
-/** Offset (min) do fuso do usuário PARA a data/hora que a string representa —
- * o browser resolve DST daquela data. Fallback: offset de agora. */
-function offsetForLocalClock(local: string): number {
-  const d = new Date(local)
-  return Number.isNaN(d.getTime()) ? new Date().getTimezoneOffset() : d.getTimezoneOffset()
-}
-
 export function DossierForm({ leadId, companyName, audit }: DossierFormProps) {
   const [state, formAction, pending] = useActionState(saveDigitalAudit, initialState)
-
-  const originalAnalyzedAt = audit?.pagespeed_analyzed_at ?? null
-  // Offset da PRÓPRIA data do timestamp original (não o de "agora"): é o que
-  // renderiza esse instante como relógio local sem deslocar por DST, e o mesmo
-  // que `resolvePagespeedAnalyzedAt` usa para reconhecer o campo intocado.
-  const offsetForOriginalAnalyzed = originalAnalyzedAt
-    ? new Date(originalAnalyzedAt).getTimezoneOffset()
-    : new Date().getTimezoneOffset()
-
-  const [values, setValues] = useState<Record<string, string>>(() =>
-    buildInitialValues(audit, offsetForOriginalAnalyzed, todayLocal()),
-  )
-  const [opportunities, setOpportunities] = useState<string[]>(() => initialOpportunities(audit))
+  const dossier = useDossierState(audit)
+  const { values } = dossier
 
   const effectiveAuditId = audit?.id ?? state.auditId ?? null
   // Versão do lock otimista: depois de um save é a que a action acabou de
@@ -114,114 +61,6 @@ export function DossierForm({ leadId, companyName, audit }: DossierFormProps) {
   const didSave = Boolean(state.auditId)
   const shownScore = didSave ? state.digitalScore ?? null : audit?.digital_score ?? null
   const shownCompleteness = didSave ? state.completeness ?? 0 : audit?.digital_score_completeness ?? 0
-
-  const setField = (name: string) => (value: string) => {
-    setValues((previous) => ({ ...previous, [name]: value }))
-  }
-
-  function toggleOpportunity(value: string, checked: boolean) {
-    setOpportunities((previous) =>
-      checked ? [...new Set([...previous, value])] : previous.filter((entry) => entry !== value),
-    )
-  }
-
-  function clearSection(section: DossierSectionSpec) {
-    setValues((previous) => clearSectionValues(section, previous))
-    if (section.hasOpportunities) setOpportunities([])
-  }
-
-  function markSectionNotAnalyzed(section: DossierSectionSpec) {
-    setValues((previous) => markSectionNotAnalyzedValues(section, previous))
-    // "Não analisado" para a seção Diagnóstico inclui zerar as oportunidades
-    // (nenhuma identificada). O sentinel continua no JSX → submit envia `[]`.
-    if (section.hasOpportunities) setOpportunities([])
-  }
-
-  function renderField(spec: DossierFieldSpec) {
-    const label = FIELD_LABELS[spec.name] ?? spec.name
-    const help = helpFor(spec)
-    const value = values[spec.name] ?? ''
-
-    switch (spec.type) {
-      case 'text':
-        return (
-          <TextField key={spec.name} name={spec.name} label={label} value={value} onChange={setField(spec.name)} help={help} />
-        )
-      case 'url':
-        return (
-          <TextField key={spec.name} type="url" name={spec.name} label={label} value={value} onChange={setField(spec.name)} help={help} />
-        )
-      case 'number':
-        return (
-          <NumberField
-            key={spec.name}
-            name={spec.name}
-            label={label}
-            value={value}
-            onChange={setField(spec.name)}
-            help={help}
-            min={spec.min}
-            max={spec.max}
-            step={spec.step}
-          />
-        )
-      case 'date':
-        return (
-          <DateField key={spec.name} name={spec.name} label={label} value={value} onChange={setField(spec.name)} help={help} />
-        )
-      case 'datetime':
-        // O input visível é só display (nome descartado pelo schema). O valor
-        // real vai no oculto, já como instante ISO com `Z` — sem depender do
-        // fuso do runtime.
-        return (
-          <div key={spec.name}>
-            <DateField
-              withTime
-              name={`${spec.name}__local`}
-              label={label}
-              value={value}
-              onChange={setField(spec.name)}
-              help={help}
-            />
-            <input
-              type="hidden"
-              name={spec.name}
-              value={resolvePagespeedAnalyzedAt({
-                localValue: value,
-                originalIso: originalAnalyzedAt,
-                offsetForOriginal: offsetForOriginalAnalyzed,
-                offsetForEdited: offsetForLocalClock(value),
-              })}
-            />
-          </div>
-        )
-      case 'textarea':
-        return (
-          <div key={spec.name} className="sm:col-span-2">
-            <TextareaField name={spec.name} label={label} value={value} onChange={setField(spec.name)} help={help} />
-          </div>
-        )
-      case 'select':
-        return (
-          <SelectField
-            key={spec.name}
-            name={spec.name}
-            label={label}
-            value={value}
-            onChange={setField(spec.name)}
-            help={help}
-            options={spec.options ?? []}
-            enumGroup={spec.enumGroup ?? 'tri_state'}
-          />
-        )
-      case 'multicheck':
-        return (
-          <div key={spec.name} className="sm:col-span-2">
-            <MultiCheckField legend={label} selected={opportunities} onToggle={toggleOpportunity} />
-          </div>
-        )
-    }
-  }
 
   return (
     <form action={formAction} className="flex flex-col gap-6">
@@ -246,34 +85,7 @@ export function DossierForm({ leadId, companyName, audit }: DossierFormProps) {
         opportunityScore={values.digital_opportunity_score ? Number(values.digital_opportunity_score) : null}
       />
 
-      <div className="flex flex-col gap-3">
-        {DOSSIER_SECTIONS.map((section, index) => {
-          const { filled, total } = countSectionFilled(section, values, opportunities)
-          const hasSelect = section.fields.some((field) => field.type === 'select')
-          return (
-            <DossierSection
-              key={section.key}
-              title={section.title}
-              filled={filled}
-              total={total}
-              onClear={() => clearSection(section)}
-              onMarkNotAnalyzed={hasSelect ? () => markSectionNotAnalyzed(section) : undefined}
-              defaultOpen={index === 0}
-            >
-              <div className="grid gap-4 sm:grid-cols-2">
-                {section.fields.filter((field) => isFieldVisible(field, values)).map(renderField)}
-              </div>
-              {section.hasOpportunities ? (
-                // Sentinel do contrato da 7.4: presente sempre que a seção de
-                // oportunidades está no formulário, marcada ou não. Sem ele o
-                // wrapper não consegue distinguir "grupo fora do submit" de
-                // "nenhuma oportunidade marcada".
-                <input type="hidden" name="digital_opportunities_present" value="1" />
-              ) : null}
-            </DossierSection>
-          )
-        })}
-      </div>
+      <DossierSections state={dossier} defaultOpenIndex={0} />
 
       {state.error ? (
         <p role="alert" className="text-sm text-danger">

@@ -124,7 +124,7 @@ export default async function LeadDetailPage({ params }: LeadDetailPageProps) {
         {digitalAudit ? (
           <div className="mt-3">
             <DossierSummary
-              companyName={lead.title}
+              companyName={lead.contact.company_name}
               score={digitalAudit.digital_score}
               completeness={digitalAudit.digital_score_completeness ?? 0}
               googleAdsActive={digitalAudit.google_ads_active}

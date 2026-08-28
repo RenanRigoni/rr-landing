@@ -68,7 +68,11 @@ export default async function DossierPage({ params }: DossierPageProps) {
       <dl className="mt-6 grid grid-cols-2 gap-4 rounded-lg border border-white/[0.08] bg-surface-elevated p-4 text-sm sm:grid-cols-3">
         <div>
           <dt className="text-[10px] uppercase tracking-[0.12em] text-content-muted">Empresa</dt>
-          <dd className="mt-1 text-content-primary">{lead.title}</dd>
+          <dd className="mt-1 text-content-primary">{lead.contact.company_name ?? '—'}</dd>
+        </div>
+        <div>
+          <dt className="text-[10px] uppercase tracking-[0.12em] text-content-muted">Título do lead</dt>
+          <dd className="mt-1 text-content-secondary">{lead.title}</dd>
         </div>
         <div>
           <dt className="text-[10px] uppercase tracking-[0.12em] text-content-muted">Contato</dt>
@@ -95,7 +99,7 @@ export default async function DossierPage({ params }: DossierPageProps) {
       </dl>
 
       <div className="mt-6">
-        <DossierForm leadId={lead.id} companyName={lead.title} audit={audit} />
+        <DossierForm leadId={lead.id} companyName={lead.contact.company_name} audit={audit} />
       </div>
     </div>
   )

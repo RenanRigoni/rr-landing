@@ -1,9 +1,13 @@
 'use client'
 
+import Link from 'next/link'
 import { useActionState, useState, type ChangeEvent } from 'react'
 import { createLeadIntake } from '@/lib/actions/lead-intake'
 import type { LeadIntakeResult } from '@/lib/actions/lead-intake-core'
 import type { LeadSource } from '@/lib/queries/catalogs'
+import { DossierSection } from '@/components/leads/dossier/DossierSection'
+import { DossierSections } from '@/components/leads/dossier/DossierSections'
+import { useDossierState } from '@/components/leads/dossier/useDossierState'
 
 const initialState: LeadIntakeResult = { status: 'error', error: null }
 
@@ -50,10 +54,23 @@ const secondaryButtonClass =
 // usuário perdia tudo que já tinha digitado bem na hora em que precisava
 // escolher "vincular" ou "criar mesmo assim". Estado local sobrevive porque
 // o valor de cada campo é sempre o de `values`, não o que o DOM tenta
-// resetar sozinho.
+// resetar sozinho. Vale igual para os campos do dossiê (`useDossierState`).
+//
+// 7.7 — os campos comerciais continuam os mesmos, agora dentro da seção 1
+// "Dados do lead" (aberta). Abaixo vêm as 7 seções do dossiê, TODAS recolhidas
+// e opcionais, renderizadas pelo mesmo `DossierSections` da página do dossiê —
+// nenhuma segunda implementação dos 101 campos. Se nenhuma for tocada, a action
+// grava só o lead, como sempre fez.
 export function NewLeadForm({ sources }: NewLeadFormProps) {
   const [state, formAction, pending] = useActionState(createLeadIntake, initialState)
   const [values, setValues] = useState<FormValues>(emptyValues)
+  const dossier = useDossierState(null)
+
+  // Lead criado + dossiê que veio junto falhou (best-effort da 7.7). O lead
+  // existe: reenviar este formulário criaria um SEGUNDO lead. Por isso o submit
+  // sai da tela e no lugar entram os dois caminhos honestos — abrir o dossiê
+  // para completar, ou ir para o lead.
+  const partialFailure = state.status === 'success' && Boolean(state.auditError) && Boolean(state.leadId)
 
   function handleChange(field: keyof FormValues) {
     return (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -85,153 +102,191 @@ export function NewLeadForm({ sources }: NewLeadFormProps) {
         </div>
       ) : null}
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="full_name" className={labelClass}>
-            Nome
-          </label>
-          <input
-            id="full_name"
-            name="full_name"
-            type="text"
-            required
-            value={values.full_name}
-            onChange={handleChange('full_name')}
-            className={inputClass}
-          />
+      <DossierSection title="Dados do lead" defaultOpen>
+        <div className="flex flex-col gap-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="full_name" className={labelClass}>
+                Nome
+              </label>
+              <input
+                id="full_name"
+                name="full_name"
+                type="text"
+                required
+                value={values.full_name}
+                onChange={handleChange('full_name')}
+                className={inputClass}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="phone" className={labelClass}>
+                Telefone
+              </label>
+              <input
+                id="phone"
+                name="phone"
+                type="tel"
+                placeholder="(11) 98888-7777"
+                value={values.phone}
+                onChange={handleChange('phone')}
+                className={`${inputClass} font-mono`}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="email" className={labelClass}>
+                E-mail
+              </label>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                value={values.email}
+                onChange={handleChange('email')}
+                className={inputClass}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="company_name" className={labelClass}>
+                Empresa
+              </label>
+              <input
+                id="company_name"
+                name="company_name"
+                type="text"
+                value={values.company_name}
+                onChange={handleChange('company_name')}
+                className={inputClass}
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="title" className={labelClass}>
+              Título do lead
+            </label>
+            <input
+              id="title"
+              name="title"
+              type="text"
+              required
+              placeholder="Ex.: Landing page para loja de móveis"
+              value={values.title}
+              onChange={handleChange('title')}
+              className={inputClass}
+            />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="interest" className={labelClass}>
+              Interesse
+            </label>
+            <textarea
+              id="interest"
+              name="interest"
+              rows={2}
+              value={values.interest}
+              onChange={handleChange('interest')}
+              className={inputClass}
+            />
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="source_id" className={labelClass}>
+                Fonte
+              </label>
+              <select
+                id="source_id"
+                name="source_id"
+                value={values.source_id}
+                onChange={handleChange('source_id')}
+                className={inputClass}
+              >
+                <option value="">—</option>
+                {sources.map((source) => (
+                  <option key={source.id} value={source.id}>
+                    {source.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="value_reais" className={labelClass}>
+                Valor potencial (R$)
+              </label>
+              <input
+                id="value_reais"
+                name="value_reais"
+                type="number"
+                min="0"
+                step="0.01"
+                value={values.value_reais}
+                onChange={handleChange('value_reais')}
+                className={`${inputClass} font-mono`}
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="notes" className={labelClass}>
+              Observações
+            </label>
+            <textarea
+              id="notes"
+              name="notes"
+              rows={3}
+              value={values.notes}
+              onChange={handleChange('notes')}
+              className={inputClass}
+            />
+          </div>
         </div>
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="phone" className={labelClass}>
-            Telefone
-          </label>
-          <input
-            id="phone"
-            name="phone"
-            type="tel"
-            placeholder="(11) 98888-7777"
-            value={values.phone}
-            onChange={handleChange('phone')}
-            className={`${inputClass} font-mono`}
-          />
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="email" className={labelClass}>
-            E-mail
-          </label>
-          <input
-            id="email"
-            name="email"
-            type="email"
-            value={values.email}
-            onChange={handleChange('email')}
-            className={inputClass}
-          />
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="company_name" className={labelClass}>
-            Empresa
-          </label>
-          <input
-            id="company_name"
-            name="company_name"
-            type="text"
-            value={values.company_name}
-            onChange={handleChange('company_name')}
-            className={inputClass}
-          />
-        </div>
+      </DossierSection>
+
+      <div className="flex flex-col gap-1">
+        <h2 className="text-sm font-semibold text-content-primary">Dossiê digital (opcional)</h2>
+        <p className="text-xs text-content-secondary">
+          Já pesquisou a presença digital deste lead? Preencha o que souber agora — nada é obrigatório, e dá para
+          continuar depois em Dossiê digital. Sem nada preenchido aqui, só o lead é criado.
+        </p>
       </div>
 
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="title" className={labelClass}>
-          Título do lead
-        </label>
-        <input
-          id="title"
-          name="title"
-          type="text"
-          required
-          placeholder="Ex.: Landing page para loja de móveis"
-          value={values.title}
-          onChange={handleChange('title')}
-          className={inputClass}
-        />
-      </div>
-
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="interest" className={labelClass}>
-          Interesse
-        </label>
-        <textarea
-          id="interest"
-          name="interest"
-          rows={2}
-          value={values.interest}
-          onChange={handleChange('interest')}
-          className={inputClass}
-        />
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="source_id" className={labelClass}>
-            Fonte
-          </label>
-          <select
-            id="source_id"
-            name="source_id"
-            value={values.source_id}
-            onChange={handleChange('source_id')}
-            className={inputClass}
-          >
-            <option value="">—</option>
-            {sources.map((source) => (
-              <option key={source.id} value={source.id}>
-                {source.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="value_reais" className={labelClass}>
-            Valor potencial (R$)
-          </label>
-          <input
-            id="value_reais"
-            name="value_reais"
-            type="number"
-            min="0"
-            step="0.01"
-            value={values.value_reais}
-            onChange={handleChange('value_reais')}
-            className={`${inputClass} font-mono`}
-          />
-        </div>
-      </div>
-
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="notes" className={labelClass}>
-          Observações
-        </label>
-        <textarea
-          id="notes"
-          name="notes"
-          rows={3}
-          value={values.notes}
-          onChange={handleChange('notes')}
-          className={inputClass}
-        />
-      </div>
+      <DossierSections state={dossier} defaultOpenIndex={null} />
 
       {state.status === 'error' && state.error ? <p className="text-sm text-danger">{state.error}</p> : null}
 
-      <button
-        type="submit"
-        disabled={pending}
-        className="self-start rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition-colors ease-spring hover:bg-brand-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 focus-visible:ring-offset-surface disabled:cursor-not-allowed disabled:opacity-60"
-      >
-        {pending ? 'Salvando…' : 'Criar lead'}
-      </button>
+      {partialFailure ? (
+        <div
+          role="alert"
+          className="rounded-lg border border-amber-400/30 bg-amber-400/[0.06] px-4 py-3 text-sm text-content-secondary"
+        >
+          <p>
+            Lead criado — <span className="text-content-primary">o dossiê digital não foi salvo</span>:{' '}
+            {state.auditError}
+          </p>
+          <p className="mt-1 text-xs">Nada do que você preencheu no dossiê foi gravado. Dá para refazer na tela dele.</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Link
+              href={`/leads/${state.leadId}/dossie`}
+              className="rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors ease-spring hover:bg-brand-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+            >
+              Preencher o dossiê
+            </Link>
+            <Link href={`/leads/${state.leadId}`} className={secondaryButtonClass}>
+              Ir para o lead
+            </Link>
+          </div>
+        </div>
+      ) : (
+        <button
+          type="submit"
+          disabled={pending}
+          className="self-start rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition-colors ease-spring hover:bg-brand-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 focus-visible:ring-offset-surface disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {pending ? 'Salvando…' : 'Criar lead'}
+        </button>
+      )}
     </form>
   )
 }

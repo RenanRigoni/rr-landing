@@ -11,9 +11,13 @@ import { labelClass } from './DossierFields'
 
 interface DossierSectionProps {
   title: string
-  filled: number
-  total: number
-  onClear: () => void
+  /** Contador "N de M preenchidos". Omitidos juntos, o contador some — é o caso
+   * da seção "Dados do lead" do cadastro (7.7), onde `title`/`full_name` são
+   * obrigatórios e um contador de preenchimento não diria nada. */
+  filled?: number
+  total?: number
+  /** Só passado quando a seção tem campos que faz sentido zerar em massa. */
+  onClear?: () => void
   /** Só passado quando a seção tem ao menos um campo de enum. */
   onMarkNotAnalyzed?: () => void
   defaultOpen?: boolean
@@ -39,22 +43,28 @@ export function DossierSection({
     >
       <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden">
         <span className="text-sm font-semibold text-content-primary">{title}</span>
-        <span className="font-mono text-xs text-content-muted">
-          {filled} de {total} preenchidos
-        </span>
+        {filled !== undefined && total !== undefined ? (
+          <span className="font-mono text-xs text-content-muted">
+            {filled} de {total} preenchidos
+          </span>
+        ) : null}
       </summary>
 
       <div className="border-t border-white/[0.06] px-4 py-4">
-        <div className="mb-4 flex flex-wrap gap-2">
-          <button type="button" onClick={onClear} className={actionButtonClass}>
-            Limpar seção
-          </button>
-          {onMarkNotAnalyzed ? (
-            <button type="button" onClick={onMarkNotAnalyzed} className={actionButtonClass}>
-              Marcar não analisado
-            </button>
-          ) : null}
-        </div>
+        {onClear || onMarkNotAnalyzed ? (
+          <div className="mb-4 flex flex-wrap gap-2">
+            {onClear ? (
+              <button type="button" onClick={onClear} className={actionButtonClass}>
+                Limpar seção
+              </button>
+            ) : null}
+            {onMarkNotAnalyzed ? (
+              <button type="button" onClick={onMarkNotAnalyzed} className={actionButtonClass}>
+                Marcar não analisado
+              </button>
+            ) : null}
+          </div>
+        ) : null}
         {children}
       </div>
     </details>

@@ -4284,9 +4284,11 @@ herdar). Responsivo: `grid gap-4 sm:grid-cols-2`, como no formulário atual.
 
 ---
 
-### [x] 7.7 Telas: `/leads/new` com seções recolhidas e `/leads/[leadId]/dossie`
+### [ ] 7.7 Telas: `/leads/new` com seções recolhidas e `/leads/[leadId]/dossie`
 
-> feito (rota do dossiê + ponto de acesso — commit exclusivo):
+> feito, em dois commits, **exceto um item** (ver "Ainda aberto" no fim):
+>
+> **(1) rota do dossiê + ponto de acesso** — commit `4926902`:
 >
 > **`app/(app)/leads/[leadId]/dossie/page.tsx`** — rota nova (path exato de
 > `ARCHITECTURE.md` linha 146). Server Component puro de composição: resolve o
@@ -4332,17 +4334,114 @@ herdar). Responsivo: `grid gap-4 sm:grid-cols-2`, como no formulário atual.
 > inexistente / de outra org não resolve para a org atual (→ `notFound`); (6)
 > erro do Supabase propaga, nunca vira "sem dossiê".
 >
-> Validação: `typecheck` / `lint` / `test` (364/364, sem regressão — a rota e
-> os componentes `.tsx` são cobertos por `typecheck`/`build`) / `test:rls`
-> (261/261, +6) / `build` (rota `/leads/[leadId]/dossie` listada). Sem
-> migration/DDL, sem tocar `lib/domain`, sem 7.6-form change.
+> **(2) `/leads/new` com as 7 seções recolhidas + auditoria junto do lead** —
+> segundo commit:
 >
-> **Ainda aberto na 7.7** (fora deste commit, dependem de outras fases):
-> integração das 7 seções do dossiê recolhidas em `/leads/new` +
-> `createLeadIntakeCore` criando a auditoria junto do lead; botões **Copiar
-> dossiê** / **Exportar JSON** no card (precisam de `dossier-export.ts`, 7.8) e
-> a rota de exportação (7.9); indicador de status do dossiê na listagem
-> `/leads` (não está no texto da 7.7).
+> **`components/leads/dossier/DossierSections.tsx`** + **`useDossierState.ts`**
+> — extração (não reimplementação) do miolo do `DossierForm`: os 101 campos e o
+> estado deles saíram para um bloco reusável, e o `DossierForm` passou a
+> consumi-lo. `/leads/new` renderiza EXATAMENTE as mesmas seções, com
+> `defaultOpenIndex={null}` (todas recolhidas) contra `{0}` da página do
+> dossiê. Nenhuma segunda cópia dos campos, dos rótulos, do sentinel de
+> oportunidades ou das regras de visibilidade condicional. `DossierSection`
+> ganhou `filled`/`total`/`onClear` opcionais para servir também à seção
+> "Dados do lead", que não tem contador nem ações em massa.
+>
+> **`components/leads/NewLeadForm.tsx`** — os campos comerciais continuam os
+> mesmos, agora dentro da seção 1 "Dados do lead" (aberta). Abaixo, as 7
+> seções do dossiê, recolhidas e opcionais. Todos os campos do dossiê são
+> controlados pelo mesmo motivo já registrado para os comerciais: com `<form
+> action={formAction}>` o React reseta input não controlado depois de qualquer
+> chamada da action que não lança — inclusive o `status: 'duplicate'`, que é
+> justamente quando nada do que foi digitado pode sumir. `/leads/new` perdeu o
+> card externo e foi para `max-w-4xl`: o formulário virou pilha de `<details>`
+> com `bg-surface-elevated`, e o card aninharia duas superfícies iguais.
+>
+> **`lib/validation/digital-audit-intake.ts`** (novo, puro) — a fronteira do
+> submit conjunto. `pickDigitalAuditInput` fica só com chave que é campo real
+> do schema do dossiê: descarta os campos comerciais, o sentinel
+> `digital_opportunities_present`, o `lead_id` do navegador e — de propósito —
+> `audit_id`/`expected_updated_at`, o que trava este fluxo em INSERT (não há
+> como levar o cadastro a ATUALIZAR auditoria existente a partir de id vindo do
+> cliente). `hasMeaningfulDigitalAuditInput` decide se houve diagnóstico:
+> percorre `DIGITAL_AUDIT_FIELD_NAMES` (derivado de `digitalAuditObject.shape`,
+> nunca uma segunda lista) e ignora `lead_id` e `researched_at` — este último
+> chega PRÉ-PREENCHIDO com hoje em todo lead novo (`buildInitialValues`, 7.6),
+> e contá-lo criaria uma auditoria vazia para cada lead cadastrado, apagando a
+> diferença entre "lead existe, nunca foi analisado" e "auditoria iniciada".
+> Array vazio de oportunidades e string só de espaços também não contam; `0` e
+> `false` contam (medição é dado).
+>
+> **`lib/actions/lead-intake-core.ts`** — depois do `insert` do lead: se há
+> dossiê de verdade, delega a gravação inteira a **`saveDigitalAuditCore`**
+> (7.4) com `lead_id` imposto sobre o id real recém-criado. Nenhum segundo
+> INSERT em `lead_digital_audits` foi escrito — `org_id`/`created_by` do
+> servidor, `checkBelongsToOrg` do lead, cascata, normalização, datas,
+> `digital_opportunities`, Zod e os dois scores continuam vindo de um lugar só.
+> **Best-effort**: lead + dossiê OK → `auditId`; lead OK + dossiê falha →
+> `status: 'success'` com `auditError` (o lead NÃO é apagado, nenhuma auditoria
+> parcial fica para trás, e o dossiê é refeito depois em `/dossie`); lead falha
+> → volta antes, sem auditoria órfã.
+>
+> **`lib/actions/lead-intake.ts`** — passou a tratar `digital_opportunities`
+> com `getAll` + sentinel, contrato idêntico ao de `saveDigitalAudit` (o bug
+> "todo submit apaga o array" da 7.4 não volta pela porta do cadastro). Com
+> `auditError` NÃO redireciona: devolve o resultado, e o formulário mostra o
+> aviso com links para **Preencher o dossiê** / **Ir para o lead**, escondendo
+> o submit (reenviar criaria um SEGUNDO lead).
+>
+> **`companyName` corrigido** — era `lead.title`, que é o título do lead
+> ("Landing page para loja de móveis"), não a empresa. Evidência: `contacts`
+> tem coluna real `company_name` (`database.types.ts`), alimentada pelo campo
+> "Empresa" do próprio `/leads/new`. `LeadContactSummary` passou a carregá-la
+> (`lib/queries/leads.ts`) e as duas telas usam a fonte certa; a página do
+> dossiê ganhou "Título do lead" como campo próprio ao lado de "Empresa". Sem
+> empresa informada, `DossierSummary` já mostrava "Empresa sem nome" —
+> honesto, sem inventar dado (regra 5 do `PRODUCT_SPEC.md`).
+>
+> **Testes** (+13 em `tests/actions/lead-intake.test.ts`, bloco "7.7 · dossiê
+> digital opcional no mesmo submit", roda em `test:rls`; +22 em
+> `tests/validation/digital-audit-intake.test.ts`, roda em `npm run test`):
+> (A/A2) lead sem dossiê — nem o submit em branco com sentinel e
+> `researched_at` de hoje, nem o payload antigo sem chave de dossiê, criam
+> auditoria; (B) lead + dossiê — `audit.lead_id === lead.id`, `org_id`,
+> `created_by`, campos persistidos com tipo certo e score/completude batendo
+> com `computeDigitalScore` no servidor; (C) erro real de banco em
+> `lead_digital_audits` (`stubTableError`) depois do lead — lead permanece,
+> `auditError` reportado, zero auditoria parcial; (C2) mesmo com rejeição do
+> Zod; (D/D2) lead que falha não deixa auditoria órfã (contagem antes/depois);
+> (E) `lead_id`+`org_id` forjados no payload não desviam a auditoria — ela
+> nasce no lead novo e o lead da org B continua sem dossiê; (E2) `audit_id`
+> forjado não vira update de auditoria existente da mesma org; (F/F2)
+> `digital_opportunities` multi-valor persiste completo e uma marcação sozinha
+> já cria o dossiê; (G/G2) dossiê parcial aceito com o resto `null` (nunca
+> `nao`/`0`) e a cascata da 7.4 valendo igual no cadastro.
+>
+> **`tests/helpers/digital-score-fields.ts`** — `emptyScoreFields()` saiu de
+> `digital-audit.test.ts` para o helper compartilhado quando o segundo arquivo
+> passou a precisar do mesmo oráculo de score.
+>
+> Validação: `typecheck` / `lint` / `test` (386/386) / `test:coverage`
+> (`lib/domain` 100%) / `test:rls` (274/274) / `build` (rotas
+> `/leads/[leadId]/dossie` e `/leads/new` listadas). Sem migration/DDL, sem
+> `gen:types`, sem tocar RLS, pesos de score ou `lib/navigation.ts`.
+>
+> **Revisão da paridade de `DIGITAL_AUDIT_COLUMNS`** (7.5): a garantia de "row
+> completa" é REAL e já existe — não é contagem hardcoded. O `.select()` do
+> postgrest-js deriva o tipo da string literal, e as quatro funções de
+> `digital-audits-core.ts` declaram retorno `DigitalAudit` (= `Row` de
+> `database.types.ts`). Verificado empiricamente removendo `google_notes` da
+> constante: `npm run typecheck` falha com "Property 'google_notes' is missing"
+> nas 4 funções. Uma coluna 110ª que entrasse no banco e nos types sem entrar
+> no SELECT quebraria o typecheck; `gen:types` + `types:check` (obrigatórios
+> após toda migration, D-042) fecham o outro lado. Nada a mudar.
+>
+> **Ainda aberto na 7.7**: os botões **Copiar dossiê** e **Exportar JSON** do
+> card em `/leads/[leadId]` — dependem de `lib/domain/dossier-export.ts` (7.8)
+> e da rota de exportação (7.9), que ainda não existem. É o único requisito do
+> texto da 7.7 não implementado, e por isso a tarefa segue `[ ]`. **Editar
+> dossiê** / **Iniciar diagnóstico** já estão no card. (O indicador de status do
+> dossiê na listagem `/leads` NÃO é requisito da 7.7 — não está no texto.)
 
 **`/leads/new`** (`components/leads/NewLeadForm.tsx`): os campos comerciais atuais
 continuam **exatamente como estão**, agora dentro da seção 1 "Dados do lead" (aberta

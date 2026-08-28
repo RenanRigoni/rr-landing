@@ -331,3 +331,16 @@ export const digitalAuditSchema = digitalAuditObject.superRefine((data, ctx) => 
 })
 
 export type DigitalAuditInput = z.infer<typeof digitalAuditSchema>
+
+/**
+ * Nomes de campo deste schema, em runtime. Fonte única para quem precisa
+ * SEPARAR campos de dossiê de campos de outro formulário que dividem o mesmo
+ * `FormData` — o cadastro em um passo da 7.7, onde `/leads/new` envia os
+ * campos comerciais e as 7 seções do dossiê no mesmo submit.
+ *
+ * Derivado de `digitalAuditObject.shape`, nunca escrito à mão: campo novo no
+ * schema entra aqui sozinho, sem uma segunda lista para esquecer de atualizar.
+ */
+export const DIGITAL_AUDIT_FIELD_NAMES = Object.keys(
+  digitalAuditObject.shape,
+) as readonly (keyof DigitalAuditObjectShape)[]

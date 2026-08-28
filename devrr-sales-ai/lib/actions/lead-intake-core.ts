@@ -1,8 +1,13 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { leadIntakeSchema } from '@/lib/validation/lead-intake'
+import {
+  pickDigitalAuditInput,
+  hasMeaningfulDigitalAuditInput,
+} from '@/lib/validation/digital-audit-intake'
 import { normalizePhoneBR } from '@/lib/domain/phone'
 import { reaisToCents } from '@/lib/domain/money'
 import { checkBelongsToOrg } from '@/lib/actions/leads-core'
+import { saveDigitalAuditCore } from '@/lib/actions/digital-audit-core'
 import type { Database } from '@/lib/types/database.types'
 
 type SalesClient = SupabaseClient<Database, 'sales'>
@@ -14,6 +19,18 @@ export interface LeadIntakeResult {
   error: string | null
   leadId?: string
   duplicateContact?: { id: string; full_name: string; phone: string | null }
+  /**
+   * Auditoria digital criada junto do lead (7.7). Presente só quando o mesmo
+   * submit trouxe dossiê preenchido E a gravação dele deu certo.
+   */
+  auditId?: string
+  /**
+   * Aviso do anexo best-effort (7.7): o lead FOI criado, o dossiê que veio
+   * junto não. `status` continua `'success'` — o cadastro não se perde por
+   * causa do anexo —, mas a falha é reportada, nunca engolida. O dossiê pode
+   * ser completado depois em `/leads/[leadId]/dossie`.
+   */
+  auditError?: string
 }
 
 /**
@@ -148,5 +165,40 @@ export async function createLeadIntakeCore(
     return { status: 'error', error: 'Não foi possível criar o lead.' }
   }
 
-  return { status: 'success', error: null, leadId: lead.id }
+  // --- Dossiê digital opcional, DEPOIS do lead (7.7) ----------------------
+  //
+  // A partir daqui o lead EXISTE. Nada abaixo pode desfazê-lo: o anexo é
+  // best-effort, mesmo espírito do `logAudit` — perder o cadastro por causa do
+  // dossiê seria o pior resultado possível (plano 7.7).
+  //
+  // Nenhuma segunda versão do INSERT em `lead_digital_audits` mora aqui: a
+  // gravação inteira é `saveDigitalAuditCore` (7.4), que é quem garante
+  // `org_id`/`created_by` do servidor, `checkBelongsToOrg` do lead, cascata,
+  // normalização, datas, `digital_opportunities`, validação Zod e os dois
+  // scores calculados no servidor (D-038). Uma implementação manual aqui
+  // divergiria dela na primeira regra nova.
+  const auditInput = pickDigitalAuditInput(input)
+
+  // Sem conteúdo de dossiê, o comportamento é o de sempre: cria só o lead,
+  // nenhuma linha em `lead_digital_audits`. É o que preserva a diferença entre
+  // "lead existe, nunca foi analisado" e "existe uma auditoria iniciada".
+  if (!hasMeaningfulDigitalAuditInput(auditInput)) {
+    return { status: 'success', error: null, leadId: lead.id }
+  }
+
+  // `lead_id` é imposto aqui, sobre o id real recém-criado — o que veio do
+  // navegador já foi descartado por `pickDigitalAuditInput`. Neste fluxo não
+  // existe caminho para associar a auditoria a outro lead nem a outra
+  // organização (`orgId` é o do servidor, e a auditoria só nasce depois de o
+  // lead ter sido inserido nele).
+  const auditResult = await saveDigitalAuditCore(supabase, orgId, userId, {
+    ...auditInput,
+    lead_id: lead.id,
+  })
+
+  if (auditResult.error) {
+    return { status: 'success', error: null, leadId: lead.id, auditError: auditResult.error }
+  }
+
+  return { status: 'success', error: null, leadId: lead.id, auditId: auditResult.auditId }
 }
