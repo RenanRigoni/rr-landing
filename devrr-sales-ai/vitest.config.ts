@@ -5,7 +5,7 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: ['tests/**/*.test.ts'],
-    exclude: ['tests/rls.test.ts', 'tests/actions/**/*.test.ts'],
+    exclude: ['tests/rls.test.ts', 'tests/actions/**/*.test.ts', 'tests/queries/**/*.test.ts'],
     setupFiles: ['./tests/setup/load-env.ts'],
     // Só entra em ação com a flag `--coverage` (`npm run test:coverage`) —
     // `npm run test` continua idêntico. Escopo: `lib/domain/` (lógica pura,

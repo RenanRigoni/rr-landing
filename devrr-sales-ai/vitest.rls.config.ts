@@ -13,10 +13,19 @@ import path from 'node:path'
 // ser exercitadas contra o Supabase real, com os mesmos dois usuários de
 // teste — prova de isolamento entre tenants na camada de action, não só na
 // de RLS pura.
+//
+// tests/queries/*.test.ts (tarefa 7.5) entrou pelo mesmo motivo, aplicado à
+// camada de leitura: lib/queries/digital-audits-core.ts recebe supabase/orgId
+// prontos (mesma divisão de lib/actions/*-core.ts, D-020, e de
+// buildFollowupContext em lib/queries/ai-context.ts, D-030) — necessário
+// porque o wrapper server-only (lib/queries/digital-audits.ts) usa
+// createClient()/requireOrgId() internamente e `import 'server-only'` lança
+// sempre que importado fora do bundler do Next, mesmo em Node puro (mesma
+// nota de tests/helpers/rls-fixtures.ts sobre lib/supabase/admin.ts).
 export default defineConfig({
   test: {
     environment: 'node',
-    include: ['tests/rls.test.ts', 'tests/actions/**/*.test.ts'],
+    include: ['tests/rls.test.ts', 'tests/actions/**/*.test.ts', 'tests/queries/**/*.test.ts'],
     setupFiles: ['./tests/setup/load-env.ts'],
     // Todo arquivo desta suíte compartilha as duas mesmas contas reais
     // (rls-test-a/b) e limpa organizações no beforeAll/afterAll. Com mais de

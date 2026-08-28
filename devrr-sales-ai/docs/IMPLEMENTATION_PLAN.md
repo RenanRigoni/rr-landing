@@ -3971,6 +3971,65 @@ que vierem no input; erro de banco na tabela relacionada não vira "não encontr
 
 ---
 
+### [x] 7.5 `lib/queries/digital-audits.ts`
+
+> feito: `lib/queries/digital-audits-core.ts` (núcleo testável, sem
+> `import 'server-only'`, recebe `supabase`/`orgId` prontos — mesma divisão
+> de `lib/actions/*-core.ts` D-020 e de `buildFollowupContext` D-030) +
+> `lib/queries/digital-audits.ts` (wrapper `server-only`, resolve
+> `requireOrgId()`/`createClient()`, assinaturas **exatas** do plano:
+> `getLatestAuditForLead(leadId)`, `getAuditById(auditId)`,
+> `listAuditsForLead(leadId)`, `listLatestAuditsByLead(leadIds)`).
+>
+> **Divisão em `-core` não estava no texto da tarefa — necessária, não
+> estética:** `node_modules/server-only/index.js` é só `throw new
+> Error(...)` fora da condição `react-server` do bundler; qualquer arquivo
+> com esse import (`digital-audits.ts`, e também `leads.ts`/`activities.ts`/
+> `today.ts`/`orgs.ts`, todos sem teste direto por este mesmo motivo) lança
+> ao ser importado por um teste vitest. Sem separar o núcleo, os 9 casos de
+> teste pedidos seriam impossíveis de escrever. Mesmo padrão já usado 5 vezes
+> no projeto (`*-core` de `lib/actions/` + `buildFollowupContext`), não é
+> arquitetura nova — só a primeira vez que `lib/queries/` de fato precisa
+> dela para algo além de `ai-context.ts`.
+>
+> `DIGITAL_AUDIT_COLUMNS`: as 109 colunas de `sales.lead_digital_audits`
+> (migration 0012), extraídas programaticamente do `create table` (não
+> digitadas à mão) para garantir paridade exata — string literal única, nunca
+> concatenada (mesmo achado de `leads.ts`/`today.ts`).
+>
+> **"Atual" = `researched_at desc, created_at desc, id desc`** (D-035): os
+> dois primeiros critérios vêm do plano; `id desc` é desempate final,
+> mesmo padrão de `listActivitiesForLead` (achado E do checkpoint da Fase 4),
+> para duas auditorias nascidas no mesmo instante não terem ordem instável
+> entre cargas. `listLatestAuditsByLead`: uma única query (`.in('lead_id',
+> ...)`, mesma ordenação) agrupada em memória — a primeira linha de cada
+> `lead_id` já é a mais recente dele, então o loop só grava a primeira
+> ocorrência. Nenhuma coluna recalculada: `digital_score`/`_completeness`
+> são os já persistidos pela 7.4; datas de calendário e `pagespeed_analyzed_at`
+> passam intactas. Todas as quatro filtram por `org_id` explícito — nunca só
+> pela FK `lead_id`.
+>
+> **Testes** (`tests/queries/digital-audits.test.ts`, novo diretório —
+> `vitest.config.ts`/`vitest.rls.config.ts` atualizados para excluir/incluir
+> `tests/queries/**`, mesmo padrão de `tests/actions/**` da 3.4): 12 casos
+> contra o Supabase real cobrindo os 9 itens pedidos — latest entre 3
+> auditorias; desempate por `id` com `researched_at`/`created_at` forçados
+> idênticos via `testAdminClient()` (D-034, uso já autorizado deste arquivo
+> de fixture); histórico completo em ordem; isolamento entre leads da mesma
+> org; isolamento cross-tenant (`getAuditById`, `listAuditsForLead`,
+> `listLatestAuditsByLead` — 3 casos); uuid válido sem linha; lead sem
+> auditoria devolve `null`/Map sem a chave; `listLatestAuditsByLead` com 3+2+0
+> auditorias sem duplicar; **N+1 provado por espião** (`vi.spyOn(clientA,
+> 'from')`, conta chamadas a `'lead_digital_audits'` — exatamente 1,
+> independente do número de leads).
+>
+> Validação: `typecheck`/`lint`/`test` (263/263)/`test:coverage`
+> (`lib/domain/` 100%)/`test:rls` (243/243, +12)/`build` verdes. Sem
+> migration/DDL/view/RPC/`gen:types` — nenhum necessário.
+
+<details>
+<summary>Texto original da tarefa (referência)</summary>
+
 ### [ ] 7.5 `lib/queries/digital-audits.ts`
 
 Leitura para Server Components, `import 'server-only'`, colunas listadas (nunca
@@ -3989,6 +4048,8 @@ listLatestAuditsByLead(leadIds: string[]): Promise<Map<string, DigitalAudit>>
 ```
 
 Todas filtram por `org_id` de `requireOrgId()`, sempre.
+
+</details>
 
 ---
 
