@@ -3,12 +3,14 @@ import { notFound } from 'next/navigation'
 import { getLeadForDisplay } from '@/lib/queries/leads'
 import { listStages } from '@/lib/queries/catalogs'
 import { listActivitiesForLead } from '@/lib/queries/activities'
+import { getLatestAuditForLead } from '@/lib/queries/digital-audits'
 import { formatBRL } from '@/lib/domain/money'
 import { formatRelativeDateBR } from '@/lib/domain/date'
 import { StageBadge } from '@/components/ui/StageBadge'
 import { StageMover } from '@/components/leads/StageMover'
 import { MarkRespondedButton } from '@/components/leads/MarkRespondedButton'
 import { ActivityTimeline } from '@/components/leads/ActivityTimeline'
+import { DossierSummary } from '@/components/leads/dossier/DossierSummary'
 import { FollowupGenerator } from '@/components/ai/FollowupGenerator'
 import type { Database } from '@/lib/types/database.types'
 
@@ -30,7 +32,13 @@ export default async function LeadDetailPage({ params }: LeadDetailPageProps) {
     notFound()
   }
 
-  const activities = await listActivitiesForLead(lead.id)
+  const [activities, digitalAudit] = await Promise.all([
+    listActivitiesForLead(lead.id),
+    // Auditoria mais recente do lead (7.5) — decide entre resumo do dossiê e
+    // estado vazio. Erro real do Supabase é lançado, não vira `null`, e sobe
+    // para o `error.tsx` deste segmento.
+    getLatestAuditForLead(lead.id),
+  ])
   // Alvo do "Gerar mensagem com IA" (5.4): o follow-up pendente mais recente
   // deste lead — é a mensagem que o usuário está prestes a mandar. Sem
   // nenhum pendente, o botão não aparece (nada pra escrever).
@@ -101,6 +109,38 @@ export default async function LeadDetailPage({ params }: LeadDetailPageProps) {
         <h2 className="text-sm font-semibold text-content-primary">Contato</h2>
         <p className="mt-2 text-sm text-content-secondary">{lead.contact.full_name}</p>
         {lead.contact.phone ? <p className="font-mono text-sm text-content-secondary">{lead.contact.phone}</p> : null}
+      </div>
+
+      <div className="mt-6 rounded-lg border border-white/[0.08] bg-surface-elevated p-4">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-sm font-semibold text-content-primary">Dossiê digital</h2>
+          <Link
+            href={`/leads/${lead.id}/dossie`}
+            className="text-xs font-semibold text-brand-400 hover:text-brand-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+          >
+            {digitalAudit ? 'Editar dossiê' : 'Iniciar diagnóstico'}
+          </Link>
+        </div>
+        {digitalAudit ? (
+          <div className="mt-3">
+            <DossierSummary
+              companyName={lead.title}
+              score={digitalAudit.digital_score}
+              completeness={digitalAudit.digital_score_completeness ?? 0}
+              googleAdsActive={digitalAudit.google_ads_active}
+              websiteExists={digitalAudit.website_exists}
+              googleRating={digitalAudit.google_rating}
+              googleReviewsCount={digitalAudit.google_reviews_count}
+              pagespeedMobilePerformance={digitalAudit.pagespeed_mobile_performance}
+              pagespeedDesktopPerformance={digitalAudit.pagespeed_desktop_performance}
+              opportunityScore={digitalAudit.digital_opportunity_score}
+            />
+          </div>
+        ) : (
+          <p className="mt-2 text-sm text-content-secondary">
+            Nenhum diagnóstico digital ainda. Documente Google, site, Instagram e PageSpeed deste lead.
+          </p>
+        )}
       </div>
 
       {pendingFollowup ? (

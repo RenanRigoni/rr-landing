@@ -4284,7 +4284,65 @@ herdar). Responsivo: `grid gap-4 sm:grid-cols-2`, como no formulário atual.
 
 ---
 
-### [ ] 7.7 Telas: `/leads/new` com seções recolhidas e `/leads/[leadId]/dossie`
+### [x] 7.7 Telas: `/leads/new` com seções recolhidas e `/leads/[leadId]/dossie`
+
+> feito (rota do dossiê + ponto de acesso — commit exclusivo):
+>
+> **`app/(app)/leads/[leadId]/dossie/page.tsx`** — rota nova (path exato de
+> `ARCHITECTURE.md` linha 146). Server Component puro de composição: resolve o
+> lead por `getLeadForDisplay` (que já faz `requireOrgId()` da sessão +
+> `.eq('org_id', ...)` — lead de outra org ou inexistente volta `null`,
+> indistinguíveis, D-020; zero `service_role`), `notFound()` se `null`, carrega
+> a auditoria atual por `getLatestAuditForLead` (7.5) e entrega `leadId`,
+> `companyName` e a **row inteira** (`DigitalAudit`, 109 colunas) ao
+> `DossierForm` (7.6). Nenhum mapper campo a campo — a row serializável do
+> Supabase vai direta, sem converter data de calendário para `Date` nem tocar
+> o timestamp ISO. Toda a lógica de `expected_updated_at` / `audit_id` / score
+> / fuso / campos condicionais / oportunidades / cascatas continua 100% na
+> 7.6/7.4. Abrir a página é só leitura: a linha em `lead_digital_audits` só
+> passa a existir no primeiro save.
+>
+> - **Sem auditoria** (`getLatestAuditForLead` → `null`): estado normal →
+>   `DossierForm` sem `audit` → modo criação, `researched_at` com o prefill
+>   local da 7.6, sem `audit_id`, sem `expected_updated_at`, score "—".
+> - **Com auditoria**: a mais recente entre N (critério de "atual" da 7.5),
+>   com `updated_at` para o lock, `digital_opportunities`, datas e
+>   `pagespeed_analyzed_at` verbatim. Abrir não altera nada.
+>
+> **`app/(app)/leads/[leadId]/error.tsx`** — boundary novo (molde de
+> `today/error.tsx`), cobre `/leads/[leadId]` e `.../dossie`. A leitura da 7.5
+> **lança** num erro real do Supabase (nunca `null` silencioso = "sem
+> dossiê"); aqui vira tela com ação, sem confundir falha de query com ausência
+> de auditoria.
+>
+> **`app/(app)/leads/[leadId]/page.tsx`** — ponto de acesso: card compacto
+> "Dossiê digital". Com auditoria → `DossierSummary` (só leitura, D-038) +
+> link **Editar dossiê**; sem auditoria → estado vazio honesto + **Iniciar
+> diagnóstico**. Ambos apontam para `/leads/[leadId]/dossie`. Uma query a mais
+> (`getLatestAuditForLead`, em `Promise.all` com `listActivitiesForLead`), sem
+> redesenhar a página. `lib/navigation.ts` inalterado.
+>
+> **Testes** (`tests/queries/digital-audits.test.ts`, +6, roda em `test:rls`):
+> bloco "7.7 · contrato de carregamento da página do dossiê" — (1) lead com
+> auditoria entrega a mais recente com as 109 colunas íntegras + round-trip
+> verbatim dos 3 estados (`sim` / `nao` / `null`) + enum especial
+> (`nao_analisado`) + instante ISO + `digital_opportunities`; (2) lead sem
+> auditoria → `null` (modo criação); (3) histórico → SOMENTE a mais recente;
+> (4) cross-tenant: org A não lê a auditoria de lead da org B; (5) lead
+> inexistente / de outra org não resolve para a org atual (→ `notFound`); (6)
+> erro do Supabase propaga, nunca vira "sem dossiê".
+>
+> Validação: `typecheck` / `lint` / `test` (364/364, sem regressão — a rota e
+> os componentes `.tsx` são cobertos por `typecheck`/`build`) / `test:rls`
+> (261/261, +6) / `build` (rota `/leads/[leadId]/dossie` listada). Sem
+> migration/DDL, sem tocar `lib/domain`, sem 7.6-form change.
+>
+> **Ainda aberto na 7.7** (fora deste commit, dependem de outras fases):
+> integração das 7 seções do dossiê recolhidas em `/leads/new` +
+> `createLeadIntakeCore` criando a auditoria junto do lead; botões **Copiar
+> dossiê** / **Exportar JSON** no card (precisam de `dossier-export.ts`, 7.8) e
+> a rota de exportação (7.9); indicador de status do dossiê na listagem
+> `/leads` (não está no texto da 7.7).
 
 **`/leads/new`** (`components/leads/NewLeadForm.tsx`): os campos comerciais atuais
 continuam **exatamente como estão**, agora dentro da seção 1 "Dados do lead" (aberta

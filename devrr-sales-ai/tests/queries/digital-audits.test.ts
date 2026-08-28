@@ -343,4 +343,116 @@ describe('lib/queries/digital-audits-core', () => {
       expect(latestByLead.size).toBe(0)
     })
   })
+
+  /**
+   * Contrato de carregamento da rota `/leads/[leadId]/dossie` (7.7). A página
+   * é um Server Component que só faz: resolver o lead pela sessão (via
+   * `getLeadForDisplay`, que filtra `org_id` — cobertura de `getLead` cross
+   * tenant abaixo, sem `-core` porque a camada de `leads` é `server-only`),
+   * chamar `getLatestAuditForLead` e passar a row INTEIRA ao `DossierForm`.
+   * Sem mapper campo a campo — o teste de integridade abaixo trava isso.
+   */
+  describe('7.7 · contrato de carregamento da página do dossiê', () => {
+    it('1 · lead com auditoria → entrega a mais recente, com a row íntegra (109 colunas)', async () => {
+      // Lead dedicado: sem contaminar as fixtures de histórico dos blocos acima.
+      const leadSetup = await createLeadIntakeCore(clientA, orgAId, userAId, {
+        full_name: 'Lead Página Dossiê',
+        title: 'Prospecção Página Dossiê',
+      })
+      if (leadSetup.status !== 'success' || !leadSetup.leadId) {
+        throw new Error(`setup falhou: ${leadSetup.error ?? 'sem leadId'}`)
+      }
+      const leadPageId = leadSetup.leadId
+
+      const older = await saveDigitalAuditCore(clientA, orgAId, userAId, {
+        lead_id: leadPageId,
+        researched_at: '2026-07-01',
+        google_notes: 'pré-diagnóstico',
+      })
+      const current = await saveDigitalAuditCore(clientA, orgAId, userAId, {
+        lead_id: leadPageId,
+        researched_at: '2026-09-10',
+        google_business_profile: 'sim',
+        google_rating: 4.7,
+        found_on_google: 'nao',
+        instagram_active: 'nao_analisado',
+        pagespeed_analyzed_at: '2026-09-10T13:00:00.000Z',
+        digital_opportunities: ['website', 'seo_local'],
+      })
+      expect(older.error).toBeNull()
+      expect(current.error).toBeNull()
+
+      const loaded = await getLatestAuditForLeadCore(clientA, orgAId, leadPageId)
+      expect(loaded?.id).toBe(current.auditId)
+
+      // Row completa: nenhum campo perdido a caminho do formulário.
+      expect(Object.keys(loaded ?? {})).toHaveLength(109)
+      // Colunas de que o `DossierForm` depende diretamente.
+      expect(loaded).toHaveProperty('updated_at') // lock otimista (expected_updated_at)
+      expect(loaded).toHaveProperty('digital_score') // faixa de resumo (D-038, só leitura)
+      expect(loaded).toHaveProperty('digital_score_completeness')
+      // Round-trip verbatim dos três estados distintos + enum especial + instante.
+      expect(loaded?.google_business_profile).toBe('sim') // valor preenchido
+      expect(loaded?.found_on_google).toBe('nao') // "avaliado, ausente"
+      expect(loaded?.google_has_hours).toBeNull() // "não analisado" (D-037)
+      expect(loaded?.instagram_active).toBe('nao_analisado') // enum especial preservado
+      expect(loaded?.google_rating).toBe(4.7)
+      expect(typeof loaded?.pagespeed_analyzed_at).toBe('string') // instante ISO, sem conversão
+      expect(loaded?.pagespeed_analyzed_at).toContain('2026-09-10')
+      expect(loaded?.digital_opportunities).toEqual(['website', 'seo_local'])
+    })
+
+    it('2 · lead sem auditoria → null (a página abre o formulário em modo criação)', async () => {
+      const loaded = await getLatestAuditForLeadCore(clientA, orgAId, leadA2Id)
+      expect(loaded).toBeNull()
+    })
+
+    it('3 · lead com histórico → a página usa SOMENTE a auditoria mais recente', async () => {
+      // `leadAId` tem 3 auditorias criadas no primeiro bloco deste arquivo.
+      const history = await listAuditsForLeadCore(clientA, orgAId, leadAId)
+      expect(history.length).toBeGreaterThanOrEqual(3)
+
+      const loaded = await getLatestAuditForLeadCore(clientA, orgAId, leadAId)
+      expect(loaded?.id).toBe(history[0]?.id)
+      expect(loaded?.researched_at).toBe('2026-08-27')
+    })
+
+    it('4 · cross-tenant: org A não carrega a auditoria de um lead da org B', async () => {
+      await saveDigitalAuditCore(clientB, orgBId, userBId, { lead_id: leadBId, google_business_profile: 'sim' })
+
+      const loaded = await getLatestAuditForLeadCore(clientA, orgAId, leadBId)
+      expect(loaded).toBeNull()
+    })
+
+    it('5 · lead inexistente ou de outra org não resolve para a org atual (→ notFound)', async () => {
+      // Mesma cláusula que `getLead`/`getLeadForDisplay` aplicam antes de
+      // qualquer render: `id` + `org_id` da sessão. Lead da org B visto pela
+      // org A e uuid inexistente caem os dois em `null` — a página chama
+      // `notFound()` sem revelar qual dos dois foi.
+      const outsider = await clientA
+        .from('leads')
+        .select('id')
+        .eq('id', leadBId)
+        .eq('org_id', orgAId)
+        .maybeSingle()
+      expect(outsider.error).toBeNull()
+      expect(outsider.data).toBeNull()
+
+      const missing = await clientA
+        .from('leads')
+        .select('id')
+        .eq('id', '00000000-0000-4000-8000-000000000000')
+        .eq('org_id', orgAId)
+        .maybeSingle()
+      expect(missing.error).toBeNull()
+      expect(missing.data).toBeNull()
+    })
+
+    it('6 · erro do Supabase na leitura da auditoria NÃO vira "sem dossiê" — propaga', async () => {
+      const broken = stubTableError(clientA, 'lead_digital_audits', 'falha simulada no carregamento da página do dossiê')
+      await expect(getLatestAuditForLeadCore(broken, orgAId, leadAId)).rejects.toThrow(
+        /falha simulada no carregamento da página do dossiê/,
+      )
+    })
+  })
 })
