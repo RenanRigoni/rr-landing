@@ -1216,3 +1216,256 @@ describe('RLS — sales.contacts, leads, ai_prompts, ai_runs, audit_logs (Fases 
     })
   })
 })
+
+/**
+ * `sales.lead_digital_audits` (migration 0012, Fase 7.1) — prova DIRETA da
+ * policy, fechamento da 7.11.
+ *
+ * Até aqui o isolamento desta tabela só era exercitado de lado, por
+ * `tests/actions/digital-audit.test.ts` e `tests/actions/lead-intake.test.ts`:
+ * aqueles testes provam a camada de action (D-020, vínculo audit → lead, lock
+ * otimista), e passariam mesmo se a policy fosse permissiva demais, porque as
+ * queries deles já filtram `org_id` no código. Aqui é o contrário — o sujeito é
+ * a sessão de B, sem nenhum filtro de aplicação no caminho: o que barra é só a
+ * RLS.
+ *
+ * Mesmo molde da 6.4: `tenant_isolation` "for all" com
+ * `org_id in (select sales.current_org_ids())` em `using` E `with check`, então
+ * `INSERT` com `org_id` alheio é erro real (`WITH CHECK`) enquanto `UPDATE`/
+ * `DELETE` de linha alheia devolvem 0 linhas sem erro (`USING`, D-016) — daí o
+ * `.select()` encadeado, que é o que distingue "bloqueado" de "aplicado".
+ *
+ * `service_role` NÃO é sujeito de nenhuma asserção: as fixtures o usam só para
+ * provisionar/limpar contas (`ensureTestUser`/`cleanupOrgsForUser`), fora do
+ * que está sendo testado.
+ */
+describe('RLS — sales.lead_digital_audits (migration 0012, fechamento 7.11)', () => {
+  let userAId: string
+  let userBId: string
+  let clientA: SupabaseClient<Database, 'sales'>
+  let clientB: SupabaseClient<Database, 'sales'>
+  let orgAId: string
+  let orgBId: string
+  let leadAId: string
+  let leadBId: string
+  let auditAId: string
+
+  beforeAll(async () => {
+    userAId = await ensureTestUser(TEST_USER_A)
+    userBId = await ensureTestUser(TEST_USER_B)
+    await cleanupOrgsForUser(userAId)
+    await cleanupOrgsForUser(userBId)
+
+    clientA = await signInTestClient(TEST_USER_A)
+    clientB = await signInTestClient(TEST_USER_B)
+
+    const { data: newOrgA, error: orgAError } = await clientA.rpc('create_organization', { p_name: 'RLS 7.11 Org A' })
+    if (orgAError || !newOrgA) throw new Error(`Falha ao criar org A: ${orgAError?.message}`)
+    orgAId = newOrgA
+
+    const { data: newOrgB, error: orgBError } = await clientB.rpc('create_organization', { p_name: 'RLS 7.11 Org B' })
+    if (orgBError || !newOrgB) throw new Error(`Falha ao criar org B: ${orgBError?.message}`)
+    orgBId = newOrgB
+
+    const { data: stagesA } = await clientA.from('pipeline_stages').select('id, key').eq('org_id', orgAId)
+    const stageNovoA = stagesA!.find((s) => s.key === 'novo')!.id
+
+    const { data: stagesB } = await clientB.from('pipeline_stages').select('id, key').eq('org_id', orgBId)
+    const stageNovoB = stagesB!.find((s) => s.key === 'novo')!.id
+
+    const { data: contactA, error: contactAError } = await clientA
+      .from('contacts')
+      .insert({ org_id: orgAId, full_name: 'Clínica 7.11 A' })
+      .select('id')
+      .single()
+    if (contactAError || !contactA) throw new Error(`Falha ao criar contato A: ${contactAError?.message}`)
+
+    const { data: leadA, error: leadAError } = await clientA
+      .from('leads')
+      .insert({ org_id: orgAId, contact_id: contactA.id, title: 'Lead 7.11 A', stage_id: stageNovoA })
+      .select('id')
+      .single()
+    if (leadAError || !leadA) throw new Error(`Falha ao criar lead A: ${leadAError?.message}`)
+    leadAId = leadA.id
+
+    const { data: contactB, error: contactBError } = await clientB
+      .from('contacts')
+      .insert({ org_id: orgBId, full_name: 'Clínica 7.11 B' })
+      .select('id')
+      .single()
+    if (contactBError || !contactB) throw new Error(`Falha ao criar contato B: ${contactBError?.message}`)
+
+    const { data: leadB, error: leadBError } = await clientB
+      .from('leads')
+      .insert({ org_id: orgBId, contact_id: contactB.id, title: 'Lead 7.11 B', stage_id: stageNovoB })
+      .select('id')
+      .single()
+    if (leadBError || !leadB) throw new Error(`Falha ao criar lead B: ${leadBError?.message}`)
+    leadBId = leadB.id
+
+    // Auditoria de A criada pela PRÓPRIA sessão de A (não por service_role):
+    // o insert legítimo já é o primeiro caso de teste, provado aqui no setup e
+    // reafirmado explicitamente no bloco de INSERT abaixo.
+    const { data: auditA, error: auditAError } = await clientA
+      .from('lead_digital_audits')
+      .insert({
+        org_id: orgAId,
+        lead_id: leadAId,
+        search_query: 'dentista uberlandia 7.11',
+        website_exists: 'sim',
+        digital_score: 42,
+      })
+      .select('id')
+      .single()
+    if (auditAError || !auditA) throw new Error(`Falha ao criar auditoria A: ${auditAError?.message}`)
+    auditAId = auditA.id
+  }, 30_000)
+
+  afterAll(async () => {
+    await cleanupOrgsForUser(userAId)
+    await cleanupOrgsForUser(userBId)
+  })
+
+  it('A lê a própria auditoria (SELECT dentro do tenant)', async () => {
+    const { data, error } = await clientA.from('lead_digital_audits').select('id, search_query').eq('id', auditAId)
+    expect(error).toBeNull()
+    expect(data?.map((a) => a.id)).toContain(auditAId)
+    expect(data?.[0]?.search_query).toBe('dentista uberlandia 7.11')
+  })
+
+  it('A insere auditoria na própria org (INSERT permitido pelo WITH CHECK)', async () => {
+    const { data, error } = await clientA
+      .from('lead_digital_audits')
+      .insert({ org_id: orgAId, lead_id: leadAId, search_query: 'segunda auditoria 7.11' })
+      .select('id, org_id')
+      .single()
+
+    expect(error).toBeNull()
+    expect(data?.org_id).toBe(orgAId)
+
+    // Histórico 1:N (D-035): a segunda auditoria não substituiu a primeira.
+    const { data: all } = await clientA.from('lead_digital_audits').select('id').eq('lead_id', leadAId)
+    expect((all ?? []).length).toBe(2)
+
+    if (data) {
+      await clientA.from('lead_digital_audits').delete().eq('id', data.id)
+    }
+  })
+
+  it('B não vê a auditoria de A (0 linhas, não erro)', async () => {
+    const { data, error } = await clientB.from('lead_digital_audits').select('id').eq('id', auditAId)
+    expect(error).toBeNull()
+    expect(data).toEqual([])
+  })
+
+  it('B não vê nada de A nem varrendo a tabela sem filtro', async () => {
+    const { data, error } = await clientB.from('lead_digital_audits').select('id, org_id')
+    expect(error).toBeNull()
+    expect((data ?? []).every((row) => row.org_id === orgBId)).toBe(true)
+    expect((data ?? []).map((row) => row.id)).not.toContain(auditAId)
+  })
+
+  it('B não consegue inserir auditoria com org_id de A (WITH CHECK rejeita, erro real)', async () => {
+    // `lead_id` é o lead de B (FK válida) — o que barra é a policy de `org_id`.
+    const { error } = await clientB
+      .from('lead_digital_audits')
+      .insert({ org_id: orgAId, lead_id: leadBId, search_query: 'invasão B' })
+    expect(error).not.toBeNull()
+
+    const { data: rows } = await clientA.from('lead_digital_audits').select('id').eq('org_id', orgAId)
+    expect((rows ?? []).length).toBe(1)
+  })
+
+  it('B não consegue inserir auditoria apontando para o lead de A (org_id próprio, lead alheio)', async () => {
+    // Combinação que a RLS sozinha NÃO barra: `org_id` é o de B (passa no
+    // WITH CHECK) e a FK só exige que o lead exista. Quem fecha isto é
+    // `saveDigitalAuditCore` (checkBelongsToOrg, D-020) — o insert cru abaixo
+    // é justamente a prova de que a defesa mora na action, não no banco.
+    const { data, error } = await clientB
+      .from('lead_digital_audits')
+      .insert({ org_id: orgBId, lead_id: leadAId, search_query: 'lead alheio' })
+      .select('id')
+      .maybeSingle()
+
+    expect(error).toBeNull()
+    expect(data).not.toBeNull()
+
+    // A linha ficou na org de B — A continua sem enxergá-la.
+    const { data: seenByA } = await clientA.from('lead_digital_audits').select('id').eq('lead_id', leadAId)
+    expect((seenByA ?? []).map((r) => r.id)).not.toContain(data?.id)
+
+    if (data) {
+      await clientB.from('lead_digital_audits').delete().eq('id', data.id)
+    }
+  })
+
+  it('B não consegue UPDATE da auditoria de A (bloqueado por USING — 0 linhas, não erro, D-016)', async () => {
+    const { data, error } = await clientB
+      .from('lead_digital_audits')
+      .update({ search_query: 'alterado por B', digital_score: 99 })
+      .eq('id', auditAId)
+      .select()
+
+    expect(error).toBeNull()
+    expect(data).toEqual([])
+
+    const { data: still } = await clientA
+      .from('lead_digital_audits')
+      .select('search_query, digital_score')
+      .eq('id', auditAId)
+      .single()
+    expect(still?.search_query).toBe('dentista uberlandia 7.11')
+    expect(still?.digital_score).toBe(42)
+  })
+
+  it('B não consegue mover a auditoria de A para a própria org (UPDATE de org_id barrado por USING)', async () => {
+    const { data, error } = await clientB
+      .from('lead_digital_audits')
+      .update({ org_id: orgBId })
+      .eq('id', auditAId)
+      .select()
+
+    expect(error).toBeNull()
+    expect(data).toEqual([])
+
+    const { data: still } = await clientA.from('lead_digital_audits').select('org_id').eq('id', auditAId).single()
+    expect(still?.org_id).toBe(orgAId)
+  })
+
+  it('A não consegue mover a própria auditoria para a org de B (WITH CHECK rejeita)', async () => {
+    const { data, error } = await clientA
+      .from('lead_digital_audits')
+      .update({ org_id: orgBId })
+      .eq('id', auditAId)
+      .select()
+
+    // `USING` deixa passar (a linha é de A), `WITH CHECK` barra o destino.
+    expect(error).not.toBeNull()
+    expect(data).toBeNull()
+
+    const { data: still } = await clientA.from('lead_digital_audits').select('org_id').eq('id', auditAId).single()
+    expect(still?.org_id).toBe(orgAId)
+  })
+
+  it('B não consegue DELETE da auditoria de A (bloqueado por USING — 0 linhas, não erro, D-016)', async () => {
+    const { data, error } = await clientB.from('lead_digital_audits').delete().eq('id', auditAId).select()
+    expect(error).toBeNull()
+    expect(data).toEqual([])
+
+    const { data: still } = await clientA.from('lead_digital_audits').select('id').eq('id', auditAId).maybeSingle()
+    expect(still).not.toBeNull()
+  })
+
+  it('anon não lê lead_digital_audits', async () => {
+    const { data, error } = await anonClient().from('lead_digital_audits').select('id')
+    expect(error).not.toBeNull()
+    expect(data).toBeNull()
+  })
+
+  it('anon não insere lead_digital_audits', async () => {
+    const { error } = await anonClient()
+      .from('lead_digital_audits')
+      .insert({ org_id: orgAId, lead_id: leadAId, search_query: 'anon' })
+    expect(error).not.toBeNull()
+  })
+})

@@ -1646,3 +1646,21 @@ Sonnet: adicione aqui o que travar. Opus resolve no próximo checkpoint.
   caminho de `on delete cascade` (`leads.contact_id`, `activities.lead_id`/
   `contact_id`, `ai_runs.org_id`/`lead_id`) são as que mais pesam se um
   `DELETE` de organização acontecer com volume.
+
+  **Atualização na 7.11 (fechamento da Fase 7): 18 → 20 lints INFO em `sales`**
+  (19 × `unindexed_foreign_keys` + 1 × `unused_index`). Os +2 são de
+  `lead_digital_audits`: `_created_by_fkey` (mesmo padrão dos outros
+  `*_created_by`, esperado) e `_lead_id_fkey` — **este contraria o que a tarefa
+  7.11 tinha escrito**. O texto da 7.11 assumia que
+  `lead_digital_audits_org_lead_researched_idx (org_id, lead_id, researched_at
+  desc)` cobria a FK; não cobre pelo critério do linter, que exige a coluna da
+  FK como **prefixo** do índice. Para a consulta dominante (sempre `org_id` +
+  `lead_id` juntos) o índice cobre de fato — o alerta é heurístico; onde pesa
+  de verdade é o `on delete cascade` de um lead, que busca só por `lead_id`.
+  Continua a mesma decisão adiada: nenhuma migration de índice foi criada na
+  Fase 7 (seria "migration só para fechar a fase"), e a cobertura de
+  `lead_digital_audits.lead_id` entra no mesmo lote dos outros 18 quando houver
+  padrão de query e de `DELETE` real. Zero lints `WARN`/`ERROR` de performance
+  em `sales`, e zero `auth_rls_initplan`/`multiple_permissive_policies` — as
+  policies do schema já usam `(select sales.current_org_ids())`, a forma
+  otimizada.

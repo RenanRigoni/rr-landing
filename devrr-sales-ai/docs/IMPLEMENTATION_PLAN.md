@@ -4030,7 +4030,7 @@ que vierem no input; erro de banco na tabela relacionada não vira "não encontr
 <details>
 <summary>Texto original da tarefa (referência)</summary>
 
-### [ ] 7.5 `lib/queries/digital-audits.ts`
+#### 7.5 — texto original (arquivado; a tarefa está `[x]` acima)
 
 Leitura para Server Components, `import 'server-only'`, colunas listadas (nunca
 `select *` — regra dura do `CLAUDE.md`). Como a lista de colunas é enorme, declarar
@@ -4827,7 +4827,125 @@ parcial silencioso. `tests/actions/pagespeed.test.ts`: timeout e 4xx viram
 
 ---
 
-### [ ] 7.11 RLS, advisors e fechamento da fase
+### [x] 7.11 RLS, advisors e fechamento da fase
+
+> feito. Revisão de fechamento da Fase 7 inteira (7.0→7.10), não só a checkbox.
+>
+> **(1) RLS explícito de `lead_digital_audits`** — +12 casos em
+> `tests/rls.test.ts`, bloco novo "RLS — sales.lead_digital_audits (migration
+> 0012, fechamento 7.11)", molde exato da 6.4 (`.select()` encadeado para
+> distinguir "0 linhas por USING" de "aplicado", D-016). Sujeito é sempre uma
+> sessão real; `service_role` só em `ensureTestUser`/`cleanupOrgsForUser`
+> (fixture), nunca numa asserção. Os 6 do plano + 6 que faltavam:
+> A lê a própria · **A insere na própria org** (e prova o histórico 1:N da
+> D-035: a segunda auditoria não substitui a primeira) · B não vê a de A ·
+> B não vê nada de A **nem varrendo a tabela sem filtro** · B não insere com
+> `org_id` de A · **B insere com `org_id` próprio + `lead_id` de A** (a RLS
+> deixa passar — a defesa é `checkBelongsToOrg` na action, D-020; o teste
+> documenta a fronteira em vez de fingir que o banco cobre) · B não faz
+> UPDATE · **B não move a linha de A para a própria org** · **A não move a
+> própria linha para a org de B** (`USING` passa, `WITH CHECK` barra → erro
+> real, não 0 linhas) · B não faz DELETE · anon não lê · anon não insere.
+> `test:rls` foi de 274 para **286**.
+>
+> **(2) Advisors.** `security`: **zero alerta em `sales.lead_digital_audits`** e
+> zero alerta novo em `sales`. O que aparece em `sales` são os 3
+> `SECURITY DEFINER` da Fase 2 (`create_organization`, `current_org_ids`,
+> `current_org_role`) — preexistentes e deliberados (são o mecanismo da própria
+> RLS). Todo o resto do relatório é do schema `public` (Alicerce) e `crm`
+> (CRM-RR), outros projetos no mesmo banco — fora do escopo.
+> `performance`: `sales` tem **20 lints, todos INFO** — 19 ×
+> `unindexed_foreign_keys` + 1 × `unused_index`. Baseline da 6.4 (Q-008) era
+> 18. **Delta da Fase 7 = +2**, os dois em `lead_digital_audits`
+> (`_created_by_fkey` e `_lead_id_fkey`).
+>
+> **Hipótese errada desta própria tarefa, corrigida:** o texto acima dizia "a
+> FK `lead_digital_audits.lead_id` já nasce indexada pelo índice composto — não
+> somar mais um `unindexed_foreign_keys` a Q-008". **Falso.** O linter do
+> Supabase exige a coluna da FK como **prefixo** do índice;
+> `(org_id, lead_id, researched_at desc)` tem `lead_id` na 2ª posição, então
+> não conta. Para a consulta dominante (`org_id` + `lead_id` juntos, sempre) o
+> índice cobre de verdade — o alerta é heurístico. O caso em que pesa é o
+> `on delete cascade` de um lead (busca só por `lead_id`). Nenhuma migration
+> criada: é exatamente o padrão de Q-008, que decidiu tratar os índices de
+> cobertura de uma vez com dado real, e "não criar migration só para fechar a
+> fase". Q-008 atualizada com o número novo.
+>
+> **(3) `types:check` — drift real encontrado e entendido antes de sobrescrever.**
+> Falhou com `PostgrestVersion: "14.17"` (commitado) × `"14.5"` (gerado).
+> Investigado: `git diff` do arquivo regenerado é de **1 linha** — a string de
+> versão do PostgREST que a Management API reporta. Zero mudança de
+> tabela/coluna/enum (1539 linhas nos dois). Não é regressão da Fase 7, é
+> upgrade da plataforma Supabase. Regenerado e commitado (D-042).
+>
+> **(4) Paridade schema × export — provada empiricamente, não por contagem.**
+> Injetada uma coluna fake (`coluna_nova_nao_mapeada`) em
+> `database.types.ts` e rodado `tsc`: quebra em **dois** lugares
+> independentes — `dossier-export.ts:273` (`Type 'true' is not assignable to
+> type 'never'`, o guard `UnmappedAuditColumn`) e `digital-audits-core.ts`
+> (×4, a lista literal de colunas do `.select()`). Coluna revertida. A corrente
+> inteira é automática: banco →(`types:check`, D-042)→ types →(guard de
+> compilação)→ export/queries →(`dossier-export.test.ts:117/154`)→ 101 colunas
+> + rótulo PT →(`dossier-sections.test.ts:48`)→ UI →(`digital-labels.test.ts:82`)→
+> rótulo de todo campo de entrada. Nenhuma auditoria manual por contagem foi
+> necessária.
+>
+> **(5) Revisão de integridade 7.0→7.10 — nenhum problema estrutural aberto.**
+> `D-020`: os únicos caminhos de escrita em `lead_digital_audits` são
+> `saveDigitalAuditCore` e `createLeadIntakeCore`, e o segundo **delega** ao
+> primeiro (não há segundo INSERT no código); `org_id` vem sempre de
+> `requireOrgId()`, nunca do payload; `checkBelongsToOrg('leads', …)` roda
+> antes de toda escrita; a 7.10 não escreve nada (a action só devolve valores).
+> `Lock otimista`: `expected_updated_at` é OBRIGATÓRIO em todo UPDATE
+> (`STALE_FORM_ERROR` quando ausente) e some com o `.eq('updated_at', …)` cobre
+> os dois cenários (form velho antes do request; corrida entre SELECT e
+> UPDATE); nenhum fluxo 7.7–7.10 chama update sem ele — `/leads/new` só faz
+> INSERT (`pickDigitalAuditInput` descarta `audit_id`/`expected_updated_at`).
+> `Score`: ausente de `digitalAuditSchema` por construção (D-038), calculado
+> sobre o **estado final** (persistido + patch + cascata) e sobrescrito no
+> payload depois do spread; a exportação usa o valor **persistido**
+> (`DIAGNOSTIC_SCORE_COLUMNS`, nunca recalcula); PageSpeed só preenche
+> formulário. `D-037`: `emptyToNull` roda antes do `z.coerce` (vazio nunca vira
+> `0`), enums especiais preservados no round-trip, patch da 7.10 é esparso
+> (métrica `null` não vira chave → INP digitado à mão sobrevive quando o CrUX
+> não tem INP). `Datas`: `researched_at`/`instagram_last_post_date` nunca
+> passam por `Date` (string `AAAA-MM-DD` do schema direto para o banco); o
+> único `toISOString().slice(0,10)` do app é o **nome do arquivo** de export,
+> já documentado na 7.9. `/leads/new`: `lead_id` imposto pelo servidor sobre o
+> id recém-criado, anexo best-effort (auditoria falha → lead permanece +
+> `auditError`), lead falha → auditoria nem é tentada. `Empresa`:
+> `companyName` vem de `contacts.company_name`; `lead.title` sai como "Título
+> do lead", separado, no Markdown e como coluna própria no CSV.
+>
+> **(6) CrUX por estratégia — investigado antes de mexer.** A doc do PSI v5 é
+> ambígua sobre `loadingExperience` variar com `strategy`; a doc do CrUX é
+> explícita: *"The form factor is a query dimension that specifies the device
+> class that the record's data should belong to… `DESKTOP`, `PHONE`, or
+> `TABLET`"*. A 7.10 já lê o `loadingExperience` **de cada resposta**
+> separadamente, então a implementação está certa nos dois mundos (se o Google
+> devolvesse o mesmo bloco nas duas, os dois campos ficariam iguais — nunca
+> dado inventado). **Nada alterado.**
+>
+> **Gates:** `typecheck` ✓ · `lint` ✓ ("No issues found") · `test` ✓ 499/499 ·
+> `test:coverage` ✓ (`lib/domain/` 100/100/100/100, 1319 stmts / 455 branches /
+> 80 funcs) · `test:rls` ✓ **286/286** (+12) · `types:check` ✓ (após regenerar)
+> · `build` ✓.
+>
+> **Entrega `DOSSIE.md` §22 — fluxo real ponta a ponta, como existe hoje:**
+> `/leads/new` (as 7 seções do dossiê recolhidas no mesmo formulário) →
+> `createLeadIntakeCore` cria contato+lead e, se veio dossiê, chama
+> `saveDigitalAuditCore` com o `lead_id` real → `/leads/[leadId]` mostra o card
+> com **Editar dossiê · Copiar dossiê · Exportar JSON** →
+> `/leads/[leadId]/dossie` carrega a auditoria atual (`getLatestAuditForLead`,
+> D-035) no `DossierForm` com `expected_updated_at` → **Consultar PageSpeed**
+> (7.10) chama a API v5 do Google no servidor e **preenche o formulário**, sem
+> gravar → **Salvar dossiê** persiste via `saveDigitalAuditCore` com score
+> derivado no servidor → **Copiar dossiê** entrega o Markdown pronto para colar
+> numa IA e **Exportar JSON** o objeto aninhado; `/api/leads/export?format=csv|json`
+> faz a exportação em massa com os filtros de `/leads`. Migration desta fase:
+> só a `0012_lead_digital_audits.sql` (8 enums + 1 tabela + 2 índices + RLS +
+> trigger de `updated_at`), aplicada como `20260827180744`; nenhuma outra foi
+> criada da 7.2 à 7.11. Limitações listadas nas tarefas 7.9/7.10/7.11.
 
 - `tests/rls.test.ts`: +6 casos para `lead_digital_audits`, no molde exato dos blocos
   da 6.4 (A lê a própria linha · B não vê linha de A · B não insere com `org_id` de A ·
