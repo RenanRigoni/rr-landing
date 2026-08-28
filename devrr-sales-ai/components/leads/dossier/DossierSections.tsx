@@ -1,5 +1,6 @@
 'use client'
 
+import type { ReactNode } from 'react'
 import { FIELD_LABELS } from '@/lib/domain/digital-labels'
 import { resolvePagespeedAnalyzedAt } from '@/lib/domain/dossier-datetime'
 import { DOSSIER_SECTIONS, countSectionFilled, isFieldVisible, type DossierFieldSpec } from './sections'
@@ -35,6 +36,12 @@ interface DossierSectionsProps {
    * comerciais). A página do dossiê abre a primeira.
    */
   defaultOpenIndex?: number | null
+  /**
+   * Slot renderizado ao fim da seção PageSpeed (7.10 — o botão "Consultar
+   * PageSpeed"). Só a página do dossiê passa; `/leads/new` não, então o botão
+   * não aparece lá.
+   */
+  pagespeedTool?: ReactNode
 }
 
 function helpFor(spec: DossierFieldSpec): string | undefined {
@@ -51,7 +58,7 @@ function offsetForLocalClock(local: string): number {
   return Number.isNaN(d.getTime()) ? new Date().getTimezoneOffset() : d.getTimezoneOffset()
 }
 
-export function DossierSections({ state, defaultOpenIndex = 0 }: DossierSectionsProps) {
+export function DossierSections({ state, defaultOpenIndex = 0, pagespeedTool }: DossierSectionsProps) {
   const { values, opportunities, setField, toggleOpportunity } = state
 
   function renderField(spec: DossierFieldSpec) {
@@ -158,6 +165,7 @@ export function DossierSections({ state, defaultOpenIndex = 0 }: DossierSections
             <div className="grid gap-4 sm:grid-cols-2">
               {section.fields.filter((field) => isFieldVisible(field, values)).map(renderField)}
             </div>
+            {section.key === 'pagespeed' && pagespeedTool ? pagespeedTool : null}
             {section.hasOpportunities ? (
               // Sentinel do contrato da 7.4: presente sempre que a seção de
               // oportunidades está no formulário, marcada ou não. Sem ele o

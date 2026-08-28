@@ -33,6 +33,10 @@ export interface DossierState {
   values: Record<string, string>
   opportunities: string[]
   setField: (name: string) => (value: string) => void
+  /** Mescla vários campos de uma vez (spread — só sobrescreve as chaves
+   * presentes no patch). Usado pela consulta de PageSpeed (7.10): campo que a
+   * API não trouxe não vem no patch e é preservado. */
+  applyPatch: (patch: Record<string, string>) => void
   toggleOpportunity: (value: string, checked: boolean) => void
   clearSection: (section: DossierSectionSpec) => void
   markSectionNotAnalyzed: (section: DossierSectionSpec) => void
@@ -58,6 +62,10 @@ export function useDossierState(audit?: DigitalAudit | null): DossierState {
     setValues((previous) => ({ ...previous, [name]: value }))
   }
 
+  function applyPatch(patch: Record<string, string>) {
+    setValues((previous) => ({ ...previous, ...patch }))
+  }
+
   function toggleOpportunity(value: string, checked: boolean) {
     setOpportunities((previous) =>
       checked ? [...new Set([...previous, value])] : previous.filter((entry) => entry !== value),
@@ -80,6 +88,7 @@ export function useDossierState(audit?: DigitalAudit | null): DossierState {
     values,
     opportunities,
     setField,
+    applyPatch,
     toggleOpportunity,
     clearSection,
     markSectionNotAnalyzed,

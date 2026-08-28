@@ -51,6 +51,27 @@ Deploy é disparado por push (o repo já usa esse fluxo). Migrations do Supabase
 **não** são aplicadas pela Vercel — rodam à parte contra o projeto
 `fvgbbixxcapltudonxqx` (`CLAUDE.md` → Banco).
 
+## PageSpeed Insights (`PAGESPEED_API_KEY`, opcional — 7.10 / D-040)
+
+O botão **Consultar PageSpeed** do dossiê chama a API oficial
+`https://www.googleapis.com/pagespeedonline/v5/runPagespeed` **no servidor**
+(`lib/actions/pagespeed.ts` → `lib/api/pagespeed.ts`), busca `mobile` e
+`desktop` e preenche os campos `pagespeed_*` do formulário — quem grava é o
+operador, ao **Salvar dossiê** (nada é persistido pela consulta).
+
+- **A chave é opcional.** A API responde sem ela, com cota menor por IP; a
+  chave só eleva o limite. Sem `PAGESPEED_API_KEY`, a consulta ainda roda —
+  sob uso intenso pode voltar `429`, e a UI mostra a razão e sugere configurar
+  a chave. Por isso a env é `.optional()` em `lib/env.server.ts`: ausência não
+  quebra o boot, o build nem os testes.
+- **Server-only.** Nunca `NEXT_PUBLIC_`, nunca chega ao browser, nunca é
+  logada, nunca é gravada no banco. Não usa `service_role` (a API do Google
+  não fala com o Supabase).
+- **Gerar:** <https://console.cloud.google.com/apis/credentials> com a
+  "PageSpeed Insights API" habilitada. Coloque em `.env.local`. Só adicione às
+  Environment Variables da Vercel (Production/Preview) se for usar a integração
+  em produção.
+
 ## Types do banco (`npm run gen:types` / `npm run types:check`)
 
 `lib/types/database.types.ts` é **gerado**, nunca editado à mão (D-042). Fonte:

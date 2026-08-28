@@ -4707,7 +4707,92 @@ redirect do proxy (não 200).
 
 ---
 
-### [ ] 7.10 `Consultar PageSpeed` — integração oficial, server-side
+### [x] 7.10 `Consultar PageSpeed` — integração oficial, server-side
+
+> feito. Integração com a API OFICIAL do PageSpeed Insights v5, server-side,
+> preenche os campos `pagespeed_*` do dossiê — **não grava** (D-040: quem
+> persiste é o operador, no `Salvar dossiê`). Nenhuma coluna nova, nenhum
+> `service_role`, nenhum scraping, nenhuma automação de browser.
+>
+> **`lib/domain/pagespeed-parse.ts`** (novo, puro — só `import` de
+> `dossier-datetime.ts`; zero fetch/next/supabase/env). `parsePagespeedResponse
+> (json, strategy)` narrowing 100% defensivo (predicado `isRecord`, sem `as`
+> para "fingir formato") → os 12 campos de UMA estratégia: scores
+> `categories.*.score × 100` arredondado (`0` → `0`, nunca `null`); LCP/FCP/TBT/
+> Speed Index de `audits[*].numericValue` em ms inteiro; CLS decimal sem
+> arredondar; **INP só do percentil de CAMPO** (`loadingExperience.metrics.
+> INTERACTION_TO_NEXT_PAINT.percentile`) — sem CrUX fica `null`, jamais `0`;
+> `core_web_vitals` julgado pelos três percentis de campo (LCP ≤ 2500, INP ≤
+> 200, CLS-percentil/100 ≤ 0.1) — sem CrUX **ou** faltando um dos três →
+> `dados_insuficientes`, nunca `reprovado`; `field_data_available` = houve
+> `loadingExperience.metrics` não vazio. `buildPagespeedReportUrl` (link de
+> conveniência, `encodeURIComponent`). `strategyFieldsToFormValues` — patch
+> **esparso**: métrica `null` NÃO vira chave (o INP digitado antes sobrevive),
+> `0` vira chave, `core_web_vitals` sempre. `assemblePagespeedPatch(result,
+> offset)` → `{ patch, warnings }`: `pagespeed_analyzed_at` = instante ISO da
+> consulta convertido para relógio local (contrato de fuso da 7.6,
+> `isoToDatetimeLocal`, precisão de minuto); `pagespeed_field_data_available` =
+> `sim` se QUALQUER estratégia teve CrUX; estratégia que falhou não escreve
+> nada e vira `warning`.
+>
+> **`lib/api/pagespeed.ts`** (novo, `import 'server-only'`). `normalizeWebsiteUrl`
+> — só `http:`/`https:`; bloqueia `javascript:`/`data:`/`file:`/`ftp:`/lixo
+> (fronteira de esquema — SSRF). `runPagespeedAnalysis(url)`: valida a URL
+> ANTES de qualquer chamada; `Promise.allSettled` de `mobile` + `desktop`;
+> `fetch` à API oficial com `AbortSignal.timeout(60_000)` e `cache: 'no-store'`;
+> `category=PERFORMANCE|ACCESSIBILITY|BEST_PRACTICES|SEO`; `key=` só entra na
+> query do servidor quando `serverEnv.PAGESPEED_API_KEY` existe. Nunca lança —
+> união de resultado com mensagem tratável por caso: timeout, rede, `429`
+> (menção a `PAGESPEED_API_KEY` só quando ausente), HTTP 4xx/5xx, JSON inválido,
+> `error` estruturado do Google, ausência de `lighthouseResult`. Uma estratégia
+> pode falhar e a outra ser aproveitada (`ok: true` + `warning`); as duas
+> falhando → `ok: false`. Sem retry (o plano não pede).
+>
+> **`lib/actions/pagespeed.ts`** (novo, `'use server'`) — `consultPagespeed(url)`
+> = `requireOrgId()` (portão de sessão; sem `service_role`, sem outra query) +
+> `runPagespeedAnalysis`. Devolve o resultado ao cliente.
+>
+> **`components/leads/dossier/PagespeedConsultButton.tsx`** (novo, client) —
+> `type="button"` (nunca dispara o submit do `<form>`); estados normal →
+> consultando → sucesso/parcial/erro; desabilitado durante a consulta (trava
+> duplo-clique) e enquanto `website_exists !== 'sim'` ou `website_url` vazio.
+> Sucesso → `assemblePagespeedPatch` → `onApply(patch)`; avisos e erro na
+> própria área do botão. **`useDossierState`** ganhou `applyPatch(patch)`
+> (spread — preserva o que a consulta não trouxe). **`DossierSections`** ganhou
+> o slot `pagespeedTool` (renderizado só na seção PageSpeed); **`DossierForm`**
+> passa o botão com `values.website_url`/`values.website_exists`. `/leads/new`
+> não passa o slot → o botão não aparece lá.
+>
+> **`lib/env.server.ts`** — `PAGESPEED_API_KEY: z.string().min(1).optional()`.
+> **`.env.example`** e **`README.md`** documentam: opcional, server-only, nunca
+> `NEXT_PUBLIC_`, nunca logada, nunca gravada; sem chave a consulta ainda roda
+> (cota por IP, pode dar `429`).
+>
+> **Conflito resolvido:** o prompt da 7.10 pedia "ausência da chave em runtime
+> → erro claro"; **D-040 é explícito** em que a API responde sem chave. Seguido
+> D-040 (decisão fixa, não re-litigada): a consulta roda sem chave; a
+> "clareza" fica na mensagem de `429` quando a cota por IP estoura.
+>
+> **Testes:** `tests/domain/pagespeed-parse.test.ts` (+26, coverage 100/100/
+> 100/100) — scores 0–1→0–100, `0` preservado, LCP ms, CLS decimal,
+> mobile≠desktop, CrUX presente/ausente/parcial (→ `dados_insuficientes`, não
+> `reprovado`), INP null sem campo, métrica ausente → null, payload inesperado
+> não lança, report URL encodada, merge esparso. `tests/api/pagespeed.test.ts`
+> (+15) — `normalizeWebsiteUrl` (esquemas), `runPagespeedAnalysis` com `fetch`
+> **stub** (sem rede): URL inválida não chama Google, mobile+desktop OK, falha
+> parcial aproveitada, ambas falhando, `429` com/sem chave, timeout, rede,
+> JSON inválido, sem `lighthouseResult`, `error` do Google.
+> `tests/api/pagespeed-action.test.ts` (+2) — sessão resolvida antes da
+> consulta; sem sessão não consulta. **Desvio do plano:** os testes de rede
+> ficaram em `tests/api/**` (rodam em `npm run test`, com `fetch` mockado), não
+> em `tests/actions/**` (que só roda no `test:rls`, contra Supabase real) —
+> mesmo padrão da 7.9 (`tests/api/leads-export.test.ts`).
+>
+> Validação: `typecheck` / `lint` / `test` (499/499, +43) / `test:coverage`
+> (`lib/domain/` 100%, `pagespeed-parse.ts` 100/100/100/100) / `test:rls`
+> (274/274, inalterado — 7.10 não toca queries/actions de banco) / `build`
+> verdes. Sem migration/DDL/RLS/`gen:types`. Verificação visual no browser fica
+> para o operador (não é gate). **Nada de 7.11.**
 
 API oficial: `https://www.googleapis.com/pagespeedonline/v5/runPagespeed`. Chave
 **opcional** (`PAGESPEED_API_KEY`, adicionada a `lib/env.server.ts` como `.optional()`

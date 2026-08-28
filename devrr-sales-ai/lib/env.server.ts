@@ -16,6 +16,12 @@ const serverEnvSchema = z.object({
   CRON_SECRET: z
     .string()
     .min(32, 'CRON_SECRET deve ter ao menos 32 caracteres aleatórios (é a única autenticação de app/api/cron/*)'),
+  // PageSpeed Insights v5 (7.10 / D-040). **Opcional**: a API responde sem
+  // chave (com cota menor por IP), então exigi-la quebraria o boot de quem
+  // ainda não a configurou, para uma funcionalidade acessória. Ausente →
+  // `undefined`; a consulta segue sem `key` na query. Só server-side, nunca
+  // `NEXT_PUBLIC_`, nunca logada, nunca persistida.
+  PAGESPEED_API_KEY: z.string().min(1).optional(),
 })
 
 function parseServerEnv() {
@@ -23,6 +29,7 @@ function parseServerEnv() {
     SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
     AI_GATEWAY_API_KEY: process.env.AI_GATEWAY_API_KEY,
     CRON_SECRET: process.env.CRON_SECRET,
+    PAGESPEED_API_KEY: process.env.PAGESPEED_API_KEY,
   })
 
   if (!result.success) {

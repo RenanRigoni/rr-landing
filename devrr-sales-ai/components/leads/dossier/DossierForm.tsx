@@ -6,6 +6,7 @@ import type { DigitalAuditResult } from '@/lib/actions/digital-audit-core'
 import type { DigitalAudit } from '@/lib/queries/digital-audits-core'
 import { DossierSections } from './DossierSections'
 import { DossierSummary } from './DossierSummary'
+import { PagespeedConsultButton } from './PagespeedConsultButton'
 import { useDossierState } from './useDossierState'
 
 // Formulário do Dossiê Digital (7.6). Serve criação E edição: a decisão
@@ -85,7 +86,17 @@ export function DossierForm({ leadId, companyName, audit }: DossierFormProps) {
         opportunityScore={values.digital_opportunity_score ? Number(values.digital_opportunity_score) : null}
       />
 
-      <DossierSections state={dossier} defaultOpenIndex={0} />
+      <DossierSections
+        state={dossier}
+        defaultOpenIndex={0}
+        pagespeedTool={
+          <PagespeedConsultButton
+            websiteUrl={values.website_url ?? ''}
+            websiteExists={values.website_exists ?? ''}
+            onApply={dossier.applyPatch}
+          />
+        }
+      />
 
       {state.error ? (
         <p role="alert" className="text-sm text-danger">
