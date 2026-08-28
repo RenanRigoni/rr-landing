@@ -31,6 +31,10 @@ const VERIFY_ERROR = 'Não foi possível verificar a entidade relacionada.'
 const NOT_FOUND_ERROR = 'Auditoria não encontrada.'
 const LEAD_MISMATCH_ERROR = 'Esta auditoria pertence a outro lead.'
 const CONFLICT_ERROR = 'Esta auditoria foi alterada por outra operação. Recarregue e tente novamente.'
+/** Ausente, vazio ou malformado em um UPDATE. Todo UPDATE (há `audit_id`)
+ * PRECISA carregar a versão que o caller viu — a proteção de concorrência não
+ * pode depender de a UI lembrar de mandar o campo (revisão final da 7.6). */
+const STALE_FORM_ERROR = 'Versão do formulário inválida. Recarregue e tente novamente.'
 
 /**
  * Estado necessário para recalcular o score do jeito certo num update: os 46
@@ -81,8 +85,9 @@ function readAuditId(input: unknown): { auditId: string | null; error: string | 
  * concorrente ENTRE o SELECT e o UPDATE desta execução — não sabe que o
  * formulário já estava velho antes do SELECT.
  *
- * Ausente (insert, ou form antigo antes desta revisão) → `null`, sem
- * pré-checagem. Presente porém não parseável como data → erro.
+ * Ausente ou vazio → `expected: null` (aceitável só no INSERT; o UPDATE
+ * rejeita — ver `saveDigitalAuditCore`). Presente porém não parseável como
+ * data → erro imediato.
  */
 function readExpectedUpdatedAt(input: unknown): { expected: string | null; error: string | null } {
   if (typeof input === 'object' && input !== null && 'expected_updated_at' in input) {
@@ -93,7 +98,7 @@ function readExpectedUpdatedAt(input: unknown): { expected: string | null; error
     if (typeof raw === 'string' && !Number.isNaN(new Date(raw).getTime())) {
       return { expected: raw, error: null }
     }
-    return { expected: null, error: 'Versão do formulário inválida.' }
+    return { expected: null, error: STALE_FORM_ERROR }
   }
   return { expected: null, error: null }
 }
@@ -298,14 +303,17 @@ export async function saveDigitalAuditCore(
     }
     const { updated_at: loadedUpdatedAt, ...stateColumns } = data
 
-    // Stale-form check: se o formulário foi renderizado na versão V1 e o banco
-    // já está em V2 (outra pessoa/processo gravou nesse meio-tempo), rejeita
-    // ANTES de mesclar — o `.eq('updated_at', ...)` abaixo, sozinho, não pegaria
-    // isso porque ele trava contra a V2 que este próprio SELECT acabou de ler.
-    if (
-      expectedUpdatedAt !== null &&
-      new Date(loadedUpdatedAt).getTime() !== new Date(expectedUpdatedAt).getTime()
-    ) {
+    // `audit_id` presente = UPDATE, e todo UPDATE exige a versão que o caller
+    // viu. Sem ela o lock por `.eq('updated_at', …)` volta a travar contra a
+    // V2 que este próprio SELECT acabou de ler, e um form desatualizado passa.
+    // A proteção não pode depender de a UI lembrar de mandar o campo.
+    if (expectedUpdatedAt === null) {
+      return { error: STALE_FORM_ERROR }
+    }
+
+    // Stale-form check: formulário renderizado em V1, banco já em V2 (outra
+    // pessoa/processo gravou nesse meio-tempo) → rejeita ANTES de mesclar.
+    if (new Date(loadedUpdatedAt).getTime() !== new Date(expectedUpdatedAt).getTime()) {
       return { error: CONFLICT_ERROR }
     }
 

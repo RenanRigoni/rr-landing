@@ -78,19 +78,29 @@ export function isoToDatetimeLocal(iso: string | null | undefined, tzOffsetMinut
  *   o `datetime-local` não mostra.
  * - Campo alterado e preenchido → novo instante a partir do relógio local.
  * - Campo vazio → `''` (o schema transforma em `null`).
+ *
+ * **Dois offsets, de propósito:**
+ * - `offsetForOriginal`: o offset com que o ISO original foi renderizado como
+ *   relógio local no load — o MESMO tem que ser usado aqui na checagem
+ *   "intocado?", senão DST faria um campo intocado parecer alterado e perder
+ *   os segundos.
+ * - `offsetForEdited`: o offset do relógio local que está de fato no campo
+ *   AGORA. Se o usuário digitou uma data em outra estação (DST), esse offset
+ *   difere do de abertura do formulário — e é ELE que vale para a conversão.
  */
 export function resolvePagespeedAnalyzedAt(args: {
   localValue: string
   originalIso: string | null | undefined
-  tzOffsetMinutes: number
+  offsetForOriginal: number
+  offsetForEdited: number
 }): string {
-  const { localValue, originalIso, tzOffsetMinutes } = args
+  const { localValue, originalIso, offsetForOriginal, offsetForEdited } = args
   const trimmed = localValue.trim()
   if (trimmed === '') return ''
 
-  if (originalIso && isoToDatetimeLocal(originalIso, tzOffsetMinutes) === trimmed) {
+  if (originalIso && isoToDatetimeLocal(originalIso, offsetForOriginal) === trimmed) {
     return originalIso
   }
 
-  return datetimeLocalToIso(trimmed, tzOffsetMinutes)
+  return datetimeLocalToIso(trimmed, offsetForEdited)
 }

@@ -281,6 +281,7 @@ describe('lib/actions/digital-audit-core', () => {
     const updated = await saveDigitalAuditCore(clientA, orgAId, userAId, {
       lead_id: leadAId,
       audit_id: first.auditId,
+      expected_updated_at: first.updatedAt,
       researched_at: '2026-08-01',
       google_business_profile: 'parcialmente',
     })
@@ -485,6 +486,7 @@ describe('lib/actions/digital-audit-core', () => {
       const updated = await saveDigitalAuditCore(clientA, orgAId, userAId, {
         lead_id: leadAId,
         audit_id: created.auditId,
+        expected_updated_at: created.updatedAt,
         google_has_photos: 'nao',
       })
       expect(updated.error).toBeNull()
@@ -540,6 +542,7 @@ describe('lib/actions/digital-audit-core', () => {
       const updated = await saveDigitalAuditCore(clientA, orgAId, userAId, {
         lead_id: leadAId,
         audit_id: created.auditId,
+        expected_updated_at: created.updatedAt,
         website_has_clear_cta: 'nao',
       })
       expect(updated.error).toBeNull()
@@ -596,6 +599,7 @@ describe('lib/actions/digital-audit-core', () => {
       const updated = await saveDigitalAuditCore(clientA, orgAId, userAId, {
         lead_id: leadAId,
         audit_id: created.auditId,
+        expected_updated_at: created.updatedAt,
         website_exists: 'nao',
       })
       expect(updated.error).toBeNull()
@@ -648,6 +652,7 @@ describe('lib/actions/digital-audit-core', () => {
       const updated = await saveDigitalAuditCore(clientA, orgAId, userAId, {
         lead_id: leadAId,
         audit_id: created.auditId,
+        expected_updated_at: created.updatedAt,
         instagram_exists: 'nao',
       })
       expect(updated.error).toBeNull()
@@ -698,6 +703,7 @@ describe('lib/actions/digital-audit-core', () => {
       const updated = await saveDigitalAuditCore(clientA, orgAId, userAId, {
         lead_id: leadAId,
         audit_id: created.auditId,
+        expected_updated_at: created.updatedAt,
         google_business_profile: 'nao',
       })
       expect(updated.error).toBeNull()
@@ -792,6 +798,7 @@ describe('lib/actions/digital-audit-core', () => {
       const updated = await saveDigitalAuditCore(clientA, orgAId, userAId, {
         lead_id: leadAId,
         audit_id: created.auditId,
+        expected_updated_at: created.updatedAt,
         website_https: 'sim',
       })
       expect(updated.error).toBeNull()
@@ -830,6 +837,7 @@ describe('lib/actions/digital-audit-core', () => {
       const patched = await saveDigitalAuditCore(clientA, orgAId, userAId, {
         lead_id: leadAId,
         audit_id: created.auditId,
+        expected_updated_at: created.updatedAt,
         website_has_clear_cta: 'nao',
       })
       expect(patched.error).toBeNull()
@@ -839,6 +847,7 @@ describe('lib/actions/digital-audit-core', () => {
       const replaced = await saveDigitalAuditCore(clientA, orgAId, userAId, {
         lead_id: leadAId,
         audit_id: created.auditId,
+        expected_updated_at: patched.updatedAt,
         digital_opportunities: ['crm'],
       })
       expect(replaced.error).toBeNull()
@@ -848,6 +857,7 @@ describe('lib/actions/digital-audit-core', () => {
       const cleared = await saveDigitalAuditCore(clientA, orgAId, userAId, {
         lead_id: leadAId,
         audit_id: created.auditId,
+        expected_updated_at: replaced.updatedAt,
         digital_opportunities: [],
       })
       expect(cleared.error).toBeNull()
@@ -876,6 +886,8 @@ describe('lib/actions/digital-audit-core', () => {
         google_rating: '4.0',
       })
       expect(created.error).toBeNull()
+      // Vencedor e perdedor partem da MESMA versão (é o ponto da corrida).
+      const v1 = created.updatedAt
 
       const expectedFields: DigitalAuditFields = {
         ...emptyScoreFields(),
@@ -893,6 +905,7 @@ describe('lib/actions/digital-audit-core', () => {
         const winner = await saveDigitalAuditCore(clientA, orgAId, userAId, {
           lead_id: leadAId,
           audit_id: created.auditId,
+          expected_updated_at: v1,
           website_exists: 'nao', // dispara cascata + recalcula score
         })
         winnerError = winner.error
@@ -901,6 +914,7 @@ describe('lib/actions/digital-audit-core', () => {
       const loserResult = await saveDigitalAuditCore(raceClient, orgAId, userAId, {
         lead_id: leadAId,
         audit_id: created.auditId,
+        expected_updated_at: v1,
         google_business_profile: 'nao',
       })
 
@@ -931,11 +945,13 @@ describe('lib/actions/digital-audit-core', () => {
         google_has_photos: 'sim',
       })
       expect(created.error).toBeNull()
+      const v1 = created.updatedAt
 
       const raceClient = stubBeforeExecute(clientA, 'lead_digital_audits', 'update', async () => {
         await saveDigitalAuditCore(clientA, orgAId, userAId, {
           lead_id: leadAId,
           audit_id: created.auditId,
+          expected_updated_at: v1,
           google_has_photos: 'nao',
         })
       })
@@ -950,6 +966,7 @@ describe('lib/actions/digital-audit-core', () => {
       const loser = await saveDigitalAuditCore(raceClient, orgAId, userAId, {
         lead_id: leadAId,
         audit_id: created.auditId,
+        expected_updated_at: v1,
         google_easy_whatsapp: 'sim',
       })
       expect(loser.error).toBe('Esta auditoria foi alterada por outra operação. Recarregue e tente novamente.')
@@ -1067,21 +1084,143 @@ describe('lib/actions/digital-audit-core', () => {
         audit_id: created.auditId,
         expected_updated_at: 'não-é-timestamp',
       })
-      expect(bad.error).toBe('Versão do formulário inválida.')
+      expect(bad.error).toBe('Versão do formulário inválida. Recarregue e tente novamente.')
     })
 
-    it('update sem expected_updated_at continua válido (compat) e devolve updatedAt', async () => {
+    it('UPDATE sem expected_updated_at é REJEITADO: nada muda, nenhum audit_log', async () => {
       const created = await saveDigitalAuditCore(clientA, orgAId, userAId, {
         lead_id: leadAId,
         google_easy_whatsapp: 'sim',
       })
-      const updated = await saveDigitalAuditCore(clientA, orgAId, userAId, {
+      expect(created.error).toBeNull()
+
+      const logsBefore = await clientA
+        .from('audit_logs')
+        .select('id')
+        .eq('org_id', orgAId)
+        .eq('entity', 'lead_digital_audit')
+        .eq('entity_id', created.auditId ?? '')
+
+      // audit_id presente, expected_updated_at ausente → UPDATE bloqueado.
+      const noVersion = await saveDigitalAuditCore(clientA, orgAId, userAId, {
         lead_id: leadAId,
         audit_id: created.auditId,
         google_easy_whatsapp: 'nao',
       })
-      expect(updated.error).toBeNull()
-      expect(updated.updatedAt).toBeDefined()
+      expect(noVersion.error).toBe('Versão do formulário inválida. Recarregue e tente novamente.')
+
+      // audit_id presente, expected_updated_at vazio → também bloqueado.
+      const emptyVersion = await saveDigitalAuditCore(clientA, orgAId, userAId, {
+        lead_id: leadAId,
+        audit_id: created.auditId,
+        expected_updated_at: '',
+        google_easy_whatsapp: 'nao',
+      })
+      expect(emptyVersion.error).toBe('Versão do formulário inválida. Recarregue e tente novamente.')
+
+      const { data: row } = await clientA
+        .from('lead_digital_audits')
+        .select('google_easy_whatsapp')
+        .eq('id', created.auditId ?? '')
+        .single()
+      expect(row?.google_easy_whatsapp).toBe('sim') // intacto
+
+      const logsAfter = await clientA
+        .from('audit_logs')
+        .select('id')
+        .eq('org_id', orgAId)
+        .eq('entity', 'lead_digital_audit')
+        .eq('entity_id', created.auditId ?? '')
+      expect(logsAfter.data?.length).toBe(logsBefore.data?.length ?? 0)
+    })
+  })
+
+  describe('J · continuidade de identidade/versão através de erro (revisão final 7.6)', () => {
+    it('B · update→sucesso→erro→retry: versão V2 sobrevive, retry não dá conflito falso', async () => {
+      const created = await saveDigitalAuditCore(clientA, orgAId, userAId, {
+        lead_id: leadAId,
+        google_rating: '4.0',
+      })
+      const v1 = created.updatedAt
+
+      const ok = await saveDigitalAuditCore(clientA, orgAId, userAId, {
+        lead_id: leadAId,
+        audit_id: created.auditId,
+        expected_updated_at: v1,
+        google_rating: '4.2',
+      })
+      expect(ok.error).toBeNull()
+      const v2 = ok.updatedAt
+      expect(v2).not.toBe(v1)
+
+      // Submit com erro de validação (payload inválido) usando a versão V2
+      // que o form preservou. Nada é escrito → a versão NÃO avança.
+      const errored = await saveDigitalAuditCore(clientA, orgAId, userAId, {
+        lead_id: leadAId,
+        audit_id: created.auditId,
+        expected_updated_at: v2,
+        google_rating: '5.1', // fora da faixa
+      })
+      expect(errored.error).not.toBeNull()
+      expect(errored.auditId).toBeUndefined()
+
+      const { data: mid } = await clientA
+        .from('lead_digital_audits')
+        .select('google_rating, updated_at')
+        .eq('id', created.auditId ?? '')
+        .single()
+      expect(mid?.google_rating).toBe(4.2) // erro não escreveu
+      expect(new Date(mid?.updated_at ?? '').getTime()).toBe(new Date(v2 ?? '').getTime())
+
+      // Retry corrigido, ainda com V2 (o form nunca voltou para V1).
+      const retry = await saveDigitalAuditCore(clientA, orgAId, userAId, {
+        lead_id: leadAId,
+        audit_id: created.auditId,
+        expected_updated_at: v2,
+        google_rating: '4.6',
+      })
+      expect(retry.error).toBeNull() // sem conflito falso
+      const { data: final } = await clientA
+        .from('lead_digital_audits')
+        .select('google_rating')
+        .eq('id', created.auditId ?? '')
+        .single()
+      expect(final?.google_rating).toBe(4.6)
+    })
+
+    it('A · create→erro→retry: retry com o mesmo audit_id faz UPDATE, não duplica', async () => {
+      const created = await saveDigitalAuditCore(clientA, orgAId, userAId, {
+        lead_id: leadAId,
+        researched_at: '2026-09-09',
+        google_business_profile: 'sim',
+      })
+      expect(created.error).toBeNull()
+      const v1 = created.updatedAt
+
+      const countForDate = async () => {
+        const { data } = await clientA
+          .from('lead_digital_audits')
+          .select('id')
+          .eq('lead_id', leadAId)
+          .eq('researched_at', '2026-09-09')
+        return data?.length ?? 0
+      }
+      expect(await countForDate()).toBe(1)
+
+      // "Retry" depois de um erro: o form (via carryFormContinuity) manteve
+      // auditId + updatedAt, então este submit é UPDATE do mesmo registro.
+      const retry = await saveDigitalAuditCore(clientA, orgAId, userAId, {
+        lead_id: leadAId,
+        audit_id: created.auditId,
+        expected_updated_at: v1,
+        researched_at: '2026-09-09',
+        google_business_profile: 'nao',
+      })
+      expect(retry.error).toBeNull()
+      expect(retry.auditId).toBe(created.auditId) // MESMO registro
+
+      // Nenhuma auditoria nova para a data — não duplicou.
+      expect(await countForDate()).toBe(1)
     })
   })
 })

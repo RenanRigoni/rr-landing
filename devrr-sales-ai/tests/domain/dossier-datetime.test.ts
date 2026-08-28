@@ -78,12 +78,23 @@ describe('round-trip local ↔ instante', () => {
   })
 })
 
+// Zona com DST tipo "Europe/Berlin": verão UTC+2 (offset -120), inverno UTC+1
+// (offset -60). `getTimezoneOffset()` é positivo a oeste de Greenwich, então
+// leste = negativo.
+const SUMMER = -120
+const WINTER = -60
+
 describe('resolvePagespeedAnalyzedAt', () => {
   it('campo intocado → devolve o ISO original VERBATIM (preserva segundos)', () => {
     const originalIso = '2026-08-27T13:00:37.123Z'
     const localValue = isoToDatetimeLocal(originalIso, UTC_MINUS_3) // "2026-08-27T10:00"
     expect(
-      resolvePagespeedAnalyzedAt({ localValue, originalIso, tzOffsetMinutes: UTC_MINUS_3 }),
+      resolvePagespeedAnalyzedAt({
+        localValue,
+        originalIso,
+        offsetForOriginal: UTC_MINUS_3,
+        offsetForEdited: UTC_MINUS_3,
+      }),
     ).toBe(originalIso)
   })
 
@@ -92,17 +103,19 @@ describe('resolvePagespeedAnalyzedAt', () => {
       resolvePagespeedAnalyzedAt({
         localValue: '2026-08-27T11:30',
         originalIso: '2026-08-27T13:00:00.000Z',
-        tzOffsetMinutes: UTC_MINUS_3,
+        offsetForOriginal: UTC_MINUS_3,
+        offsetForEdited: UTC_MINUS_3,
       }),
     ).toBe('2026-08-27T14:30:00.000Z')
   })
 
-  it('sem ISO original (criação) → converte o relógio local', () => {
+  it('sem ISO original (criação) → converte o relógio local com o offset editado', () => {
     expect(
       resolvePagespeedAnalyzedAt({
         localValue: '2026-08-27T10:00',
         originalIso: null,
-        tzOffsetMinutes: UTC_MINUS_3,
+        offsetForOriginal: 0,
+        offsetForEdited: UTC_MINUS_3,
       }),
     ).toBe('2026-08-27T13:00:00.000Z')
   })
@@ -112,8 +125,35 @@ describe('resolvePagespeedAnalyzedAt', () => {
       resolvePagespeedAnalyzedAt({
         localValue: '',
         originalIso: '2026-08-27T13:00:00.000Z',
-        tzOffsetMinutes: UTC_MINUS_3,
+        offsetForOriginal: UTC_MINUS_3,
+        offsetForEdited: UTC_MINUS_3,
       }),
     ).toBe('')
+  })
+
+  it('DST: form aberto no verão, data editada no inverno → usa o offset da DATA EDITADA', () => {
+    // original de agosto (verão, UTC+2). Usuário troca para 15/dez 10:00.
+    // Dezembro é inverno (UTC+1) → 10:00 local = 09:00Z.
+    const out = resolvePagespeedAnalyzedAt({
+      localValue: '2026-12-15T10:00',
+      originalIso: '2026-08-01T08:00:00.000Z',
+      offsetForOriginal: SUMMER,
+      offsetForEdited: WINTER,
+    })
+    expect(out).toBe('2026-12-15T09:00:00.000Z')
+    // Se (erradamente) usasse o offset de abertura (verão), daria 08:00Z.
+    expect(out).not.toBe('2026-12-15T08:00:00.000Z')
+  })
+
+  it('DST: intocado usa offsetForOriginal para reconhecer o campo, ignora o offset editado', () => {
+    const originalIso = '2026-08-01T06:00:37.500Z'
+    const local = isoToDatetimeLocal(originalIso, SUMMER) // relógio local de verão
+    const out = resolvePagespeedAnalyzedAt({
+      localValue: local,
+      originalIso,
+      offsetForOriginal: SUMMER,
+      offsetForEdited: WINTER, // diferente — não deve importar: campo intocado
+    })
+    expect(out).toBe(originalIso) // verbatim, com os .500 preservados
   })
 })

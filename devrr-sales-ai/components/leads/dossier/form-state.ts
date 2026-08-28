@@ -10,7 +10,7 @@
 // garante que o `<select>` consegue reenviar esse valor é o `SelectField`, que
 // injeta uma opção para qualquer valor fora do vocabulário curado.
 
-import { ALL_DOSSIER_FIELDS, type DossierFieldName } from './sections'
+import { ALL_DOSSIER_FIELDS, type DossierFieldName, type DossierSectionSpec } from './sections'
 import { isoToDatetimeLocal } from '@/lib/domain/dossier-datetime'
 import type { DigitalAudit } from '@/lib/queries/digital-audits-core'
 
@@ -31,7 +31,10 @@ type AuditLike = Partial<Record<DossierFieldName, unknown>> | null | undefined
  */
 export function buildInitialValues(
   audit: DigitalAudit | AuditLike,
-  tzOffsetMinutes: number,
+  // Offset (min) para renderizar `pagespeed_analyzed_at` (o ISO original) como
+  // relógio local — deve ser o offset da PRÓPRIA data do timestamp, não o de
+  // "agora", para não deslocar por DST.
+  analyzedAtOffsetMinutes: number,
   todayCalendarDate: string,
 ): Record<string, string> {
   const row: Partial<Record<DossierFieldName, unknown>> = audit ?? {}
@@ -46,7 +49,10 @@ export function buildInitialValues(
         values[field.name] = typeof raw === 'string' ? raw.slice(0, 10) : ''
         break
       case 'datetime':
-        values[field.name] = isoToDatetimeLocal(typeof raw === 'string' ? raw : null, tzOffsetMinutes)
+        values[field.name] = isoToDatetimeLocal(
+          typeof raw === 'string' ? raw : null,
+          analyzedAtOffsetMinutes,
+        )
         break
       case 'number':
         values[field.name] = raw === null || raw === undefined ? '' : String(raw)
@@ -68,4 +74,53 @@ export function buildInitialValues(
 export function initialOpportunities(audit: DigitalAudit | AuditLike): string[] {
   const value = (audit as { digital_opportunities?: unknown } | null | undefined)?.digital_opportunities
   return Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === 'string') : []
+}
+
+// --- Ações em massa por seção -------------------------------------------
+//
+// Puras: recebem `values` e devolvem `values` novo. O `DossierForm` pareia
+// com `setOpportunities([])` quando `section.hasOpportunities` (o sentinel
+// `digital_opportunities_present` é JSX estático — não some).
+//
+// Ambas só percorrem `section.fields` — nunca alcançam `lead_id`, `audit_id`,
+// `expected_updated_at` ou `digital_opportunities_present` (não são campos de
+// seção). Nenhuma produz `'nao'`: só esvaziam.
+
+/**
+ * "Limpar seção": todo campo editável da seção volta a vazio (`''` → `null`
+ * na gravação). Não toca o multicheck em `values` (o array de oportunidades é
+ * estado à parte). Não toca campo de outra seção.
+ */
+export function clearSectionValues(
+  section: DossierSectionSpec,
+  values: Readonly<Record<string, string>>,
+): Record<string, string> {
+  const next = { ...values }
+  for (const field of section.fields) {
+    if (field.type !== 'multicheck') next[field.name] = ''
+  }
+  return next
+}
+
+/**
+ * "Marcar não analisado": zera todos os campos de AVALIAÇÃO da seção —
+ * `select` (enums), `number` (notas/scores/métricas), `date`/`datetime`. Para
+ * todos eles a UI representa "não analisado" como vazio, então `''` → `null`,
+ * NUNCA `'nao'` (D-037).
+ *
+ * NÃO toca: `text`/`url` (identificação — usuário, nome no Google, URL
+ * pesquisada) nem `textarea` (observações, onde se registra "não deu para
+ * avaliar"). Não toca multicheck em `values` (o array é estado à parte).
+ */
+const ASSESSMENT_FIELD_TYPES = new Set(['select', 'number', 'date', 'datetime'])
+
+export function markSectionNotAnalyzedValues(
+  section: DossierSectionSpec,
+  values: Readonly<Record<string, string>>,
+): Record<string, string> {
+  const next = { ...values }
+  for (const field of section.fields) {
+    if (ASSESSMENT_FIELD_TYPES.has(field.type)) next[field.name] = ''
+  }
+  return next
 }

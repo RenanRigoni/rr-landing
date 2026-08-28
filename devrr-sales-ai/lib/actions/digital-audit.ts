@@ -4,14 +4,20 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { requireOrgId } from '@/lib/queries/require-org'
 import { saveDigitalAuditCore, type DigitalAuditResult } from '@/lib/actions/digital-audit-core'
+import { carryFormContinuity } from '@/lib/actions/digital-audit-result'
 
 /**
  * Server Action do dossiê digital (7.4). Resolve sessão/organização e delega
  * ao core (D-020). Sem `redirect`: salvar dossiê é preenchimento incremental,
  * o usuário fica na tela do lead — só revalida a página.
+ *
+ * `prevState` (o `useActionState`) é usado em caso de erro: um erro que não
+ * persistiu nada preserva `auditId`/`updatedAt`/score do estado anterior
+ * (`carryFormContinuity`), senão create→erro→retry duplicaria a auditoria e
+ * update→sucesso→erro→retry mandaria a versão velha.
  */
 export async function saveDigitalAudit(
-  _prevState: DigitalAuditResult,
+  prevState: DigitalAuditResult,
   formData: FormData,
 ): Promise<DigitalAuditResult> {
   const orgId = await requireOrgId()
@@ -44,7 +50,7 @@ export async function saveDigitalAudit(
   const result = await saveDigitalAuditCore(supabase, orgId, user?.id ?? null, raw)
 
   if (result.error) {
-    return result
+    return carryFormContinuity(prevState, result)
   }
 
   revalidatePath('/leads/[leadId]', 'page')

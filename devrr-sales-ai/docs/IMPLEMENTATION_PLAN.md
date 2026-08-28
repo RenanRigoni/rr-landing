@@ -4187,6 +4187,76 @@ Todas filtram por `org_id` de `requireOrgId()`, sempre.
 > Validação: `typecheck` / `lint` / `test` (348/348, +42) / `test:coverage`
 > (`lib/domain/` 100%, `dossier-datetime.ts` incluído) / `test:rls` (253/253,
 > +5) / `build` verdes.
+>
+> ---
+>
+> **Revisão final do fluxo real do formulário (fechamento definitivo da 7.6).**
+> Quatro pontos, todos confirmados no HEAD anterior e corrigidos:
+>
+> 1. **`expected_updated_at` agora é OBRIGATÓRIO em todo UPDATE.** Antes, um
+>    caller com `audit_id` e sem `expected_updated_at` ainda fazia update — o
+>    lock voltava a travar contra a versão que o próprio request lia (stale
+>    form passava). Agora, dentro do bloco de `audit_id` (depois de confirmar
+>    que a linha existe e é da org), `expectedUpdatedAt === null` →
+>    `STALE_FORM_ERROR` (`'Versão do formulário inválida. Recarregue e tente
+>    novamente.'`), sem escrita, sem `audit_log`. Malformado → mesmo erro,
+>    ainda mais cedo. INSERT (sem `audit_id`) não exige. Ordem preservada:
+>    cross-org / not-found / lead-mismatch continuam vindo antes.
+>
+> 2. **`useActionState` não perde mais `auditId`/`updatedAt` num erro.** Novo
+>    `lib/actions/digital-audit-result.ts` → `carryFormContinuity(prevState,
+>    result)`: erro que não persistiu nada é revestido com
+>    `auditId`/`updatedAt`/`digitalScore`/`completeness` do estado anterior
+>    (o `error` novo nunca é mascarado); sucesso passa direto com os valores
+>    frescos do servidor. `saveDigitalAudit` passou a usar o `prevState` (era
+>    `_prevState`). Sem isso: create→erro→retry duplicava a auditoria
+>    (voltava a INSERT); edição→sucesso→erro→retry mandava a versão velha e
+>    dava conflito falso.
+>
+> 3. **Offset de `pagespeed_analyzed_at` é o da DATA selecionada, não o do
+>    mount.** `resolvePagespeedAnalyzedAt` agora recebe `offsetForOriginal`
+>    (para reconhecer o campo intocado — verbatim preservado) e
+>    `offsetForEdited` (o offset do relógio local que está no campo agora,
+>    obtido no browser por `new Date(localValue).getTimezoneOffset()`, que
+>    resolve DST daquela data). Uma data de dezembro editada num form aberto
+>    em agosto usa o offset de dezembro. `researched_at`/
+>    `instagram_last_post_date` intocados.
+>
+> 4. **"Limpar seção" / "Marcar não analisado" viraram helpers puros** em
+>    `form-state.ts`. **Limpar seção:** todo campo editável da seção → `''`
+>    (nunca toca `lead_id`/`audit_id`/`expected_updated_at`/sentinel — não são
+>    campos de seção; nunca produz `'nao'`). **Marcar não analisado:** zera só
+>    os campos de AVALIAÇÃO (`select`/`number`/`date`/`datetime`) → `''` →
+>    `null`, D-037; preserva identificação (`text`/`url`: usuário, nome no
+>    Google, URL) e observações (`textarea`). Nenhuma das duas produz `'nao'`
+>    nem FormData contraditório (campo condicional que fica oculto não é
+>    enviado; a cascata da 7.4 é a autoridade). `digital_opportunities`: as
+>    duas ações zeram o array (`setOpportunities([])`); o sentinel
+>    `digital_opportunities_present` é JSX estático → continua no submit →
+>    envia `[]` explícito.
+>
+> Contrato do lock renovado após save: `DossierForm` usa
+> `state.updatedAt ?? audit?.updated_at` — o `carryFormContinuity` garante que
+> `state.updatedAt` sobrevive a um erro, então o retry nunca cai para V1.
+> `DELIBERATELY_UNRENDERED_FIELDS` inalterado (`lead_id`); `audit_id` e
+> `expected_updated_at` são controles ocultos, fora de `digitalAuditSchema`.
+>
+> Testes: `tests/domain/dossier-datetime.test.ts` 27→**33** (+DST: data
+> editada usa o offset da própria data; intocado usa `offsetForOriginal`),
+> `tests/domain/dossier-form-state.test.ts` 24→**39** (+`clearSectionValues`/
+> `markSectionNotAnalyzedValues`: só a seção, nunca `'nao'`, sem controles,
+> avaliação zera / identificação e notas ficam, condicionais Website/Google),
+> `tests/domain/digital-audit-result.test.ts` **5** (novo —
+> `carryFormContinuity` sucesso/erro), `tests/actions/digital-audit.test.ts`
+> bloco `I` reescrito (UPDATE sem `expected_updated_at` REJEITADO: nada muda,
+> nenhum `audit_log`) + novo bloco `J` (**A** create→erro→retry sem
+> duplicação; **B** update→sucesso→erro→retry sem conflito falso). Todos os
+> updates dos blocos A–H passaram a mandar `expected_updated_at` (contrato
+> agora obrigatório); bloco `H` (corrida SELECT↔UPDATE) mantido e verde.
+>
+> Validação: `typecheck` / `lint` / `test` (364/364, +16) / `test:coverage`
+> (`lib/domain/` 100%) / `test:rls` (255/255, +2) / `build` verdes. Sem
+> migration/DDL. Nada de 7.7.
 
 **`digital-labels.ts`** (puro): mapa `valor do enum → rótulo em português` para os 8
 enums, mais a lista de opções de `digital_opportunities`, mais o rótulo de cada campo.

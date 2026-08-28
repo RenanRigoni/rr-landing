@@ -13,7 +13,12 @@ import {
   type DossierFieldSpec,
   type DossierSectionSpec,
 } from './sections'
-import { buildInitialValues, initialOpportunities } from './form-state'
+import {
+  buildInitialValues,
+  initialOpportunities,
+  clearSectionValues,
+  markSectionNotAnalyzedValues,
+} from './form-state'
 import { DossierSection } from './DossierSection'
 import { DossierSummary } from './DossierSummary'
 import {
@@ -76,21 +81,35 @@ function helpFor(spec: DossierFieldSpec): string | undefined {
   return undefined
 }
 
+/** Offset (min) do fuso do usuário PARA a data/hora que a string representa —
+ * o browser resolve DST daquela data. Fallback: offset de agora. */
+function offsetForLocalClock(local: string): number {
+  const d = new Date(local)
+  return Number.isNaN(d.getTime()) ? new Date().getTimezoneOffset() : d.getTimezoneOffset()
+}
+
 export function DossierForm({ leadId, companyName, audit }: DossierFormProps) {
   const [state, formAction, pending] = useActionState(saveDigitalAudit, initialState)
-  // Offset do fuso do usuário, congelado na montagem (UTC-3 → 180). Usado para
-  // converter `pagespeed_analyzed_at` entre instante e relógio de parede local.
-  const [tzOffsetMinutes] = useState(() => new Date().getTimezoneOffset())
+
+  const originalAnalyzedAt = audit?.pagespeed_analyzed_at ?? null
+  // Offset da PRÓPRIA data do timestamp original (não o de "agora"): é o que
+  // renderiza esse instante como relógio local sem deslocar por DST, e o mesmo
+  // que `resolvePagespeedAnalyzedAt` usa para reconhecer o campo intocado.
+  const offsetForOriginalAnalyzed = originalAnalyzedAt
+    ? new Date(originalAnalyzedAt).getTimezoneOffset()
+    : new Date().getTimezoneOffset()
+
   const [values, setValues] = useState<Record<string, string>>(() =>
-    buildInitialValues(audit, tzOffsetMinutes, todayLocal()),
+    buildInitialValues(audit, offsetForOriginalAnalyzed, todayLocal()),
   )
   const [opportunities, setOpportunities] = useState<string[]>(() => initialOpportunities(audit))
 
   const effectiveAuditId = audit?.id ?? state.auditId ?? null
   // Versão do lock otimista: depois de um save é a que a action acabou de
-  // persistir (`state.updatedAt`); antes, a que veio na prop.
+  // persistir (`state.updatedAt`); antes, a que veio na prop. Um erro que não
+  // escreveu nada preserva `state.updatedAt` (`carryFormContinuity` no
+  // wrapper), então o retry nunca cai de volta para uma versão velha.
   const expectedUpdatedAt = state.updatedAt ?? audit?.updated_at ?? null
-  const originalAnalyzedAt = audit?.pagespeed_analyzed_at ?? null
 
   const didSave = Boolean(state.auditId)
   const shownScore = didSave ? state.digitalScore ?? null : audit?.digital_score ?? null
@@ -107,24 +126,15 @@ export function DossierForm({ leadId, companyName, audit }: DossierFormProps) {
   }
 
   function clearSection(section: DossierSectionSpec) {
-    setValues((previous) => {
-      const next = { ...previous }
-      for (const field of section.fields) {
-        if (field.type !== 'multicheck') next[field.name] = ''
-      }
-      return next
-    })
+    setValues((previous) => clearSectionValues(section, previous))
     if (section.hasOpportunities) setOpportunities([])
   }
 
   function markSectionNotAnalyzed(section: DossierSectionSpec) {
-    setValues((previous) => {
-      const next = { ...previous }
-      for (const field of section.fields) {
-        if (field.type === 'select') next[field.name] = ''
-      }
-      return next
-    })
+    setValues((previous) => markSectionNotAnalyzedValues(section, previous))
+    // "Não analisado" para a seção Diagnóstico inclui zerar as oportunidades
+    // (nenhuma identificada). O sentinel continua no JSX → submit envia `[]`.
+    if (section.hasOpportunities) setOpportunities([])
   }
 
   function renderField(spec: DossierFieldSpec) {
@@ -179,7 +189,8 @@ export function DossierForm({ leadId, companyName, audit }: DossierFormProps) {
               value={resolvePagespeedAnalyzedAt({
                 localValue: value,
                 originalIso: originalAnalyzedAt,
-                tzOffsetMinutes,
+                offsetForOriginal: offsetForOriginalAnalyzed,
+                offsetForEdited: offsetForLocalClock(value),
               })}
             />
           </div>
