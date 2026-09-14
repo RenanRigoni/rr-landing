@@ -351,9 +351,9 @@ cabeçalho do Pipeline.
      afirma que uma mensagem foi enviada.
    - **D-046 — Previsão ponderada = valor aberto × `pipeline_stages.probability`.**
      Função única `weightedCents` usada no Analytics e no Pipeline.
-2. `docs/IMPLEMENTATION_PLAN.md`: na tabela "Fases 8+", marcar a Fase 8 como
-   "Pipeline visual, WhatsApp e previsão — ver docs/specs/FASE_8_PIPELINE.md"
-   e renumerar o esboço antigo (agendamento vira 9, propostas 10…).
+2. `docs/IMPLEMENTATION_PLAN.md` → "Fases 8+ / Fila": marcar a Fase 8 como
+   **Concluída** (commit final) e deixar o resto da fila como está — a ordem
+   das próximas fases é decidida no checkpoint do Opus.
 3. `README.md`: rotas `/pipeline` e `/analytics` na lista de telas.
 4. `npm run seed:demo` e conferir o quadro com os 107 leads da demo.
 5. Gates completos: `typecheck`, `lint`, `test`, `test:coverage`, `test:rls`, `build`.

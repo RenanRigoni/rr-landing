@@ -4966,19 +4966,44 @@ o Markdown direto numa IA.
 
 ---
 
-# Fases 8+ — pós-MVP (esboço, não especificar ainda)
+# Fases 8+ — pós-MVP
 
-Deliberadamente sem detalhe. Especificar antes de ter `FIELD_NOTES.md` é escrever
-ficção — a Fase 6.5 vai mudar as prioridades.
+## Como as próximas fases são feitas (combinado em 2026-09-14)
 
-| Fase | Módulo | Depende de |
+Ciclo por fase, para economizar sem perder qualidade:
+
+1. **Opus arquiteta** — escreve `docs/specs/FASE_N_*.md` sobre o código **real**
+   (assinaturas, arquivos, testes, "pronto quando"), sem migration improvisada.
+2. **Sonnet implementa** a spec, tarefa a tarefa, um commit + push por tarefa.
+   Se algo não estiver na spec ou exigir DDL, para e pergunta.
+3. **Opus revisa** (checkpoint): diff, gates, print das telas. Corrige rumo.
+4. Só então a spec da fase seguinte — nunca duas fases à frente, porque a
+   próxima depende do código que a anterior produziu.
+
+## Uso atual: demo comercial
+
+A org `devrr-demo` (seed `npm run seed:demo`) é a vitrine para vender CRM
+próprio a PMEs de Uberlândia/Patrocínio. Prioridade das fases = impacto na
+percepção de quem vê a demo, pesado pelo risco de schema.
+
+## Fila
+
+| Fase | Módulo | Status / por que nesta posição |
 |---|---|---|
-| 8 | Agendamento + lembretes (Projeto 2 do roadmap) | uso real da Fase 6.5 |
-| 9 | Gerador de propostas + PDF (Projeto 3) | catálogo de serviços |
-| 10 | Kanban visual (Projeto 4) | volume de leads > 50 |
-| 11 | IA conversacional + WhatsApp Cloud API (Projeto 5) | fluxo humano validado |
-| 12 | Dashboard comercial (Projeto 6) | 3+ meses de dado real |
-| 13 | Assistente interno com documentos (Projeto 7) | independente |
+| 8 | Kanban `/pipeline`, motivo de perda obrigatório, botão WhatsApp (`wa.me`), previsão ponderada | **Especificada** — `docs/specs/FASE_8_PIPELINE.md`. Maior impacto visual, zero migration |
+| 9 | Histórico de etapas + tela de configurações + busca global | Candidata. Base "profissional": tempo em cada etapa e funil exato dos perdidos (hoje inferido por atividades), cliente ajusta etapas/origens/motivos/follow-up sem mexer no banco. Precisa de tabela nova e backfill |
+| 10 | Propostas em PDF | Candidata. Fecha o ciclo lead → proposta → fechamento. Precisa de catálogo de serviços, template, geração server-side e storage. **Sobe para 9 se houver apresentação a cliente nas próximas semanas** |
+| 11 | Equipe e responsável pelo lead | Convite de usuário, coluna de responsável em `leads`, visibilidade por papel (RLS), ranking por vendedor. Necessário ao vender para empresa com mais de um vendedor |
+| 12 | Importar planilha (CSV) | Mapeamento de colunas, deduplicação por telefone, erro por linha. Primeiro passo de todo cliente novo |
+| 13 | Agenda e lembretes | Visão de calendário, e-mail de lembrete, Google Agenda (era a antiga Fase 8 do roadmap) |
+| 14 | Captura automática de leads | Formulário do site / Meta Lead Ads / webhook caindo direto no CRM |
+| 15 | IA conversacional + WhatsApp Cloud API | Integração oficial; até lá vale D-045 (click-to-chat sem registro automático) |
 
-Ordem provável de mudar. A Fase 10 (Kanban) tende a subir se você tiver muitos leads;
-a Fase 9 (propostas) tende a subir se propostas manuais virarem o gargalo.
+## Lacunas menores (entram quando couberem numa fase)
+
+- Metas mensais de receita com progresso.
+- Contatos e empresas como tela própria (hoje empresa é campo do contato).
+- Layout para celular (hoje desktop-first).
+- Anexos no lead; campos personalizados e tags.
+
+Ordem provável de mudar conforme o uso real — reavaliar em cada checkpoint.
