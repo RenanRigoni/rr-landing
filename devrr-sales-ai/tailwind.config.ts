@@ -42,6 +42,12 @@ const config: Config = {
         danger: withOpacity('--color-danger'),
         warning: withOpacity('--color-warning'),
         accent: withOpacity('--color-accent'),
+        chart: {
+          1: withOpacity('--color-chart-1'),
+          2: withOpacity('--color-chart-2'),
+          3: withOpacity('--color-chart-3'),
+          grid: withOpacity('--color-chart-grid'),
+        },
       },
       fontFamily: {
         display: ['var(--font-bricolage)', 'sans-serif'],

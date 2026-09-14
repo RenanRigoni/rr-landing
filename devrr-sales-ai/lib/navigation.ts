@@ -19,4 +19,8 @@ export const NAV_GROUPS: NavGroup[] = [
       { label: 'Leads', href: '/leads' },
     ],
   },
+  {
+    label: 'Gestão',
+    items: [{ label: 'Analytics', href: '/analytics' }],
+  },
 ]
