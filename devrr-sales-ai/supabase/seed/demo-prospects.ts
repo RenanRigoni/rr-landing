@@ -14,6 +14,7 @@ import {
   firstContact,
   followup,
   leadRegistered,
+  money,
   NO_REPLY,
   pendingTask,
   portfolioSent,
@@ -170,9 +171,12 @@ function contacted(ctx: Ctx, daysAgo: number): ActDraft {
 
 function buildNovo(ctx: Ctx): StageResult {
   const reg = registered(ctx, ctx.rng.int(0, 9))
-  const body = ctx.source === PROSPECTING_SOURCE ? 'Abordar com o diagnóstico digital pronto.' : 'Responder e entender a necessidade.'
+  const body =
+    ctx.source === PROSPECTING_SOURCE
+      ? `Abordar com o diagnóstico digital e a proposta de ${money(ctx.value)} pronta.`
+      : `Responder com a faixa de investimento (${money(ctx.value)}).`
   const task = pendingTask('Fazer primeiro contato', body, dueFor(ctx, reg.createdAt), reg.createdAt)
-  return openResult(reg.createdAt, [reg, task], 0, ctx.rng.chance(0.6) ? 'cold' : 'warm')
+  return openResult(reg.createdAt, [reg, task], ctx.value, ctx.rng.chance(0.6) ? 'cold' : 'warm')
 }
 
 function buildContatado(ctx: Ctx): StageResult {
@@ -183,7 +187,7 @@ function buildContatado(ctx: Ctx): StageResult {
   if (first >= 3 && rng.chance(0.6)) acts.push(portfolioSent(clock.past(first - rng.int(1, 2), hour(ctx))))
   const last = acts[acts.length - 1]!
   acts.push(pendingTask('Retomar conversa', 'Confirmar interesse e agendar reunião de diagnóstico.', dueFor(ctx, last.createdAt), last.createdAt))
-  return openResult(acts[0]!.createdAt, acts, rng.chance(0.4) ? ctx.value : 0, rng.chance(0.5) ? 'cold' : 'warm')
+  return openResult(acts[0]!.createdAt, acts, ctx.value, rng.chance(0.5) ? 'cold' : 'warm')
 }
 
 function buildQualificado(ctx: Ctx): StageResult {
@@ -303,7 +307,7 @@ function buildPerdido(ctx: Ctx, isFranchise: boolean): StageResult {
   return {
     createdAt: acts[0]!.createdAt,
     acts,
-    valueReais: level === 'contatado' ? 0 : ctx.value,
+    valueReais: ctx.value,
     temperature: null,
     closedAt,
     respondedAt,

@@ -86,6 +86,10 @@ describe('buildDemoDataset — funil', () => {
     }
   })
 
+  it('todo lead já nasce com valor estimado (abordagem chega com preço)', () => {
+    for (const lead of leads) expect(lead.value_cents).toBeGreaterThan(0)
+  })
+
   it('perdidos têm motivo; abertos e ganhos não', () => {
     for (const lead of leads) {
       if (lead.status === 'lost') expect(lead.lost_reason).toBeTruthy()
