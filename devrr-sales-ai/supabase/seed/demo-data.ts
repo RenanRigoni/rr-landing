@@ -36,7 +36,8 @@ export { DEMO_SOURCE_NAMES, DEMO_STAGE_KEYS, PROSPECTING_SOURCE } from './demo-t
 export type { DemoSourceName, DemoStageKey } from './demo-timeline'
 export type { DemoAuditRow } from './demo-audits'
 
-export const DEMO_ORG = { name: 'DevRR Demo', slug: 'devrr-demo' } as const
+export const DEMO_ORG_SLUG = 'devrr-demo'
+export const DEMO_ORG = { name: 'DevRR Demo', slug: DEMO_ORG_SLUG } as const
 
 const FUNNEL_SEED = 20260914
 const AUDIT_SEED = 20260915

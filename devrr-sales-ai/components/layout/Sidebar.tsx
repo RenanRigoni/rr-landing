@@ -4,7 +4,7 @@ import { signOut } from '@/lib/actions/auth'
 
 export function Sidebar() {
   return (
-    <aside className="flex h-screen w-60 shrink-0 flex-col border-r border-white/[0.08] bg-surface-muted px-4 py-6">
+    <aside className="sticky top-0 flex h-screen w-60 shrink-0 flex-col border-r border-white/[0.08] bg-surface-muted px-4 py-6">
       <div className="mb-8 px-2">
         {/* eslint-disable-next-line @next/next/no-img-element -- SVG local, largura/altura fixas conforme DESIGN_SYSTEM.md */}
         <img src="/logos/logo-wordmark-color.svg" alt="DevRR" width={89} height={20} />

@@ -121,7 +121,7 @@ npm run seed:purge -- --yes    # apaga todo dado is_demo de contacts/leads/activ
   ativa", sem nota do Google nem PageSpeed (consultar ao vivo no dossiê).
 - **Datas relativas a hoje:** rodar de novo deixa "Ações de hoje" com
   pendências atrasadas, do dia e futuras. Gerador determinístico (semente fixa).
-- **Idempotente:** cada `seed:demo` apaga o dado `is_demo` da org e reinsere.
+- **Idempotente:** cada `seed:demo` apaga todo dado transacional da org demo (inclusive o criado pelo app nela) e reinsere.
   Tudo entra com `is_demo = true`.
 - **`purge` só toca `is_demo`** — nunca dado real. Não remove a org demo nem os
   catálogos (não têm coluna `is_demo`); `seed:demo` reaproveita o mesmo shell.
