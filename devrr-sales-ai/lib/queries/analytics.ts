@@ -31,7 +31,7 @@ export async function getAnalyticsData(): Promise<AnalyticsData> {
         .order('id')
         .range(from, to),
     ),
-    supabase.from('pipeline_stages').select('id, key, label, position, is_won, is_lost').eq('org_id', orgId).order('position'),
+    supabase.from('pipeline_stages').select('id, key, label, position, probability, is_won, is_lost').eq('org_id', orgId).order('position'),
     supabase.from('lead_sources').select('id, name').eq('org_id', orgId),
     fetchAll('contacts', (from, to) =>
       supabase.from('contacts').select('id, city').eq('org_id', orgId).order('id').range(from, to),
@@ -70,7 +70,14 @@ export async function getAnalyticsData(): Promise<AnalyticsData> {
   }
 
   return {
-    stages: stages.data.map((s) => ({ key: s.key, label: s.label, position: s.position, isWon: s.is_won, isLost: s.is_lost })),
+    stages: stages.data.map((s) => ({
+      key: s.key,
+      label: s.label,
+      position: s.position,
+      probability: s.probability,
+      isWon: s.is_won,
+      isLost: s.is_lost,
+    })),
     leads: leads.map((l) => ({
       stageKey: stageKeyById.get(l.stage_id) ?? '',
       status: l.status,

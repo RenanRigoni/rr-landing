@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
+  computeForecast,
   computeFunnel,
   computeKpis,
   formatCompactBRL,
@@ -21,13 +22,13 @@ const NOW = new Date('2026-09-14T15:00:00.000Z')
 const TZ = 'America/Sao_Paulo'
 
 const STAGES: AnalyticsStage[] = [
-  { key: 'novo', label: 'Novo', position: 0, isWon: false, isLost: false },
-  { key: 'contatado', label: 'Contatado', position: 1, isWon: false, isLost: false },
-  { key: 'qualificado', label: 'Qualificado', position: 2, isWon: false, isLost: false },
-  { key: 'proposta_enviada', label: 'Proposta enviada', position: 3, isWon: false, isLost: false },
-  { key: 'negociacao', label: 'Negociação', position: 4, isWon: false, isLost: false },
-  { key: 'ganho', label: 'Ganho', position: 5, isWon: true, isLost: false },
-  { key: 'perdido', label: 'Perdido', position: 6, isWon: false, isLost: true },
+  { key: 'novo', label: 'Novo', position: 0, probability: 5, isWon: false, isLost: false },
+  { key: 'contatado', label: 'Contatado', position: 1, probability: 15, isWon: false, isLost: false },
+  { key: 'qualificado', label: 'Qualificado', position: 2, probability: 30, isWon: false, isLost: false },
+  { key: 'proposta_enviada', label: 'Proposta enviada', position: 3, probability: 50, isWon: false, isLost: false },
+  { key: 'negociacao', label: 'Negociação', position: 4, probability: 75, isWon: false, isLost: false },
+  { key: 'ganho', label: 'Ganho', position: 5, probability: 100, isWon: true, isLost: false },
+  { key: 'perdido', label: 'Perdido', position: 6, probability: 0, isWon: false, isLost: true },
 ]
 
 function daysAgo(days: number): string {
@@ -143,6 +144,41 @@ describe('computeFunnel', () => {
 
   it('sem leads a conversão fica nula', () => {
     expect(computeFunnel([], STAGES)[1]!.rateFromPrevious).toBeNull()
+  })
+})
+
+describe('computeForecast', () => {
+  it('só considera leads abertos, exclui ganho/perdido do byStage e inclui estágios com count 0', () => {
+    const forecast = computeForecast(
+      [
+        lead({ stageKey: 'novo', valueCents: 100000 }),
+        lead({ stageKey: 'proposta_enviada', valueCents: 200000 }),
+        lead({ stageKey: 'proposta_enviada', valueCents: 300000 }),
+        lead({ status: 'won', stageKey: 'ganho', valueCents: 999999 }),
+        lead({ status: 'lost', stageKey: 'perdido', valueCents: 999999 }),
+      ],
+      STAGES,
+    )
+
+    expect(forecast.byStage.map((s) => s.key)).toEqual(['novo', 'contatado', 'qualificado', 'proposta_enviada', 'negociacao'])
+    expect(forecast.byStage.find((s) => s.key === 'contatado')).toMatchObject({ count: 0, openCents: 0, weightedCents: 0 })
+    expect(forecast.byStage.find((s) => s.key === 'proposta_enviada')).toMatchObject({
+      probability: 50,
+      count: 2,
+      openCents: 500000,
+      weightedCents: 250000,
+    })
+    expect(forecast.openCents).toBe(600000)
+    expect(forecast.weightedCents).toBe(255000)
+  })
+
+  it('pondera lead a lead — arredondamento por lead, não da soma da etapa', () => {
+    const forecast = computeForecast(
+      [lead({ stageKey: 'proposta_enviada', valueCents: 1 }), lead({ stageKey: 'proposta_enviada', valueCents: 1 })],
+      STAGES,
+    )
+    // round(1 × 50 / 100) = 1 por lead → soma 2. Arredondar a soma da etapa (2 × 50 / 100 = 1) daria 1.
+    expect(forecast.byStage.find((s) => s.key === 'proposta_enviada')!.weightedCents).toBe(2)
   })
 })
 

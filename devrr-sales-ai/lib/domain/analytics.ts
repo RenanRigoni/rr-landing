@@ -5,10 +5,13 @@
 // proposta, quem recebeu proposta e não respondeu, quanto há em negociação e
 // qual serviço puxa mais interesse.
 
+import { weightedCents } from './pipeline-board'
+
 export interface AnalyticsStage {
   key: string
   label: string
   position: number
+  probability: number
   isWon: boolean
   isLost: boolean
 }
@@ -134,6 +137,53 @@ export function computeFunnel(leads: readonly AnalyticsLead[], stages: readonly 
       rateFromPrevious: previous === null || previous === 0 ? null : count / previous,
     }
   })
+}
+
+// --- Previsão ponderada ----------------------------------------------------------
+
+export interface ForecastStage {
+  key: string
+  label: string
+  probability: number
+  openCents: number
+  weightedCents: number
+  count: number
+}
+
+export interface Forecast {
+  openCents: number
+  weightedCents: number
+  byStage: ForecastStage[]
+}
+
+/**
+ * Valor em aberto × probabilidade de cada etapa (D-046). Pondera lead a lead
+ * com `weightedCents()` de `pipeline-board.ts` — a mesma função usada nas
+ * colunas do Kanban (8.3) — em vez de ponderar a soma da etapa de uma vez,
+ * para o total bater exatamente com o cabeçalho do Pipeline mesmo com
+ * arredondamento por lead.
+ */
+export function computeForecast(leads: readonly AnalyticsLead[], stages: readonly AnalyticsStage[]): Forecast {
+  const open = leads.filter((lead) => lead.status === 'open')
+  const openStages = stages.filter((stage) => !stage.isWon && !stage.isLost).sort((a, b) => a.position - b.position)
+
+  const byStage = openStages.map((stage) => {
+    const stageLeads = open.filter((lead) => lead.stageKey === stage.key)
+    return {
+      key: stage.key,
+      label: stage.label,
+      probability: stage.probability,
+      openCents: sumCents(stageLeads),
+      weightedCents: stageLeads.reduce((sum, lead) => sum + weightedCents(lead.valueCents, stage.probability), 0),
+      count: stageLeads.length,
+    }
+  })
+
+  return {
+    openCents: sumCents(open),
+    weightedCents: byStage.reduce((sum, stage) => sum + stage.weightedCents, 0),
+    byStage,
+  }
 }
 
 // --- Agrupamentos ----------------------------------------------------------------
