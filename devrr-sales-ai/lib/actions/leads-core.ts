@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { z } from 'zod'
-import { createLeadSchema, updateLeadSchema } from '@/lib/validation/leads'
+import { createLeadSchema, updateLeadSchema, lostReasonSchema } from '@/lib/validation/leads'
 import { computeFollowupSchedule, resolveNextAction, resolveLastContact, shouldCancelFollowups, type BusinessHours, type FollowupRule } from '@/lib/domain/followup'
 import type { Database, Json } from '@/lib/types/database.types'
 
@@ -271,7 +271,13 @@ export async function updateLeadCore(
  *    um passo 1 novo e duplicado (a razão de `alreadyExecuted` existir desde
  *    a 4.2).
  */
-export async function moveStageCore(supabase: SalesClient, orgId: string, leadId: string, stageId: string): Promise<StageActionResult> {
+export async function moveStageCore(
+  supabase: SalesClient,
+  orgId: string,
+  leadId: string,
+  stageId: string,
+  options: { lostReason?: string | null } = {},
+): Promise<StageActionResult> {
   const idResult = uuidSchema.safeParse(leadId)
   if (!idResult.success) {
     return { error: 'Lead inválido' }
@@ -296,12 +302,24 @@ export async function moveStageCore(supabase: SalesClient, orgId: string, leadId
     return { error: 'Estágio não encontrado.' }
   }
 
+  // D-044: motivo obrigatório ao mover para Perdido, validado aqui — antes de
+  // qualquer `update` — não só na UI. Reaberto (qualquer outro estágio) limpa
+  // o motivo sempre, mesmo que o chamador tenha enviado um por engano.
+  let lostReason: string | null = null
+  if (stage.is_lost) {
+    const reasonResult = lostReasonSchema.safeParse(options.lostReason ?? '')
+    if (!reasonResult.success) {
+      return { error: reasonResult.error.issues[0]?.message ?? 'Motivo da perda inválido.' }
+    }
+    lostReason = reasonResult.data
+  }
+
   const nextStatus: Database['sales']['Enums']['lead_status'] = stage.is_won ? 'won' : stage.is_lost ? 'lost' : 'open'
   const closedAt = nextStatus === 'open' ? null : new Date().toISOString()
 
   const { data: moved, error: moveError } = await supabase
     .from('leads')
-    .update({ stage_id: stageResult.data, status: nextStatus, closed_at: closedAt })
+    .update({ stage_id: stageResult.data, status: nextStatus, closed_at: closedAt, lost_reason: lostReason })
     .eq('id', idResult.data)
     .eq('org_id', orgId)
     .select('id, contact_id')

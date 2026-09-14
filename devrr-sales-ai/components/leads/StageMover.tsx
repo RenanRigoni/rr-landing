@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { moveStage } from '@/lib/actions/leads'
 import { cn } from '@/lib/utils/cn'
+import { LostReasonDialog } from '@/components/leads/LostReasonDialog'
 
 interface StageOption {
   id: string
@@ -12,35 +13,51 @@ interface StageOption {
 
 interface StageMoverProps {
   leadId: string
+  leadTitle: string
   currentStageId: string
   stages: StageOption[]
+  /** Estágio `is_lost` da organização, se houver — decide quando abrir o diálogo de motivo (D-044). */
+  lostStageId: string | null
+  lostReasonSuggestions: string[]
 }
 
 // Único componente cliente da 3.5 — precisa de estado local (pending/erro)
-// pra chamar a Server Action moveStage() direto (não é <form>, são dois
+// pra chamar a Server Action moveStage() direto (não é <form>, são
 // argumentos posicionais). Nenhuma regra de negócio mora aqui: o componente
-// só chama moveStage(leadId, stageId) e mostra o que ela devolve —
+// só chama moveStage(leadId, stageId, lostReason) e mostra o que ela devolve —
 // validação de payload, pertencimento à organização e a própria mudança de
 // estágio vivem em lib/actions/leads-core.ts (D-020).
-export function StageMover({ leadId, currentStageId, stages }: StageMoverProps) {
+export function StageMover({ leadId, leadTitle, currentStageId, stages, lostStageId, lostReasonSuggestions }: StageMoverProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
+  const [pendingStageId, setPendingStageId] = useState<string | null>(null)
+
+  function move(stageId: string, lostReason?: string) {
+    setError(null)
+    startTransition(async () => {
+      const result = await moveStage(leadId, stageId, lostReason ?? null)
+      if (result.error) {
+        setError(result.error)
+        return
+      }
+      setPendingStageId(null)
+      router.refresh()
+    })
+  }
 
   function handleMove(stageId: string) {
     if (stageId === currentStageId) {
       return
     }
 
-    setError(null)
-    startTransition(async () => {
-      const result = await moveStage(leadId, stageId)
-      if (result.error) {
-        setError(result.error)
-        return
-      }
-      router.refresh()
-    })
+    if (stageId === lostStageId) {
+      setError(null)
+      setPendingStageId(stageId)
+      return
+    }
+
+    move(stageId)
   }
 
   return (
@@ -67,7 +84,19 @@ export function StageMover({ leadId, currentStageId, stages }: StageMoverProps) 
           )
         })}
       </div>
-      {error ? <p className="mt-2 text-xs text-danger">{error}</p> : null}
+      {error && pendingStageId === null ? <p className="mt-2 text-xs text-danger">{error}</p> : null}
+
+      {lostStageId ? (
+        <LostReasonDialog
+          open={pendingStageId !== null}
+          leadTitle={leadTitle}
+          suggestions={lostReasonSuggestions}
+          pending={isPending}
+          error={error}
+          onConfirm={(reason) => move(lostStageId, reason)}
+          onCancel={() => setPendingStageId(null)}
+        />
+      ) : null}
     </div>
   )
 }

@@ -43,11 +43,11 @@ export async function updateLead(leadId: string, input: unknown): Promise<Action
   return result
 }
 
-export async function moveStage(leadId: string, stageId: string): Promise<StageActionResult> {
+export async function moveStage(leadId: string, stageId: string, lostReason?: string | null): Promise<StageActionResult> {
   const orgId = await requireOrgId()
   const supabase = await createClient()
 
-  const result = await moveStageCore(supabase, orgId, leadId, stageId)
+  const result = await moveStageCore(supabase, orgId, leadId, stageId, { lostReason })
 
   if (!result.error) {
     revalidatePath('/leads')

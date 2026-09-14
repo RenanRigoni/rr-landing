@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { getLeadForDisplay } from '@/lib/queries/leads'
-import { listStages } from '@/lib/queries/catalogs'
+import { listStages, listLostReasonSuggestions } from '@/lib/queries/catalogs'
 import { listActivitiesForLead } from '@/lib/queries/activities'
 import { getLatestAuditForLead } from '@/lib/queries/digital-audits'
 import { formatBRL } from '@/lib/domain/money'
@@ -30,11 +30,17 @@ interface LeadDetailPageProps {
 
 export default async function LeadDetailPage({ params }: LeadDetailPageProps) {
   const { leadId } = await params
-  const [lead, stages] = await Promise.all([getLeadForDisplay(leadId), listStages()])
+  const [lead, stages, lostReasonSuggestions] = await Promise.all([
+    getLeadForDisplay(leadId),
+    listStages(),
+    listLostReasonSuggestions(),
+  ])
 
   if (!lead) {
     notFound()
   }
+
+  const lostStageId = stages.find((stage) => stage.is_lost)?.id ?? null
 
   const [activities, digitalAudit] = await Promise.all([
     listActivitiesForLead(lead.id),
@@ -114,8 +120,11 @@ export default async function LeadDetailPage({ params }: LeadDetailPageProps) {
         <div className="flex-1 rounded-lg border border-white/[0.08] bg-surface-elevated p-4">
           <StageMover
             leadId={lead.id}
+            leadTitle={lead.title}
             currentStageId={lead.stage.id}
             stages={stages.map((stage) => ({ id: stage.id, label: stage.label }))}
+            lostStageId={lostStageId}
+            lostReasonSuggestions={lostReasonSuggestions}
           />
         </div>
         <div className="rounded-lg border border-white/[0.08] bg-surface-elevated p-4">

@@ -49,3 +49,11 @@ export type CreateLeadInput = z.infer<typeof createLeadSchema>
 export const updateLeadSchema = createLeadSchema.omit({ stage_id: true }).partial()
 
 export type UpdateLeadInput = z.infer<typeof updateLeadSchema>
+
+// Validado no core (moveStageCore), não só na UI — D-044. `.trim()` roda antes
+// do `.min()`: "  Adiado  " (3 letras úteis) passa; só espaços não.
+export const lostReasonSchema = z
+  .string()
+  .trim()
+  .min(3, 'Informe o motivo da perda.')
+  .max(200, 'Motivo muito longo (máx. 200 caracteres).')

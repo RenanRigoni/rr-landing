@@ -219,7 +219,7 @@ describe('lib/actions/leads-core — follow-up (4.3)', () => {
       const leadId = await newLead('Vai Pra Perdido')
       await moveStageCore(clientA, orgAId, leadId, stagePropostaA)
 
-      const result = await moveStageCore(clientA, orgAId, leadId, stagePerdidoA)
+      const result = await moveStageCore(clientA, orgAId, leadId, stagePerdidoA, { lostReason: 'Sem retorno do cliente' })
       expect(result.error).toBeNull()
 
       expect(await pendingAutoActivities(leadId)).toHaveLength(0)

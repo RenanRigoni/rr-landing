@@ -24,6 +24,7 @@ describe('lib/actions/leads-core', () => {
   let orgBId: string
   let stageNovoA: string
   let stageContatadoA: string
+  let stagePerdidoA: string
   let stageNovoB: string
   let sourceA: string
   let contactA: string
@@ -48,6 +49,7 @@ describe('lib/actions/leads-core', () => {
     const { data: stagesA } = await clientA.from('pipeline_stages').select('id, key').eq('org_id', orgAId)
     stageNovoA = stagesA!.find((s) => s.key === 'novo')!.id
     stageContatadoA = stagesA!.find((s) => s.key === 'contatado')!.id
+    stagePerdidoA = stagesA!.find((s) => s.key === 'perdido')!.id
 
     const { data: stagesB } = await clientB.from('pipeline_stages').select('id, key').eq('org_id', orgBId)
     stageNovoB = stagesB!.find((s) => s.key === 'novo')!.id
@@ -296,6 +298,72 @@ describe('lib/actions/leads-core', () => {
     it('rejeita ids mal formados', async () => {
       const result = await moveStageCore(clientA, orgAId, 'nao-e-uuid', stageNovoA)
       expect(result.error).not.toBeNull()
+    })
+  })
+
+  describe('moveStageCore — motivo de perda (D-044)', () => {
+    it('mover para perdido sem motivo dá erro e não altera nada', async () => {
+      const created = await createLeadCore(clientA, orgAId, userAId, {
+        contact_id: contactA,
+        title: 'Sem Motivo',
+        stage_id: stageNovoA,
+      })
+
+      const result = await moveStageCore(clientA, orgAId, created.id!, stagePerdidoA)
+      expect(result.error).not.toBeNull()
+
+      const { data } = await clientA.from('leads').select('stage_id, status, lost_reason').eq('id', created.id!).single()
+      expect(data?.stage_id).toBe(stageNovoA)
+      expect(data?.status).toBe('open')
+      expect(data?.lost_reason).toBeNull()
+    })
+
+    it('com motivo "  Adiado  " grava status lost, lost_reason "Adiado" (trim) e closed_at', async () => {
+      const created = await createLeadCore(clientA, orgAId, userAId, {
+        contact_id: contactA,
+        title: 'Com Motivo',
+        stage_id: stageNovoA,
+      })
+
+      const result = await moveStageCore(clientA, orgAId, created.id!, stagePerdidoA, { lostReason: '  Adiado  ' })
+      expect(result.error).toBeNull()
+
+      const { data } = await clientA.from('leads').select('status, lost_reason, closed_at').eq('id', created.id!).single()
+      expect(data?.status).toBe('lost')
+      expect(data?.lost_reason).toBe('Adiado')
+      expect(data?.closed_at).not.toBeNull()
+    })
+
+    it('perdido → aberto limpa lost_reason e closed_at', async () => {
+      const created = await createLeadCore(clientA, orgAId, userAId, {
+        contact_id: contactA,
+        title: 'Perdido Depois Reaberto',
+        stage_id: stageNovoA,
+      })
+      await moveStageCore(clientA, orgAId, created.id!, stagePerdidoA, { lostReason: 'Sem retorno' })
+
+      const result = await moveStageCore(clientA, orgAId, created.id!, stageNovoA)
+      expect(result.error).toBeNull()
+
+      const { data } = await clientA.from('leads').select('status, lost_reason, closed_at').eq('id', created.id!).single()
+      expect(data?.status).toBe('open')
+      expect(data?.lost_reason).toBeNull()
+      expect(data?.closed_at).toBeNull()
+    })
+
+    it('motivo com 201 caracteres dá erro e não altera nada', async () => {
+      const created = await createLeadCore(clientA, orgAId, userAId, {
+        contact_id: contactA,
+        title: 'Motivo Longo',
+        stage_id: stageNovoA,
+      })
+
+      const result = await moveStageCore(clientA, orgAId, created.id!, stagePerdidoA, { lostReason: 'x'.repeat(201) })
+      expect(result.error).not.toBeNull()
+
+      const { data } = await clientA.from('leads').select('stage_id, status').eq('id', created.id!).single()
+      expect(data?.stage_id).toBe(stageNovoA)
+      expect(data?.status).toBe('open')
     })
   })
 })
