@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { getCurrentOrg } from '@/lib/queries/orgs'
 import { getAnalyticsData } from '@/lib/queries/analytics'
 import {
+  computeForecast,
   computeFunnel,
   computeKpis,
   formatCompactBRL,
@@ -53,6 +54,8 @@ export default async function AnalyticsPage({ searchParams }: AnalyticsPageProps
   const lostReasons = lostReasonRanking(periodLeads)
   const stalled = stalledOpportunities(leads)
   const scoreBuckets = scoreVsProgress(periodLeads, stages)
+  // Sem filtro de período — mesma leitura do cabeçalho do /pipeline (D-046: uma fonte só).
+  const forecast = computeForecast(leads, stages)
   const periodText = period.days === null ? 'desde o início' : `nos últimos ${period.label}`
 
   return (
@@ -67,7 +70,7 @@ export default async function AnalyticsPage({ searchParams }: AnalyticsPageProps
         <PeriodFilter current={period.value} />
       </div>
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
         <StatTile label="Receita ganha" value={formatCompactBRL(kpis.wonCents)} detail={`${kpis.wonCount} negócios fechados`} emphasis />
         <StatTile label="Leads no período" value={String(kpis.leadsInPeriod)} />
         <StatTile
@@ -80,6 +83,11 @@ export default async function AnalyticsPage({ searchParams }: AnalyticsPageProps
           label="Ciclo médio de venda"
           value={kpis.avgCycleDays === null ? '—' : `${kpis.avgCycleDays} dias`}
           detail="do cadastro ao ganho"
+        />
+        <StatTile
+          label="Previsão ponderada"
+          value={formatCompactBRL(forecast.weightedCents)}
+          detail={`de ${formatCompactBRL(forecast.openCents)} em aberto`}
         />
       </div>
 
@@ -100,6 +108,18 @@ export default async function AnalyticsPage({ searchParams }: AnalyticsPageProps
           />
         </AnalyticsCard>
       </div>
+
+      <AnalyticsCard title="Previsão por etapa" subtitle="Valor em aberto × probabilidade de cada etapa">
+        <BarList
+          rows={forecast.byStage.map((stage) => ({
+            label: stage.label,
+            value: stage.weightedCents,
+            valueLabel: formatCompactBRL(stage.weightedCents),
+            detail: `${stage.probability}% de ${formatCompactBRL(stage.openCents)}`,
+            tooltip: `${stage.count} leads · aberto ${formatCompactBRL(stage.openCents)} · ponderado ${formatCompactBRL(stage.weightedCents)}`,
+          }))}
+        />
+      </AnalyticsCard>
 
       <div className="grid gap-4 xl:grid-cols-2">
         <AnalyticsCard title="Leads por origem" subtitle="De onde vêm os leads e quantos viram negócio">
