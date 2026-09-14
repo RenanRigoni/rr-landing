@@ -6,6 +6,7 @@ import { formatBRL } from '@/lib/domain/money'
 import { formatTimeBR } from '@/lib/domain/date'
 import { cn } from '@/lib/utils/cn'
 import { FollowupGenerator } from '@/components/ai/FollowupGenerator'
+import { WhatsappLink } from '@/components/ui/WhatsappLink'
 import type { TodayActionRow as TodayActionRowData } from '@/lib/queries/today'
 import type { Database } from '@/lib/types/database.types'
 
@@ -119,7 +120,8 @@ export function ActionRow({
         >
           Cliente respondeu
         </button>
-        <FollowupGenerator leadId={action.lead_id} activityId={action.id} />
+        {action.type === 'whatsapp' || action.type === 'followup' ? <WhatsappLink phone={action.contact_phone} /> : null}
+        <FollowupGenerator leadId={action.lead_id} activityId={action.id} contactPhone={action.contact_phone} />
         <Link
           href={`/leads/${action.lead_id}`}
           className="rounded-md bg-brand-600 px-2.5 py-1.5 text-xs font-semibold text-white transition-colors ease-spring hover:bg-brand-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 focus-visible:ring-offset-surface"

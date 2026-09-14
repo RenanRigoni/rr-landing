@@ -4,12 +4,15 @@ import Link from 'next/link'
 import { useDraggable } from '@dnd-kit/core'
 import { formatBRL } from '@/lib/domain/money'
 import { formatRelativeDateBR } from '@/lib/domain/date'
+import { buildGreeting } from '@/lib/domain/whatsapp'
 import { cn } from '@/lib/utils/cn'
+import { WhatsappLink } from '@/components/ui/WhatsappLink'
 import type { BoardLead } from '@/lib/domain/pipeline-board'
 
 interface CardBodyProps {
   lead: BoardLead
   now: Date
+  orgName: string
 }
 
 const TEMPERATURE_STYLE: Record<NonNullable<BoardLead['temperature']>, { className: string; label: string }> = {
@@ -18,7 +21,7 @@ const TEMPERATURE_STYLE: Record<NonNullable<BoardLead['temperature']>, { classNa
   cold: { className: 'bg-content-muted', label: 'Frio' },
 }
 
-function PipelineCardBody({ lead, now }: CardBodyProps) {
+function PipelineCardBody({ lead, now, orgName }: CardBodyProps) {
   const isOverdue = lead.nextActionAt !== null && new Date(lead.nextActionAt).getTime() < now.getTime()
   const temperature = lead.temperature ? TEMPERATURE_STYLE[lead.temperature] : null
 
@@ -39,30 +42,31 @@ function PipelineCardBody({ lead, now }: CardBodyProps) {
         {lead.digitalScore !== null ? (
           <span className="rounded-pill bg-white/[0.06] px-1.5 py-0.5 font-mono text-[10px] text-content-secondary">{lead.digitalScore}</span>
         ) : null}
+        <WhatsappLink phone={lead.contactPhone} text={buildGreeting({ contactFirstName: lead.contactFirstName, orgName })} />
       </div>
     </>
   )
 }
 
 /** Cópia estática do card para o `DragOverlay` — nunca chama `useDraggable` (evitaria registrar o mesmo id do card real duas vezes enquanto os dois estão montados durante o arraste). */
-export function PipelineCardPreview({ lead, now }: CardBodyProps) {
+export function PipelineCardPreview({ lead, now, orgName }: CardBodyProps) {
   return (
     <div className="w-72 rounded-lg border border-brand-400/40 bg-surface-card p-3 shadow-float">
-      <PipelineCardBody lead={lead} now={now} />
+      <PipelineCardBody lead={lead} now={now} orgName={orgName} />
     </div>
   )
 }
 
 type PipelineCardProps = CardBodyProps
 
-// Ordem do conteúdo e comportamento: docs/specs/FASE_8_PIPELINE.md → 8.3. O
-// chip de WhatsApp entra na 8.4 (componente ainda não existe nesta tarefa).
+// Ordem do conteúdo e comportamento: docs/specs/FASE_8_PIPELINE.md → 8.3/8.4.
 // `activationConstraint: { distance: 6 }` no PointerSensor (PipelineBoard)
 // garante que um clique sem arrastar chega como navegação normal do `Link`;
 // só o Space participa da ativação/confirmação por teclado (PipelineBoard
 // restringe `keyboardCodes` do KeyboardSensor) — Enter continua sendo
-// "abrir o lead", nunca "iniciar arraste".
-export function PipelineCard({ lead, now }: PipelineCardProps) {
+// "abrir o lead", nunca "iniciar arraste". `WhatsappLink` já faz
+// `stopPropagation` sozinho (não interfere no arraste nem na navegação).
+export function PipelineCard({ lead, now, orgName }: PipelineCardProps) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: lead.id })
 
   return (
@@ -76,7 +80,7 @@ export function PipelineCard({ lead, now }: PipelineCardProps) {
         isDragging ? 'opacity-60' : undefined,
       )}
     >
-      <PipelineCardBody lead={lead} now={now} />
+      <PipelineCardBody lead={lead} now={now} orgName={orgName} />
     </Link>
   )
 }

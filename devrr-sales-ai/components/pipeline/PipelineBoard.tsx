@@ -168,11 +168,11 @@ export function PipelineBoard({ initialColumns, orgName, lostReasonSuggestions, 
       >
         <div className="flex gap-3 overflow-x-auto pb-4">
           {columns.map((column) => (
-            <PipelineColumn key={column.stage.id} column={column} search={search} now={now} />
+            <PipelineColumn key={column.stage.id} column={column} search={search} now={now} orgName={orgName} />
           ))}
         </div>
 
-        <DragOverlay>{activeLead ? <PipelineCardPreview lead={activeLead} now={now} /> : null}</DragOverlay>
+        <DragOverlay>{activeLead ? <PipelineCardPreview lead={activeLead} now={now} orgName={orgName} /> : null}</DragOverlay>
       </DndContext>
 
       {pendingMove ? (

@@ -4,9 +4,12 @@ import { getLeadForDisplay } from '@/lib/queries/leads'
 import { listStages, listLostReasonSuggestions } from '@/lib/queries/catalogs'
 import { listActivitiesForLead } from '@/lib/queries/activities'
 import { getLatestAuditForLead } from '@/lib/queries/digital-audits'
+import { getCurrentOrg } from '@/lib/queries/orgs'
 import { formatBRL } from '@/lib/domain/money'
 import { formatRelativeDateBR } from '@/lib/domain/date'
+import { buildGreeting } from '@/lib/domain/whatsapp'
 import { StageBadge } from '@/components/ui/StageBadge'
+import { WhatsappLink } from '@/components/ui/WhatsappLink'
 import { StageMover } from '@/components/leads/StageMover'
 import { MarkRespondedButton } from '@/components/leads/MarkRespondedButton'
 import { ActivityTimeline } from '@/components/leads/ActivityTimeline'
@@ -30,10 +33,11 @@ interface LeadDetailPageProps {
 
 export default async function LeadDetailPage({ params }: LeadDetailPageProps) {
   const { leadId } = await params
-  const [lead, stages, lostReasonSuggestions] = await Promise.all([
+  const [lead, stages, lostReasonSuggestions, org] = await Promise.all([
     getLeadForDisplay(leadId),
     listStages(),
     listLostReasonSuggestions(),
+    getCurrentOrg(),
   ])
 
   if (!lead) {
@@ -41,6 +45,10 @@ export default async function LeadDetailPage({ params }: LeadDetailPageProps) {
   }
 
   const lostStageId = stages.find((stage) => stage.is_lost)?.id ?? null
+  const contactFirstName = lead.contact.full_name.trim().split(/\s+/)[0] ?? null
+  // requireOrgId() já rodou com sucesso dentro do Promise.all acima (getLeadForDisplay
+  // etc.) — org não pode ser null aqui (mesmo padrão de lib/queries/today.ts).
+  const whatsappGreeting = buildGreeting({ contactFirstName, orgName: org!.name })
 
   const [activities, digitalAudit] = await Promise.all([
     listActivitiesForLead(lead.id),
@@ -80,7 +88,10 @@ export default async function LeadDetailPage({ params }: LeadDetailPageProps) {
           <h1 className="text-xl font-semibold tracking-tight text-content-primary">{lead.title}</h1>
           <p className="mt-1 text-sm text-content-secondary">{lead.contact.full_name}</p>
         </div>
-        <StageBadge label={lead.stage.label} color={lead.stage.color} />
+        <div className="flex flex-col items-end gap-2">
+          <StageBadge label={lead.stage.label} color={lead.stage.color} />
+          <WhatsappLink phone={lead.contact.phone} text={whatsappGreeting} variant="button" />
+        </div>
       </div>
 
       <dl className="mt-6 grid grid-cols-2 gap-4 rounded-lg border border-white/[0.08] bg-surface-elevated p-4 text-sm sm:grid-cols-3">
@@ -184,7 +195,7 @@ export default async function LeadDetailPage({ params }: LeadDetailPageProps) {
             Gera um rascunho com IA para <span className="font-medium">{pendingFollowup.title}</span>. Você revisa, edita e
             copia — nada é enviado automaticamente.
           </p>
-          <FollowupGenerator leadId={lead.id} activityId={pendingFollowup.id} variant="inline" />
+          <FollowupGenerator leadId={lead.id} activityId={pendingFollowup.id} variant="inline" contactPhone={lead.contact.phone} />
         </div>
       ) : null}
 

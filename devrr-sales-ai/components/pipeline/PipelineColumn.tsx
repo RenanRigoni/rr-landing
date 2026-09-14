@@ -10,12 +10,13 @@ interface PipelineColumnProps {
   column: BoardColumn
   search: string
   now: Date
+  orgName: string
 }
 
 // A busca filtra só os cards renderizados — os totais do cabeçalho continuam
 // do funil inteiro da coluna (docs/specs/FASE_8_PIPELINE.md → 8.3: "não
 // altera totais das colunas").
-export function PipelineColumn({ column, search, now }: PipelineColumnProps) {
+export function PipelineColumn({ column, search, now, orgName }: PipelineColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: column.stage.id })
   const { stage } = column
   const isClosed = stage.isWon || stage.isLost
@@ -53,7 +54,7 @@ export function PipelineColumn({ column, search, now }: PipelineColumnProps) {
 
       <div className="space-y-2 p-2">
         {visibleLeads.map((lead) => (
-          <PipelineCard key={lead.id} lead={lead} now={now} />
+          <PipelineCard key={lead.id} lead={lead} now={now} orgName={orgName} />
         ))}
       </div>
     </div>

@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { generateFollowupMessage, applyFollowupMessage, discardAiRun } from '@/lib/actions/ai-followup'
 import { cn } from '@/lib/utils/cn'
+import { WhatsappLink } from '@/components/ui/WhatsappLink'
 
 interface FollowupGeneratorProps {
   leadId: string
@@ -11,6 +12,8 @@ interface FollowupGeneratorProps {
   activityId: string
   /** Layout do painel de revisão: `dropdown` flutua sobre a linha (tela de hoje); `inline` empilha (tela do lead). */
   variant?: 'dropdown' | 'inline'
+  /** Telefone do contato — habilita "Abrir no WhatsApp" com o texto editado atual (8.4). `null`/ausente não mostra o botão. */
+  contactPhone?: string | null
 }
 
 interface DraftState {
@@ -37,7 +40,7 @@ const TONE_LABEL: Record<string, string> = {
  * na textarea vai para a action e é revalidado lá (`messageSchema`) — o
  * servidor não confia no que vem do browser.
  */
-export function FollowupGenerator({ leadId, activityId, variant = 'dropdown' }: FollowupGeneratorProps) {
+export function FollowupGenerator({ leadId, activityId, variant = 'dropdown', contactPhone = null }: FollowupGeneratorProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [draft, setDraft] = useState<DraftState | null>(null)
@@ -157,6 +160,7 @@ export function FollowupGenerator({ leadId, activityId, variant = 'dropdown' }: 
             >
               {copied ? 'Copiado!' : 'Copiar'}
             </button>
+            <WhatsappLink phone={contactPhone} text={message} variant="button" label="Abrir no WhatsApp" />
             <button
               type="button"
               disabled={isPending}
