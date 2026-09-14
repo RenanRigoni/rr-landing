@@ -105,11 +105,22 @@ via `tsx` com `SUPABASE_SERVICE_ROLE_KEY` (lida de `.env.local`). Ver
 `docs/IMPLEMENTATION_PLAN.md` → 6.1 e `docs/DECISIONS.md` → D-032.
 
 ```bash
-npm run seed:demo              # cria/recarrega a org "devrr-demo": 12 contatos, 18 leads, ~40 atividades
+npm run seed:demo              # cria/recarrega a org "devrr-demo": 104 contatos, 107 leads, ~540 atividades, ~50 dossiês
 npm run seed:purge             # mostra quantas linhas is_demo existem (não apaga nada)
-npm run seed:purge -- --yes    # apaga todo dado is_demo de contacts/leads/activities
+npm run seed:purge -- --yes    # apaga todo dado is_demo de contacts/leads/activities (dossiês saem por cascata)
 ```
 
+- **Conteúdo — demo comercial da DevRR:** ~100 empresas reais de Uberlândia e
+  Patrocínio (nome fantasia público) prospectadas nos nichos estética,
+  odontologia, móveis planejados, climatização, energia solar e agências de
+  viagem (`demo-companies.ts`), com funil simulado de ~6 meses
+  (`demo-prospects.ts`). Os únicos `ganho` são clientes reais da DevRR
+  (`demo-clients.ts`: Social Ternos, Maria Amélia, Alicerce, Madri) — valores e
+  datas estimados. Pessoas de contato, telefones (`+55 34 90000-XXXX`) e e-mails
+  (`@exemplo.com.br`) são fictícios. Dossiês só nos leads de "Prospecção
+  ativa", sem nota do Google nem PageSpeed (consultar ao vivo no dossiê).
+- **Datas relativas a hoje:** rodar de novo deixa "Ações de hoje" com
+  pendências atrasadas, do dia e futuras. Gerador determinístico (semente fixa).
 - **Idempotente:** cada `seed:demo` apaga o dado `is_demo` da org e reinsere.
   Tudo entra com `is_demo = true`.
 - **`purge` só toca `is_demo`** — nunca dado real. Não remove a org demo nem os

@@ -2,27 +2,29 @@ import './load-env'
 import { randomUUID } from 'node:crypto'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '../../lib/types/database.types'
-import { resolveNextAction } from '../../lib/domain/followup'
 import { createSeedClient } from './client'
 import {
-  buildDemoActivities,
-  buildDemoContacts,
-  buildDemoLeads,
-  DEMO_CONTACT_COUNT,
-  DEMO_LEAD_COUNT,
+  buildDemoDataset,
   DEMO_ORG,
+  DEMO_SOURCE_NAMES,
   DEMO_STAGE_KEYS,
+  PROSPECTING_SOURCE,
+  type DemoSourceName,
   type DemoStageKey,
 } from './demo-data'
 
 type SeedClient = SupabaseClient<Database, 'sales'>
 
+const INSERT_CHUNK = 200
+
 /**
  * `npm run seed:demo` — cria (ou recarrega) a organização de demonstração
- * `devrr-demo` com 12 contatos, 18 leads espalhados pelos estágios e
- * atividades com datas realistas (atrasadas, de hoje, futuras e histórico).
- * Tudo com `is_demo = true`. Idempotente: cada execução apaga o dado demo
- * anterior da org e insere de novo. Ver docs/IMPLEMENTATION_PLAN.md → 6.1.
+ * `devrr-demo` com o funil comercial simulado da DevRR: ~100 empresas de
+ * Uberlândia/Patrocínio prospectadas + clientes reais fechados, atividades
+ * com datas realistas e dossiês digitais dos leads de prospecção ativa.
+ * Contacts/leads/activities com `is_demo = true`; os dossiês saem junto por
+ * cascata de `leads`. Idempotente: cada execução apaga o dado demo anterior
+ * da org e insere de novo. Ver docs/IMPLEMENTATION_PLAN.md → 6.1.
  *
  * Só mexe em `is_demo = true`. Nunca toca dado real.
  */
@@ -36,57 +38,23 @@ async function main(): Promise<void> {
   await linkOwnerIfRequested(db, orgId)
 
   const stageIdByKey = await loadStageIds(db, orgId)
+  const sourceIdByName = await loadSourceIds(db, orgId)
+  const followupRuleIdByStep = await loadFollowupRuleIds(db, orgId, stageIdByKey.proposta_enviada)
   await clearDemoData(db, orgId)
 
-  const contactIds = Array.from({ length: DEMO_CONTACT_COUNT }, () => randomUUID())
-  const leadIds = Array.from({ length: DEMO_LEAD_COUNT }, () => randomUUID())
+  const dataset = buildDemoDataset({ now, newId: randomUUID, stageIdByKey, sourceIdByName, followupRuleIdByStep })
 
-  const contacts = buildDemoContacts(contactIds).map((row) => ({
-    ...row,
-    org_id: orgId,
-    is_demo: true,
-  }))
-  const insertContacts = await db.from('contacts').insert(contacts)
-  if (insertContacts.error) throw insertContacts.error
-
-  const leads = buildDemoLeads({ ids: leadIds, contactIds, stageIdByKey, now })
-  const insertLeads = await db.from('leads').insert(
-    leads.map((row) => ({
-      id: row.id,
-      org_id: orgId,
-      is_demo: true,
-      contact_id: row.contact_id,
-      title: row.title,
-      interest: row.interest,
-      stage_id: row.stage_id,
-      status: row.status,
-      temperature: row.temperature,
-      value_cents: row.value_cents,
-      currency: row.currency,
-      last_contact_at: row.last_contact_at,
-      closed_at: row.closed_at,
-    })),
+  await insertChunked(db, 'contacts', dataset.contacts.map((row) => ({ ...row, org_id: orgId, is_demo: true })))
+  await insertChunked(
+    db,
+    'leads',
+    dataset.leads.map(({ stageKey: _stageKey, companyName: _companyName, ...row }) => ({ ...row, org_id: orgId, is_demo: true })),
   )
-  if (insertLeads.error) throw insertLeads.error
-
-  const activities = buildDemoActivities({
-    leads: leads.map((lead) => ({
-      id: lead.id,
-      contactId: lead.contact_id,
-      status: lead.status,
-      stageKey: lead.stageKey,
-    })),
-    now,
-  })
-  const insertActivities = await db
-    .from('activities')
-    .insert(activities.map((row) => ({ ...row, org_id: orgId, is_demo: true })))
-  if (insertActivities.error) throw insertActivities.error
-
-  await refreshNextActionCache(db, orgId, leads, activities)
+  await insertChunked(db, 'activities', dataset.activities.map((row) => ({ ...row, org_id: orgId, is_demo: true })))
+  await insertChunked(db, 'lead_digital_audits', dataset.audits.map((row) => ({ ...row, org_id: orgId })))
 
   console.log(
-    `Inserido: ${contacts.length} contatos, ${leads.length} leads, ${activities.length} atividades.`,
+    `Inserido: ${dataset.contacts.length} contatos, ${dataset.leads.length} leads, ${dataset.activities.length} atividades, ${dataset.audits.length} dossiês.`,
   )
   console.log('Seed de demonstração concluído.')
 }
@@ -151,7 +119,43 @@ async function loadStageIds(db: SeedClient, orgId: string): Promise<Record<DemoS
   return Object.fromEntries(entries) as Record<DemoStageKey, string>
 }
 
-/** Remove só o dado demo desta org, na ordem de FK (as cascatas cobririam, mas explícito deixa claro que nada além de `is_demo` é tocado). */
+/** Fontes padrão vêm de `seed_org_defaults`; "Prospecção ativa" é catálogo extra só da org demo (upsert idempotente). */
+async function loadSourceIds(db: SeedClient, orgId: string): Promise<Record<DemoSourceName, string>> {
+  const upserted = await db
+    .from('lead_sources')
+    .upsert({ org_id: orgId, name: PROSPECTING_SOURCE, position: 6 }, { onConflict: 'org_id,name', ignoreDuplicates: true })
+  if (upserted.error) throw upserted.error
+
+  const sources = await db.from('lead_sources').select('id, name').eq('org_id', orgId)
+  if (sources.error) throw sources.error
+
+  const byName = new Map(sources.data.map((s) => [s.name, s.id]))
+  const entries = DEMO_SOURCE_NAMES.map((name) => {
+    const id = byName.get(name)
+    if (!id) throw new Error(`Fonte "${name}" ausente na org demo.`)
+    return [name, id] as const
+  })
+  return Object.fromEntries(entries) as Record<DemoSourceName, string>
+}
+
+async function loadFollowupRuleIds(db: SeedClient, orgId: string, propostaStageId: string): Promise<Record<1 | 2 | 3, string>> {
+  const rules = await db
+    .from('followup_rules')
+    .select('id, step_number')
+    .eq('org_id', orgId)
+    .eq('trigger_stage_id', propostaStageId)
+  if (rules.error) throw rules.error
+
+  const byStep = new Map(rules.data.map((r) => [r.step_number, r.id]))
+  const entries = ([1, 2, 3] as const).map((step) => {
+    const id = byStep.get(step)
+    if (!id) throw new Error(`Regra de follow-up passo ${step} ausente na org demo.`)
+    return [step, id] as const
+  })
+  return Object.fromEntries(entries) as Record<1 | 2 | 3, string>
+}
+
+/** Remove só o dado demo desta org, na ordem de FK. `lead_digital_audits` não tem `is_demo` — sai pela cascata de `leads`. */
 async function clearDemoData(db: SeedClient, orgId: string): Promise<void> {
   for (const table of ['activities', 'leads', 'contacts'] as const) {
     const deleted = await db.from(table).delete().eq('org_id', orgId).eq('is_demo', true)
@@ -159,21 +163,16 @@ async function clearDemoData(db: SeedClient, orgId: string): Promise<void> {
   }
 }
 
-/** `leads.next_action_at` é cache mantido pela aplicação (D-006). No seed, recalcula com o mesmo helper de domínio a partir das atividades pendentes. */
-async function refreshNextActionCache(
+type InsertableTable = 'contacts' | 'leads' | 'activities' | 'lead_digital_audits'
+
+async function insertChunked<T extends InsertableTable>(
   db: SeedClient,
-  orgId: string,
-  leads: ReadonlyArray<{ id: string }>,
-  activities: ReadonlyArray<{ lead_id: string; status: 'pending' | 'done' | 'cancelled'; due_at: string | null }>,
+  table: T,
+  rows: ReadonlyArray<Database['sales']['Tables'][T]['Insert']>,
 ): Promise<void> {
-  for (const lead of leads) {
-    const next = resolveNextAction(activities.filter((a) => a.lead_id === lead.id))
-    const updated = await db
-      .from('leads')
-      .update({ next_action_at: next ? next.toISOString() : null })
-      .eq('org_id', orgId)
-      .eq('id', lead.id)
-    if (updated.error) throw updated.error
+  for (let start = 0; start < rows.length; start += INSERT_CHUNK) {
+    const inserted = await db.from(table).insert(rows.slice(start, start + INSERT_CHUNK) as never)
+    if (inserted.error) throw new Error(`Insert em ${table} falhou: ${inserted.error.message}`)
   }
 }
 
