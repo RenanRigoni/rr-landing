@@ -168,37 +168,37 @@ export interface NicheService {
   max: number
 }
 
-/** Serviços que a DevRR oferece em cada nicho prospectado, com faixa de preço de interior de MG. */
+/** Serviços que a DevRR oferece em cada nicho prospectado. Tabela da DevRR: landing page a partir de R$ 1.200, sistemas a partir de R$ 3.000. */
 export const NICHE_SERVICES: Record<Exclude<DemoNiche, 'varejo' | 'saude'>, readonly NicheService[]> = {
   estetica: [
-    { title: 'Landing page de procedimentos', interest: 'Landing page', min: 2200, max: 3800 },
-    { title: 'Site com agendamento online', interest: 'Sistema de agendamento', min: 5500, max: 9000 },
-    { title: 'Google Meu Negócio + SEO local', interest: 'SEO local', min: 1200, max: 2200 },
+    { title: 'Landing page de procedimentos', interest: 'Landing page', min: 1200, max: 2200 },
+    { title: 'Site com agendamento online', interest: 'Sistema de agendamento', min: 3000, max: 5000 },
+    { title: 'Google Meu Negócio + SEO local', interest: 'SEO local', min: 900, max: 1500 },
   ],
   odonto: [
-    { title: 'Site com página por tratamento', interest: 'Website', min: 3500, max: 6500 },
-    { title: 'Landing page de implantes e lentes', interest: 'Landing page', min: 2400, max: 3800 },
-    { title: 'Agendamento online de avaliações', interest: 'Sistema de agendamento', min: 6000, max: 11000 },
+    { title: 'Site com página por tratamento', interest: 'Website', min: 1800, max: 3200 },
+    { title: 'Landing page de implantes e lentes', interest: 'Landing page', min: 1200, max: 2200 },
+    { title: 'Agendamento online de avaliações', interest: 'Sistema de agendamento', min: 3000, max: 5500 },
   ],
   moveis: [
-    { title: 'Catálogo digital de projetos', interest: 'Website', min: 3000, max: 5500 },
-    { title: 'Landing page de captação de orçamentos', interest: 'Landing page', min: 2200, max: 3500 },
-    { title: 'CRM próprio de orçamentos e obras', interest: 'CRM próprio', min: 7000, max: 14000 },
+    { title: 'Catálogo digital de projetos', interest: 'Website', min: 1800, max: 3000 },
+    { title: 'Landing page de captação de orçamentos', interest: 'Landing page', min: 1200, max: 2000 },
+    { title: 'CRM próprio de orçamentos e obras', interest: 'CRM próprio', min: 3500, max: 7000 },
   ],
   climatizacao: [
-    { title: 'Site com orçamento via WhatsApp', interest: 'Website', min: 2500, max: 4200 },
-    { title: 'Agenda de instalação e manutenção (PMOC)', interest: 'Sistema de agendamento', min: 6000, max: 10000 },
-    { title: 'Google Meu Negócio + SEO local', interest: 'SEO local', min: 1200, max: 2000 },
+    { title: 'Site com orçamento via WhatsApp', interest: 'Website', min: 1500, max: 2600 },
+    { title: 'Agenda de instalação e manutenção (PMOC)', interest: 'Sistema de agendamento', min: 3000, max: 5000 },
+    { title: 'Google Meu Negócio + SEO local', interest: 'SEO local', min: 900, max: 1500 },
   ],
   solar: [
-    { title: 'Simulador de economia na conta de luz', interest: 'Landing page', min: 4500, max: 8000 },
-    { title: 'CRM próprio de propostas solares', interest: 'CRM próprio', min: 8000, max: 15000 },
-    { title: 'Site institucional com cases de usinas', interest: 'Website', min: 3800, max: 6500 },
+    { title: 'Simulador de economia na conta de luz', interest: 'Landing page', min: 1800, max: 3000 },
+    { title: 'CRM próprio de propostas solares', interest: 'CRM próprio', min: 3500, max: 7500 },
+    { title: 'Site institucional com cases de usinas', interest: 'Website', min: 2000, max: 3500 },
   ],
   viagens: [
-    { title: 'Vitrine de pacotes com WhatsApp', interest: 'Website', min: 3500, max: 6000 },
-    { title: 'Landing page de pacote temático', interest: 'Landing page', min: 1800, max: 3000 },
-    { title: 'Automação de atendimento no WhatsApp', interest: 'Automação', min: 4000, max: 7500 },
+    { title: 'Vitrine de pacotes com WhatsApp', interest: 'Website', min: 1800, max: 3200 },
+    { title: 'Landing page de pacote temático', interest: 'Landing page', min: 1200, max: 1800 },
+    { title: 'Automação de atendimento no WhatsApp', interest: 'Automação', min: 3000, max: 4500 },
   ],
 }
 
