@@ -4990,7 +4990,7 @@ percepção de quem vê a demo, pesado pelo risco de schema.
 
 | Fase | Módulo | Status / por que nesta posição |
 |---|---|---|
-| 8 | Kanban `/pipeline`, motivo de perda obrigatório, botão WhatsApp (`wa.me`), previsão ponderada | **Especificada** — `docs/specs/FASE_8_PIPELINE.md`. Maior impacto visual, zero migration |
+| 8 | Kanban `/pipeline`, motivo de perda obrigatório, botão WhatsApp (`wa.me`), previsão ponderada | **Concluída** (2026-09-15) — `docs/specs/FASE_8_PIPELINE.md`, tarefas 8.1–8.6, um commit por tarefa. Ver D-043 a D-046 |
 | 9 | Histórico de etapas + tela de configurações + busca global | Candidata. Base "profissional": tempo em cada etapa e funil exato dos perdidos (hoje inferido por atividades), cliente ajusta etapas/origens/motivos/follow-up sem mexer no banco. Precisa de tabela nova e backfill |
 | 10 | Propostas em PDF | Candidata. Fecha o ciclo lead → proposta → fechamento. Precisa de catálogo de serviços, template, geração server-side e storage. **Sobe para 9 se houver apresentação a cliente nas próximas semanas** |
 | 11 | Equipe e responsável pelo lead | Convite de usuário, coluna de responsável em `leads`, visibilidade por papel (RLS), ranking por vendedor. Necessário ao vender para empresa com mais de um vendedor |

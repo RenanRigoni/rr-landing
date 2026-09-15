@@ -1592,6 +1592,108 @@ existia sem ninguém ver.
 
 ---
 
+## D-043 — Kanban com `@dnd-kit/core`, ordem derivada
+
+**Data:** 2026-09-15 · **Status:** decidido, tarefa 8.3
+
+Só o pacote `core` (teclado + ponteiro + anúncios acessíveis) — sem
+`@dnd-kit/sortable`. Não há ordenação manual dentro da coluna: a ordem é
+derivada (`nextActionAt` asc, depois `valueCents` desc nas abertas; `closedAt`
+desc nas fechadas), então não existe (e não precisa existir) coluna `position`
+em `leads`. Colunas de estágio `is_won`/`is_lost` mostram só os fechados dos
+últimos 30 dias (`CLOSED_WINDOW_DAYS`, `lib/domain/pipeline-board.ts`), com
+`hiddenCount` no rótulo — sem isso o quadro cresceria sem limite conforme a
+organização fecha negócios.
+
+**Por quê:** o arraste é otimista (`moveLeadOnBoard`, imutável) com rollback
+em erro — a mesma Server Action `moveStage` da página do lead resolve a
+transição (uma regra de mudança de estágio só, não duas). `PointerSensor` com
+`activationConstraint: { distance: 6 }` deixa um clique sem arrastar virar
+navegação normal do `Link` do card; o `KeyboardSensor` é restrito a
+`Space` (não `Enter`) para ativar/confirmar o arraste, porque o card
+também é um link de verdade e o padrão do dnd-kit inclui `Enter` nos dois
+papéis — colidiria com "Enter abre o lead".
+
+**Descartado:** `@dnd-kit/sortable` (ordenação manual não está no MVP — a
+9.x já lista "histórico de etapas" como próxima base, e ordenação manual
+competiria com a ordenação por prioridade que o quadro já oferece).
+
+**Custo aceito:** navegação por teclado entre colunas distantes exige várias
+pressões de seta (o `coordinateGetter` default do dnd-kit move 25px por
+tecla) — aceitável para um MVP que prioriza operabilidade completa por
+teclado sobre velocidade de navegação por teclado.
+
+---
+
+## D-044 — Motivo de perda obrigatório na transição para Perdido
+
+**Data:** 2026-09-15 · **Status:** decidido, tarefa 8.2
+
+`moveStageCore` (`lib/actions/leads-core.ts`) valida o motivo com
+`lostReasonSchema` (`lib/validation/leads.ts`, 3–200 caracteres) **antes** de
+qualquer `update` quando o estágio de destino é `is_lost` — não só na UI
+(`LostReasonDialog`). Reabrir (mover para qualquer outro estágio) sempre
+limpa `lost_reason`, mesmo que o chamador envie um por engano.
+
+**Por quê:** o Kanban tornaria perder um lead um único clique de arrastar —
+sem a validação no core, o motivo viraria opcional na prática (quem arrasta
+não vê formulário nenhum a menos que o componente cliente sempre force um).
+Validar no servidor garante a regra mesmo se um futuro caminho de escrita
+pular a UI.
+
+**Descartado:** tabela de catálogo para motivos de perda — texto livre com
+sugestão dos mais usados (`listLostReasonSuggestions`, `lib/queries/catalogs.ts`)
+resolve o caso de uso sem schema novo; catálogo de verdade entra quando
+existir tela de configurações (candidata na Fase 9).
+
+**Custo aceito:** motivos digitados livremente divergem em grafia
+("Sem retorno" vs. "sem retorno do cliente") — aceitável até existir
+catálogo; a sugestão por frequência já reduz a divergência na prática.
+
+---
+
+## D-045 — WhatsApp por click-to-chat (`wa.me`), sem registro automático
+
+**Data:** 2026-09-15 · **Status:** decidido, tarefa 8.4 · **Reafirma:** D-010
+
+`WhatsappLink` (`components/ui/WhatsappLink.tsx`) abre `https://wa.me/<telefone>`
+com texto pré-preenchido opcional. Nenhum clique registra atividade ou marca
+follow-up como enviado — o app não tem como saber se a mensagem foi enviada
+de verdade.
+
+**Por quê:** D-010 já descartou a Cloud API para o MVP (aprovação de
+template, janela de 24h, verificação de negócio — semanas de trabalho que não
+testam a hipótese central do produto). O botão de abrir conversa é a
+evolução natural do fluxo "copiar → colar → marcar como enviada" que D-010
+já previa, sem mudar a garantia: o humano continua sendo quem confirma o
+envio.
+
+**Custo aceito:** nenhum dado sobre entrega/leitura da mensagem entra no
+produto. Integração oficial (Cloud API) continua no roadmap (Fase 15).
+
+---
+
+## D-046 — Previsão ponderada = valor aberto × `pipeline_stages.probability`
+
+**Data:** 2026-09-15 · **Status:** decidido, tarefas 8.1/8.5
+
+`weightedCents(valueCents, probability)` (`lib/domain/pipeline-board.ts`) é a
+única função que pondera valor por probabilidade — usada lead a lead tanto em
+`buildBoardColumns` (cabeçalho do `/pipeline`) quanto em `computeForecast`
+(`lib/domain/analytics.ts`, StatTile e card "Previsão por etapa" do
+`/analytics`).
+
+**Por quê:** ponderar lead a lead e somar (em vez de somar os valores da
+etapa e ponderar a soma uma vez) é o que faz o total do Analytics bater
+exatamente com o do Pipeline mesmo com arredondamento — os dois cálculos
+processam o mesmo conjunto de leads abertos, então uma função só, chamada do
+mesmo jeito nos dois lugares, garante que nunca divergem por acidente.
+
+**Custo aceito:** nenhum — é estritamente mais simples que manter duas
+implementações do mesmo cálculo sincronizadas à mão.
+
+---
+
 ## Questões abertas
 
 Sonnet: adicione aqui o que travar. Opus resolve no próximo checkpoint.

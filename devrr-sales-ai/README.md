@@ -11,6 +11,16 @@ cp .env.example .env.local   # preencher com as credenciais reais
 npm run dev
 ```
 
+## Telas
+
+| Rota | O que é |
+|---|---|
+| `/today` | Ações de hoje — tela principal do MVP |
+| `/pipeline` | Kanban do funil, arraste entre estágios, previsão ponderada (Fase 8) |
+| `/leads`, `/leads/new`, `/leads/[leadId]` | lista, cadastro e detalhe do lead |
+| `/leads/[leadId]/dossie` | dossiê digital do lead |
+| `/analytics` | KPIs, funil, evolução mensal, previsão por etapa (Fase 8) |
+
 ## Deploy (Vercel — projeto `devrr-sales-ai`)
 
 Projeto Vercel próprio, **separado** do `rr-landing` (raiz do repo) e do

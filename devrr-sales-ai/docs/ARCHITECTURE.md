@@ -137,6 +137,8 @@ app/(app)/layout.tsx                shell autenticado, middleware protege o grup
 app/(app)/today                     Ações de hoje  ← tela principal do MVP
 app/(app)/leads                     lista + filtros
 app/(app)/leads/[leadId]            detalhe: dados, histórico, follow-ups, IA
+app/(app)/pipeline                  Kanban do funil, arraste, previsão ponderada (Fase 8)
+app/(app)/analytics                 KPIs, funil, evolução mensal, previsão por etapa (Fase 8)
 app/(app)/contacts                  contatos
 app/(app)/settings/*                pipeline, fontes, regras de follow-up, prompts
 app/api/cron/*                      cron Vercel, protegido por CRON_SECRET
