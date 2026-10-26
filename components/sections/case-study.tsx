@@ -90,7 +90,7 @@ export function CaseStudy() {
             <div className="card-border-brand rounded-2xl p-px mt-2">
               <div className="bg-surface-card rounded-[1rem] p-5">
                 <p className="text-sm font-medium text-content-muted mb-1">Pacote utilizado</p>
-                <p className="font-semibold text-lg text-content-primary">Presença Profissional: R$ 1.797</p>
+                <p className="font-semibold text-lg text-content-primary">Presença Profissional: R$ 1.297</p>
                 <p className="text-content-secondary text-sm mt-1">Resultado visível na 2ª semana após entrega</p>
               </div>
             </div>
