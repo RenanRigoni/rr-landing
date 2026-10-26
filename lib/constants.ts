@@ -4,13 +4,13 @@ export const SITE_CONFIG = {
   description:
     'Criação de sites e landing pages para negócios locais em todo o Brasil. Google Empresa, presença digital completa e entrega em 7 dias. Atendimento online. Fale no WhatsApp.',
   url: 'https://rr-dev.vercel.app', // trocar pelo domínio final
-  city: 'Patrocínio',
+  city: 'Uberlândia',
   state: 'MG',
   phone: '34991415238',
   email: 'renan.rigoni@gmail.com',
   whatsappMessage: 'Olá! Vim pelo site e quero saber mais sobre os serviços.',
-  lat: '-18.9442',
-  lng: '-46.9928',
+  lat: '-18.9186',
+  lng: '-48.2772',
 } as const
 
 export const WHATSAPP_URL = `https://wa.me/55${SITE_CONFIG.phone}?text=${encodeURIComponent(

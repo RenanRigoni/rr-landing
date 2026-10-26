@@ -26,7 +26,7 @@ export function LinkBioMock() {
       </div>
       <div className="text-center">
         <p className="text-white font-semibold text-sm">Bela Estética</p>
-        <p className="text-white/40 text-[10px]">@bela.estetica · Patrocínio, MG</p>
+        <p className="text-white/40 text-[10px]">@bela.estetica · Uberlândia, MG</p>
       </div>
       <div className="w-full flex flex-col gap-2 mt-1">
         <div className="flex items-center gap-2 bg-green-500/20 border border-green-500/30 rounded-xl px-3 py-2.5 cursor-pointer">
@@ -239,7 +239,7 @@ export function AvaliacoesMock() {
           </div>
           <div>
             <p className="text-zinc-800 font-semibold text-[11px]">Bela Estética</p>
-            <p className="text-zinc-400 text-[9px]">Patrocínio, MG · Aberto agora</p>
+            <p className="text-zinc-400 text-[9px]">Uberlândia, MG · Aberto agora</p>
           </div>
         </div>
         <div className="flex items-center gap-2 mt-3">
