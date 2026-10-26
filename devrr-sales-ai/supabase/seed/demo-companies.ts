@@ -168,36 +168,36 @@ export interface NicheService {
   max: number
 }
 
-/** Serviços que a DevRR oferece em cada nicho prospectado. Tabela da DevRR: landing page a partir de R$ 1.200, sistemas a partir de R$ 3.000. */
+/** Serviços que a DevRR oferece em cada nicho prospectado. Tabela da DevRR (devrigoni.com.br): Google Empresa a partir de R$ 397, landing page a partir de R$ 1.297, site multi-página a partir de R$ 2.497, CRM a partir de R$ 2.497, sistemas a partir de R$ 5.997. */
 export const NICHE_SERVICES: Record<Exclude<DemoNiche, 'varejo' | 'saude'>, readonly NicheService[]> = {
   estetica: [
-    { title: 'Landing page de procedimentos', interest: 'Landing page', min: 1200, max: 2200 },
-    { title: 'Site com agendamento online', interest: 'Sistema de agendamento', min: 3000, max: 5000 },
-    { title: 'Google Meu Negócio + SEO local', interest: 'SEO local', min: 900, max: 1500 },
+    { title: 'Landing page de procedimentos', interest: 'Landing page', min: 1300, max: 1900 },
+    { title: 'Site com agendamento online', interest: 'Sistema de agendamento', min: 2900, max: 4500 },
+    { title: 'Google Meu Negócio + SEO local', interest: 'SEO local', min: 400, max: 800 },
   ],
   odonto: [
-    { title: 'Site com página por tratamento', interest: 'Website', min: 1800, max: 3200 },
-    { title: 'Landing page de implantes e lentes', interest: 'Landing page', min: 1200, max: 2200 },
-    { title: 'Agendamento online de avaliações', interest: 'Sistema de agendamento', min: 3000, max: 5500 },
+    { title: 'Site com página por tratamento', interest: 'Website', min: 2500, max: 3500 },
+    { title: 'Landing page de implantes e lentes', interest: 'Landing page', min: 1300, max: 1900 },
+    { title: 'Agendamento online de avaliações', interest: 'Sistema de agendamento', min: 2900, max: 4500 },
   ],
   moveis: [
-    { title: 'Catálogo digital de projetos', interest: 'Website', min: 1800, max: 3000 },
-    { title: 'Landing page de captação de orçamentos', interest: 'Landing page', min: 1200, max: 2000 },
+    { title: 'Catálogo digital de projetos', interest: 'Website', min: 2500, max: 3200 },
+    { title: 'Landing page de captação de orçamentos', interest: 'Landing page', min: 1300, max: 1800 },
     { title: 'CRM próprio de orçamentos e obras', interest: 'CRM próprio', min: 3500, max: 7000 },
   ],
   climatizacao: [
-    { title: 'Site com orçamento via WhatsApp', interest: 'Website', min: 1500, max: 2600 },
+    { title: 'Site com orçamento via WhatsApp', interest: 'Website', min: 1300, max: 2200 },
     { title: 'Agenda de instalação e manutenção (PMOC)', interest: 'Sistema de agendamento', min: 3000, max: 5000 },
-    { title: 'Google Meu Negócio + SEO local', interest: 'SEO local', min: 900, max: 1500 },
+    { title: 'Google Meu Negócio + SEO local', interest: 'SEO local', min: 400, max: 800 },
   ],
   solar: [
-    { title: 'Simulador de economia na conta de luz', interest: 'Landing page', min: 1800, max: 3000 },
+    { title: 'Simulador de economia na conta de luz', interest: 'Landing page', min: 1600, max: 2600 },
     { title: 'CRM próprio de propostas solares', interest: 'CRM próprio', min: 3500, max: 7500 },
-    { title: 'Site institucional com cases de usinas', interest: 'Website', min: 2000, max: 3500 },
+    { title: 'Site institucional com cases de usinas', interest: 'Website', min: 2500, max: 3500 },
   ],
   viagens: [
-    { title: 'Vitrine de pacotes com WhatsApp', interest: 'Website', min: 1800, max: 3200 },
-    { title: 'Landing page de pacote temático', interest: 'Landing page', min: 1200, max: 1800 },
+    { title: 'Vitrine de pacotes com WhatsApp', interest: 'Website', min: 2000, max: 3000 },
+    { title: 'Landing page de pacote temático', interest: 'Landing page', min: 1300, max: 1800 },
     { title: 'Automação de atendimento no WhatsApp', interest: 'Automação', min: 3000, max: 4500 },
   ],
 }
